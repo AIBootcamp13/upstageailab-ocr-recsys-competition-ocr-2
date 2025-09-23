@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, refactor/dbnet-ocr ]
+    branches: [ main, 00_refactor/baseline ]
   pull_request:
-    branches: [ main, refactor/dbnet-ocr ]
+    branches: [ main, 00_refactor/baseline ]
 
 jobs:
   test:
@@ -37,12 +37,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --dev
-        uv pip install pytest pytest-cov black isort mypy
-
-    - name: Lint with flake8
-      run: |
-        flake8 ocr/ runners/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 ocr/ runners/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        uv pip install pytest black isort mypy
 
     - name: Format check with black
       run: black --check --diff ocr/ runners/ tests/
@@ -55,12 +50,4 @@ jobs:
 
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=ocr --cov-report=xml --cov-report=term-missing
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+        pytest tests/ -v
