@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ocr-dev
+    volumes:
+      - .:/workspaces:cached
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ~/.ssh:/home/vscode/.ssh:ro
+    working_dir: /workspaces
+    environment:
+      - DISPLAY=${DISPLAY}
+      - UV_LINK_MODE=copy
+    ports:
+      - "8000:8000"   # Web interface/API
+      - "8501:8501"   # Streamlit (if used)
+      - "6006:6006"   # TensorBoard
+      - "2222:22"     # SSH access
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    command: sleep infinity
+    profiles:
+      - dev
+
+  # Lightweight version without CUDA (for systems without NVIDIA GPU)
+  dev-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    container_name: ocr-dev-cpu
+    volumes:
+      - .:/workspaces:cached
+      - ~/.ssh:/home/vscode/.ssh:ro
+    working_dir: /workspaces
+    environment:
+      - UV_LINK_MODE=copy
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+      - "2222:22"     # SSH access
+    command: sleep infinity
+    profiles:
+      - cpu
