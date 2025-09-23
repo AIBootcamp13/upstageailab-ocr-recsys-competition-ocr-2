@@ -22,9 +22,9 @@ class TextRenderer:
             config: Configuration for text rendering
         """
         self.config: Union[DictConfig, Dict[str, Any]] = config or {}
-        self.font_cache: dict[tuple[str, int], "ImageFont.FreeTypeFont"] = {}
+        self.font_cache: dict[tuple[str, int], Any] = {}
 
-    def _get_font(self, font_path: str, size: int) -> ImageFont.FreeTypeFont:
+    def _get_font(self, font_path: str, size: int) -> Any:
         """Get cached font or load new one.
 
         Args:
@@ -37,7 +37,7 @@ class TextRenderer:
         cache_key = (font_path, size)
         if cache_key not in self.font_cache:
             try:
-                self.font_cache[cache_key] = ImageFont.truetype(font_path, size)
+                self.font_cache[cache_key] = ImageFont.truetype(font_path, size)  # type: ignore
             except OSError:
                 # Fallback to default font
                 self.font_cache[cache_key] = ImageFont.load_default()

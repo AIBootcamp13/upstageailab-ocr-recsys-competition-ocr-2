@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from omegaconf import DictConfig
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 try:
     import albumentations as A
