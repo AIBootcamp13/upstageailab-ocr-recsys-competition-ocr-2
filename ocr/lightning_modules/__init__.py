@@ -1,6 +1,7 @@
-from ocr.models import get_model_by_cfg
 from ocr.datasets import get_datasets_by_cfg
-from .ocr_pl import OCRPLModule, OCRDataPLModule
+from ocr.models import get_model_by_cfg
+
+from .ocr_pl import OCRDataPLModule, OCRPLModule
 
 
 def get_pl_modules_by_cfg(config):

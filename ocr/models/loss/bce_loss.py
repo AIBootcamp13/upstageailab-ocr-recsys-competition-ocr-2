@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * Modified from https://github.com/MhLiao/DB/blob/master/decoders/balance_cross_entropy_loss.py
 *
@@ -9,7 +9,7 @@
 * 참고 Repository:
 * https://github.com/MhLiao/DB/
 *****************************************************************************************
-'''
+"""
 
 import torch
 import torch.nn as nn
@@ -27,13 +27,16 @@ class BCELoss(nn.Module):
         positive = (gt * mask).byte()
         negative = ((1 - gt) * mask).byte()
         positive_count = int(positive.float().sum())
-        negative_count = min(int(negative.float().sum()), int(positive_count * self.negative_ratio))
-        loss = nn.functional.binary_cross_entropy(pred, gt, reduction='none')
+        negative_count = min(
+            int(negative.float().sum()), int(positive_count * self.negative_ratio)
+        )
+        loss = nn.functional.binary_cross_entropy(pred, gt, reduction="none")
         positive_loss = loss * positive.float()
         negative_loss = loss * negative.float()
         negative_loss, _ = torch.topk(negative_loss.view(-1), negative_count)
 
-        balance_loss = ((positive_loss.sum() + negative_loss.sum()) /
-                        (positive_count + negative_count + self.eps))
+        balance_loss = (positive_loss.sum() + negative_loss.sum()) / (
+            positive_count + negative_count + self.eps
+        )
 
         return balance_loss

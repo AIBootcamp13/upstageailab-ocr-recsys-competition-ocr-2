@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * 참고 논문:
 * CLEval: Character-Level Evaluation for Text Detection and Recognition Tasks
@@ -7,7 +7,7 @@
 * 출처 Repository:
 * https://github.com/clovaai/CLEval/tree/master/cleval
 *****************************************************************************************
-'''
+"""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Union

@@ -1,15 +1,16 @@
 import os
 import sys
-import lightning.pytorch as pl
+
 import hydra
+import lightning.pytorch as pl
 
 sys.path.append(os.getcwd())
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
-CONFIG_DIR = os.environ.get('OP_CONFIG_DIR') or '../configs'
+CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
 
 
-@hydra.main(config_path=CONFIG_DIR, config_name='test', version_base='1.2')
+@hydra.main(config_path=CONFIG_DIR, config_name="test", version_base="1.2")
 def test(config):
     """
     Train a OCR model using the provided configuration.
@@ -23,9 +24,15 @@ def test(config):
 
     if config.get("wandb"):
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
-        logger = Logger(config.exp_name, project=config.project_name, config=dict(config))
+
+        logger = Logger(
+            config.exp_name, project=config.project_name, config=dict(config)
+        )
     else:
-        from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
+        from lightning.pytorch.loggers.tensorboard import (  # noqa: E402
+            TensorBoardLogger,
+        )
+
         logger = TensorBoardLogger(
             save_dir=config.log_dir,
             name=config.exp_name,

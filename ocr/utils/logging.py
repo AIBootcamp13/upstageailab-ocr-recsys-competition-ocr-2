@@ -5,26 +5,41 @@ Logging utilities for OCR framework with rich console output and debugging suppo
 
 import logging
 import sys
-from pathlib import Path
-from typing import Optional, Dict, Any, Union
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 try:
+    import torch
+
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
+try:
+    from rich import print as rprint
     from rich.console import Console
     from rich.logging import RichHandler
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-    from rich.table import Table
     from rich.panel import Panel
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeElapsedColumn,
+    )
+    from rich.table import Table
     from rich.text import Text
-    from rich import print as rprint
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-    Console = None
-    RichHandler = None
+    Console = None  # type: ignore
+    RichHandler = None  # type: ignore
 
 try:
     from icecream import ic, install
+
     ICECREAM_AVAILABLE = True
 except ImportError:
     ICECREAM_AVAILABLE = False
@@ -40,7 +55,7 @@ class OCRLogger:
         name: str = "ocr",
         level: str = "INFO",
         log_file: Optional[Union[str, Path]] = None,
-        rich_console: bool = True
+        rich_console: bool = True,
     ):
         """Initialize OCR logger.
 
@@ -69,7 +84,7 @@ class OCRLogger:
                 show_time=True,
                 show_level=True,
                 show_path=False,
-                enable_link_path=False
+                enable_link_path=False,
             )
             rich_handler.setLevel(self.level)
             self.logger.addHandler(rich_handler)
@@ -78,7 +93,7 @@ class OCRLogger:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(self.level)
             formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
@@ -89,7 +104,7 @@ class OCRLogger:
             file_handler = logging.FileHandler(self.log_file)
             file_handler.setLevel(self.level)
             file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+                "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
             )
             file_handler.setFormatter(file_formatter)
             self.logger.addHandler(file_handler)
@@ -168,7 +183,7 @@ class OCRLogger:
                 BarColumn(),
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 TimeElapsedColumn(),
-                console=Console()
+                console=Console(),
             ) as progress:
                 task = progress.add_task(description, total=total or len(iterable))
                 for item in iterable:
@@ -178,6 +193,7 @@ class OCRLogger:
             # Fallback to tqdm if available
             try:
                 from tqdm import tqdm
+
                 yield from tqdm(iterable, desc=description, total=total)
             except ImportError:
                 yield from iterable
@@ -190,16 +206,12 @@ class DebugTools:
         """Initialize debug tools."""
         if ICECREAM_AVAILABLE:
             # Configure IceCream for better debugging
-            ic.configureOutput(
-                includeContext=True,
-                contextAbsPath=True,
-                prefix="🐛 "
-            )
+            ic.configureOutput(includeContext=True, contextAbsPath=True, prefix="🐛 ")
 
     @staticmethod
-    def debug_tensor(tensor: torch.Tensor, name: str = "tensor"):
+    def debug_tensor(tensor, name: str = "tensor"):
         """Debug tensor with shape and statistics."""
-        if not torch.is_tensor(tensor):
+        if not TORCH_AVAILABLE or not torch.is_tensor(tensor):
             ic(f"{name}: {tensor}")
             return
 
@@ -211,18 +223,28 @@ class DebugTools:
             "max": tensor.max().item(),
             "mean": tensor.mean().item(),
             "std": tensor.std().item(),
-            "requires_grad": tensor.requires_grad
+            "requires_grad": tensor.requires_grad,
         }
 
         if ICECREAM_AVAILABLE:
             ic(f"{name}_info", info)
-            ic(f"{name}_sample", tensor.flatten()[:10] if tensor.numel() > 10 else tensor)
+            ic(
+                f"{name}_sample",
+                tensor.flatten()[:10] if tensor.numel() > 10 else tensor,
+            )
         else:
-            print(f"{name}: {info}")
+            print(f"{name}_info: {info}")
+            print(
+                f"{name}_sample: {tensor.flatten()[:10] if tensor.numel() > 10 else tensor}"
+            )
 
     @staticmethod
-    def debug_model(model: torch.nn.Module, input_shape: tuple = None):
+    def debug_model(model, input_shape: Optional[tuple] = None):
         """Debug model architecture and parameters."""
+        if not TORCH_AVAILABLE:
+            ic(f"Model debug not available - torch not installed: {model}")
+            return
+
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -230,7 +252,7 @@ class DebugTools:
             "total_parameters": total_params,
             "trainable_parameters": trainable_params,
             "model_class": model.__class__.__name__,
-            "modules": len(list(model.modules()))
+            "modules": len(list(model.modules())),
         }
 
         if input_shape and ICECREAM_AVAILABLE:
@@ -244,26 +266,29 @@ class DebugTools:
                 info["forward_error"] = str(e)
 
         if ICECREAM_AVAILABLE:
-            ic("model_info", info)
+            ic(f"model_info: {info}")
         else:
             print(f"Model info: {info}")
 
     @staticmethod
     def time_function(func):
         """Decorator to time function execution."""
+
         def wrapper(*args, **kwargs):
             import time
+
             start_time = time.time()
             result = func(*args, **kwargs)
             end_time = time.time()
 
             duration = end_time - start_time
             if ICECREAM_AVAILABLE:
-                ic(f"{func.__name__} execution time", duration)
+                ic(f"{func.__name__} execution time: {duration:.4f}")
             else:
-                print(".4f")
+                print(f"{func.__name__} execution time: {duration:.4f}")
 
             return result
+
         return wrapper
 
 
@@ -272,6 +297,7 @@ logger = OCRLogger()
 
 # Global debug tools instance
 debug = DebugTools()
+
 
 # Convenience functions
 def log_experiment_start(experiment_name: str, config: Dict[str, Any]):
@@ -287,8 +313,7 @@ def log_experiment_end(experiment_name: str, metrics: Dict[str, Any]):
 
 
 def create_experiment_logger(
-    experiment_name: str,
-    output_dir: Union[str, Path]
+    experiment_name: str, output_dir: Union[str, Path]
 ) -> OCRLogger:
     """Create a logger for a specific experiment."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -298,7 +323,7 @@ def create_experiment_logger(
         name=f"ocr.{experiment_name}",
         level="DEBUG",
         log_file=log_file,
-        rich_console=True
+        rich_console=True,
     )
 
 
@@ -310,5 +335,5 @@ __all__ = [
     "debug",
     "log_experiment_start",
     "log_experiment_end",
-    "create_experiment_logger"
+    "create_experiment_logger",
 ]

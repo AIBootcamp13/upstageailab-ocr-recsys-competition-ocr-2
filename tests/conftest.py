@@ -1,8 +1,9 @@
+import tempfile
+from pathlib import Path
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from pathlib import Path
-import tempfile
 
 
 @pytest.fixture
@@ -41,7 +42,7 @@ def sample_polygons():
     """Create sample polygon data."""
     return [
         np.array([[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32),
-        np.array([[60, 10], [100, 10], [100, 30], [60, 30]], dtype=np.float32)
+        np.array([[60, 10], [100, 10], [100, 30], [60, 30]], dtype=np.float32),
     ]
 
 
@@ -50,13 +51,15 @@ def mock_config():
     """Create a mock configuration object."""
     from omegaconf import OmegaConf
 
-    config = OmegaConf.create({
-        'encoder': {},
-        'decoder': {},
-        'head': {},
-        'loss': {},
-        'optimizer': {},
-    })
+    config = OmegaConf.create(
+        {
+            "encoder": {},
+            "decoder": {},
+            "head": {},
+            "loss": {},
+            "optimizer": {},
+        }
+    )
     return config
 
 
@@ -79,31 +82,30 @@ def sample_config():
     config_path = Path(__file__).parent / "fixtures" / "sample_config.yaml"
     if config_path.exists():
         from omegaconf import OmegaConf
+
         return OmegaConf.load(config_path)
     else:
         # Return comprehensive config if fixture file doesn't exist
         from omegaconf import OmegaConf
-        return OmegaConf.create({
-            "model": {
-                "encoder": {"backbone": "resnet18", "pretrained": False},
-                "decoder": {"type": "unet"},
-                "head": {"type": "db_head"},
-                "loss": {"type": "db_loss"}
-            },
-            "data": {
-                "batch_size": 2,
-                "image_size": [256, 256]
-            },
-            "training": {
-                "max_epochs": 1,
-                "learning_rate": 0.001
+
+        return OmegaConf.create(
+            {
+                "model": {
+                    "encoder": {"backbone": "resnet18", "pretrained": False},
+                    "decoder": {"type": "unet"},
+                    "head": {"type": "db_head"},
+                    "loss": {"type": "db_loss"},
+                },
+                "data": {"batch_size": 2, "image_size": [256, 256]},
+                "training": {"max_epochs": 1, "learning_rate": 0.001},
             }
-        })
+        )
 
 
 @pytest.fixture
 def mock_dataset():
     """Mock dataset for testing."""
+
     class MockDataset(torch.utils.data.Dataset):
         def __init__(self, size=10):
             self.size = size
@@ -115,7 +117,7 @@ def mock_dataset():
             return {
                 "image": torch.randn(3, 256, 256),
                 "polygons": [[10, 10, 50, 10, 50, 30, 10, 30]],
-                "text": "SAMPLE"
+                "text": "SAMPLE",
             }
 
     return MockDataset()
@@ -128,9 +130,9 @@ def sample_batch():
         "images": torch.randn(2, 3, 256, 256),
         "polygons": [
             [[10, 10, 50, 10, 50, 30, 10, 30]],
-            [[20, 20, 60, 20, 60, 40, 20, 40]]
+            [[20, 20, 60, 20, 60, 40, 20, 40]],
         ],
-        "texts": ["HELLO", "WORLD"]
+        "texts": ["HELLO", "WORLD"],
     }
 
 
@@ -139,7 +141,7 @@ def sample_predictions():
     """Sample model predictions for testing."""
     return {
         "prob_maps": torch.sigmoid(torch.randn(2, 1, 256, 256)),
-        "threshold_maps": torch.sigmoid(torch.randn(2, 1, 256, 256))
+        "threshold_maps": torch.sigmoid(torch.randn(2, 1, 256, 256)),
     }
 
 
@@ -174,42 +176,49 @@ def device(gpu_available):
 def dbnet_config():
     """DBNet architecture configuration."""
     from omegaconf import OmegaConf
-    return OmegaConf.create({
-        "architecture": "dbnet",
-        "model": {
-            "encoder": {"backbone": "resnet50", "pretrained": False},
-            "decoder": {"type": "unet"},
-            "head": {"type": "db_head"},
-            "loss": {"type": "db_loss"}
+
+    return OmegaConf.create(
+        {
+            "architecture": "dbnet",
+            "model": {
+                "encoder": {"backbone": "resnet50", "pretrained": False},
+                "decoder": {"type": "unet"},
+                "head": {"type": "db_head"},
+                "loss": {"type": "db_loss"},
+            },
         }
-    })
+    )
 
 
 @pytest.fixture
 def east_config():
     """EAST architecture configuration."""
     from omegaconf import OmegaConf
-    return OmegaConf.create({
-        "architecture": "east",
-        "model": {
-            "encoder": {"backbone": "resnet50", "pretrained": False},
-            "decoder": {"type": "unet"},
-            "head": {"type": "east_head"},
-            "loss": {"type": "east_loss"}
+
+    return OmegaConf.create(
+        {
+            "architecture": "east",
+            "model": {
+                "encoder": {"backbone": "resnet50", "pretrained": False},
+                "decoder": {"type": "unet"},
+                "head": {"type": "east_head"},
+                "loss": {"type": "east_loss"},
+            },
         }
-    })
+    )
 
 
 # Mock components for testing
 @pytest.fixture
 def mock_encoder():
     """Mock encoder for testing."""
+
     class MockEncoder(torch.nn.Module):
         def __init__(self):
             super().__init__()
 
         def forward(self, x):
-            return torch.randn(x.shape[0], 256, x.shape[2]//32, x.shape[3]//32)
+            return torch.randn(x.shape[0], 256, x.shape[2] // 32, x.shape[3] // 32)
 
         @property
         def output_channels(self):
@@ -225,12 +234,13 @@ def mock_encoder():
 @pytest.fixture
 def mock_decoder():
     """Mock decoder for testing."""
+
     class MockDecoder(torch.nn.Module):
         def __init__(self):
             super().__init__()
 
         def forward(self, x):
-            return torch.randn(x.shape[0], 64, x.shape[2]*2, x.shape[3]*2)
+            return torch.randn(x.shape[0], 64, x.shape[2] * 2, x.shape[3] * 2)
 
     return MockDecoder()
 
@@ -238,6 +248,7 @@ def mock_decoder():
 @pytest.fixture
 def mock_head():
     """Mock head for testing."""
+
     class MockHead(torch.nn.Module):
         def __init__(self):
             super().__init__()
@@ -254,6 +265,7 @@ def mock_head():
 @pytest.fixture
 def mock_loss():
     """Mock loss for testing."""
+
     class MockLoss(torch.nn.Module):
         def __init__(self):
             super().__init__()

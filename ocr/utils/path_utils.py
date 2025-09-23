@@ -9,9 +9,9 @@ Enhanced with modular path configuration for better reusability.
 
 import os
 import sys
-from pathlib import Path
-from typing import Optional, Union, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 
 @dataclass
@@ -39,21 +39,31 @@ class OCRPathConfig:
     pretrained_models_dir: Optional[Path] = None
 
     @classmethod
-    def from_dict(cls, config: Dict[str, Any]) -> 'OCRPathConfig':
+    def from_dict(cls, config: Dict[str, Any]) -> "OCRPathConfig":
         """Create OCRPathConfig from dictionary configuration."""
         return cls(
-            project_root=Path(config.get('project_root', '.')),
-            data_dir=Path(config.get('data_dir', 'data')),
-            config_dir=Path(config.get('config_dir', 'configs')),
-            output_dir=Path(config.get('output_dir', 'outputs')),
-            images_dir=Path(config.get('images_dir', 'data/datasets/images')),
-            annotations_dir=Path(config.get('annotations_dir', 'data/datasets/jsons')),
-            pseudo_labels_dir=Path(config.get('pseudo_labels_dir', 'data/pseudo_label')),
-            logs_dir=Path(config.get('logs_dir', 'outputs/logs')),
-            checkpoints_dir=Path(config.get('checkpoints_dir', 'outputs/checkpoints')),
-            submissions_dir=Path(config.get('submissions_dir', 'outputs/submissions')),
-            models_dir=Path(config.get('models_dir', 'models')) if config.get('models_dir') else None,
-            pretrained_models_dir=Path(config.get('pretrained_models_dir', 'pretrained')) if config.get('pretrained_models_dir') else None,
+            project_root=Path(config.get("project_root", ".")),
+            data_dir=Path(config.get("data_dir", "data")),
+            config_dir=Path(config.get("config_dir", "configs")),
+            output_dir=Path(config.get("output_dir", "outputs")),
+            images_dir=Path(config.get("images_dir", "data/datasets/images")),
+            annotations_dir=Path(config.get("annotations_dir", "data/datasets/jsons")),
+            pseudo_labels_dir=Path(
+                config.get("pseudo_labels_dir", "data/pseudo_label")
+            ),
+            logs_dir=Path(config.get("logs_dir", "outputs/logs")),
+            checkpoints_dir=Path(config.get("checkpoints_dir", "outputs/checkpoints")),
+            submissions_dir=Path(config.get("submissions_dir", "outputs/submissions")),
+            models_dir=(
+                Path(config.get("models_dir", "models"))
+                if config.get("models_dir")
+                else None
+            ),
+            pretrained_models_dir=(
+                Path(config.get("pretrained_models_dir", "pretrained"))
+                if config.get("pretrained_models_dir")
+                else None
+            ),
         )
 
     def resolve_path(self, path: Union[str, Path], base: Optional[Path] = None) -> Path:
@@ -103,7 +113,7 @@ class OCRPathResolver:
         current_path = Path.cwd()
 
         # Look for common project markers
-        project_markers = ['pyproject.toml', 'requirements.txt', 'setup.py', '.git']
+        project_markers = ["pyproject.toml", "requirements.txt", "setup.py", ".git"]
 
         project_root = current_path
         for parent in [current_path] + list(current_path.parents):
@@ -113,30 +123,30 @@ class OCRPathResolver:
 
         return OCRPathConfig(
             project_root=project_root,
-            data_dir=project_root / 'data',
-            config_dir=project_root / 'configs',
-            output_dir=project_root / 'outputs',
-            images_dir=project_root / 'data' / 'datasets' / 'images',
-            annotations_dir=project_root / 'data' / 'datasets' / 'jsons',
-            pseudo_labels_dir=project_root / 'data' / 'pseudo_label',
-            logs_dir=project_root / 'outputs' / 'logs',
-            checkpoints_dir=project_root / 'outputs' / 'checkpoints',
-            submissions_dir=project_root / 'outputs' / 'submissions',
+            data_dir=project_root / "data",
+            config_dir=project_root / "configs",
+            output_dir=project_root / "outputs",
+            images_dir=project_root / "data" / "datasets" / "images",
+            annotations_dir=project_root / "data" / "datasets" / "jsons",
+            pseudo_labels_dir=project_root / "data" / "pseudo_label",
+            logs_dir=project_root / "outputs" / "logs",
+            checkpoints_dir=project_root / "outputs" / "checkpoints",
+            submissions_dir=project_root / "outputs" / "submissions",
         )
 
-    def get_data_path(self, dataset: str, split: str = 'train') -> Path:
+    def get_data_path(self, dataset: str, split: str = "train") -> Path:
         """Get path to dataset images."""
         return self.config.images_dir / dataset / split
 
-    def get_annotation_path(self, dataset: str, split: str = 'train') -> Path:
+    def get_annotation_path(self, dataset: str, split: str = "train") -> Path:
         """Get path to dataset annotations."""
-        return self.config.annotations_dir / f'{split}.json'
+        return self.config.annotations_dir / f"{split}.json"
 
-    def get_checkpoint_path(self, experiment_name: str, version: str = 'v1.0') -> Path:
+    def get_checkpoint_path(self, experiment_name: str, version: str = "v1.0") -> Path:
         """Get path to experiment checkpoints."""
         return self.config.checkpoints_dir / experiment_name / version
 
-    def get_log_path(self, experiment_name: str, version: str = 'v1.0') -> Path:
+    def get_log_path(self, experiment_name: str, version: str = "v1.0") -> Path:
         """Get path to experiment logs."""
         return self.config.logs_dir / experiment_name / version
 
@@ -144,7 +154,9 @@ class OCRPathResolver:
         """Get path to experiment submissions."""
         return self.config.submissions_dir / experiment_name
 
-    def resolve_relative_path(self, path: Union[str, Path], base: Optional[str] = None) -> Path:
+    def resolve_relative_path(
+        self, path: Union[str, Path], base: Optional[str] = None
+    ) -> Path:
         """Resolve a path that might be relative to different bases."""
         path = Path(path)
 
@@ -152,34 +164,34 @@ class OCRPathResolver:
             return path
 
         # Handle common relative path patterns
-        if base == 'project':
+        if base == "project":
             return self.config.project_root / path
-        elif base == 'data':
+        elif base == "data":
             return self.config.data_dir / path
-        elif base == 'config':
+        elif base == "config":
             return self.config.config_dir / path
-        elif base == 'output':
+        elif base == "output":
             return self.config.output_dir / path
         else:
             # Default to project root
             return self.config.project_root / path
 
     @classmethod
-    def from_environment(cls) -> 'OCRPathResolver':
+    def from_environment(cls) -> "OCRPathResolver":
         """Create OCRPathResolver from environment variables."""
         config_dict = {}
 
         # Check for environment variables
         env_mappings = {
-            'OCR_PROJECT_ROOT': 'project_root',
-            'OCR_DATA_DIR': 'data_dir',
-            'OCR_CONFIG_DIR': 'config_dir',
-            'OCR_OUTPUT_DIR': 'output_dir',
-            'OCR_IMAGES_DIR': 'images_dir',
-            'OCR_ANNOTATIONS_DIR': 'annotations_dir',
-            'OCR_LOGS_DIR': 'logs_dir',
-            'OCR_CHECKPOINTS_DIR': 'checkpoints_dir',
-            'OCR_SUBMISSIONS_DIR': 'submissions_dir',
+            "OCR_PROJECT_ROOT": "project_root",
+            "OCR_DATA_DIR": "data_dir",
+            "OCR_CONFIG_DIR": "config_dir",
+            "OCR_OUTPUT_DIR": "output_dir",
+            "OCR_IMAGES_DIR": "images_dir",
+            "OCR_ANNOTATIONS_DIR": "annotations_dir",
+            "OCR_LOGS_DIR": "logs_dir",
+            "OCR_CHECKPOINTS_DIR": "checkpoints_dir",
+            "OCR_SUBMISSIONS_DIR": "submissions_dir",
         }
 
         for env_var, config_key in env_mappings.items():

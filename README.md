@@ -413,6 +413,11 @@ uv run pytest tests/test_new_feature.py -v
 - [CLEval](https://github.com/clovaai/CLEval)
 - [UV 패키지 관리자](https://github.com/astral-sh/uv)
 
+## 참고 논문:
+- CLEval: Character-Level Evaluation for Text Detection and Recognition Tasks
+  https://arxiv.org/pdf/2006.06244.pdf
+
+
 ## 연락처
 
 프로젝트에 대한 질문이나 제안사항이 있으시면 다음을 통해 연락해 주세요:

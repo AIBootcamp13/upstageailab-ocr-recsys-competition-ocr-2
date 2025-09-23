@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * Modified from https://github.com/MhLiao/DB/blob/master/decoders/l1_loss.py
 *
@@ -9,7 +9,7 @@
 * 참고 Repository:
 * https://github.com/MhLiao/DB/
 *****************************************************************************************
-'''
+"""
 
 import torch
 import torch.nn as nn

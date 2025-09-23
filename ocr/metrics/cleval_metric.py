@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * 참고 논문:
 * CLEval: Character-Level Evaluation for Text Detection and Recognition Tasks
@@ -7,11 +7,12 @@
 * 출처 Repository:
 * https://github.com/clovaai/CLEval/tree/master/cleval
 *****************************************************************************************
-'''
+"""
 
 import torch
 from torchmetrics import Metric
 
+from ..utils.logging import logger
 from .box_types import POLY
 from .data import SampleResult
 from .eval_functions import evaluation
@@ -67,7 +68,7 @@ class CLEvalMetric(Metric):
 
         self.scalewise_metric = {}
         if scale_wise:
-            bin_ranges = [scale_bins[i:i + 2] for i in range(len(scale_bins) - 1)]
+            bin_ranges = [scale_bins[i : i + 2] for i in range(len(scale_bins) - 1)]
             for bin_range in bin_ranges:
                 self.scalewise_metric[bin_range] = CLEvalMetric(
                     dist_sync_on_step=dist_sync_on_step,
@@ -81,8 +82,12 @@ class CLEvalMetric(Metric):
                 )
 
         # Detection
-        self.add_state("det_num_char_gt", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum")
-        self.add_state("det_num_char_det", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum")
+        self.add_state(
+            "det_num_char_gt", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum"
+        )
+        self.add_state(
+            "det_num_char_det", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum"
+        )
         self.add_state(
             "det_gran_score_recall",
             torch.tensor(0, dtype=torch.float32),
@@ -104,11 +109,17 @@ class CLEvalMetric(Metric):
             dist_reduce_fx="sum",
         )
 
-        self.add_state("det_num_char_fp", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum")
+        self.add_state(
+            "det_num_char_fp", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum"
+        )
 
         # split-merge cases
-        self.add_state("num_splitted", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum")
-        self.add_state("num_merged", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum")
+        self.add_state(
+            "num_splitted", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum"
+        )
+        self.add_state(
+            "num_merged", torch.tensor(0, dtype=torch.int32), dist_reduce_fx="sum"
+        )
         self.add_state(
             "num_char_overlapped",
             torch.tensor(0, dtype=torch.int32),
@@ -138,8 +149,10 @@ class CLEvalMetric(Metric):
             gt_is_dcs (List[bool]): is dc gt quad?
         """
         gt_inps = self.__make_eval_input(gt_quads, gt_letters, gt_is_dcs)
-        det_inps = self.__make_eval_input(det_quads[:self.max_polygons], det_letters)
-        sample_res = evaluation(self.options, gt_inps, det_inps, scale_range=self.scale_range)
+        det_inps = self.__make_eval_input(det_quads[: self.max_polygons], det_letters)
+        sample_res = evaluation(
+            self.options, gt_inps, det_inps, scale_range=self.scale_range
+        )
         self.__accumulate(sample_res)
 
         self.predictions.append(det_quads)
@@ -159,7 +172,7 @@ class CLEvalMetric(Metric):
 
         for i in range(len(quads)):
             if len(quads[i]) < 4 * 2 or len(quads[i]) % 2 != 0:
-                print(f" {__file__}: [WARN] Skip invalid polygon length: {len(quads[i])}")
+                logger.warning(f"Skip invalid polygon length: {len(quads[i])}")
                 continue
             eval_inp = POLY(
                 quads[i],
@@ -171,17 +184,17 @@ class CLEvalMetric(Metric):
         return eval_inps
 
     def __accumulate(self, sample_res: SampleResult):
-        self.num_splitted += sample_res.stats.num_splitted
-        self.num_merged += sample_res.stats.num_merged
-        self.num_char_overlapped += sample_res.stats.num_char_overlapped
+        self.num_splitted += sample_res.stats.num_splitted  # type: ignore
+        self.num_merged += sample_res.stats.num_merged  # type: ignore
+        self.num_char_overlapped += sample_res.stats.num_char_overlapped  # type: ignore
 
-        self.det_num_char_gt += sample_res.stats.det.num_char_gt
-        self.det_num_char_det += sample_res.stats.det.num_char_det
-        self.det_gran_score_recall += sample_res.stats.det.gran_score_recall
-        self.det_num_char_tp_recall += sample_res.stats.det.num_char_tp_recall
-        self.det_gran_score_precision += sample_res.stats.det.gran_score_precision
-        self.det_num_char_tp_precision += sample_res.stats.det.num_char_tp_precision
-        self.det_num_char_fp += sample_res.stats.det.num_char_fp
+        self.det_num_char_gt += sample_res.stats.det.num_char_gt  # type: ignore
+        self.det_num_char_det += sample_res.stats.det.num_char_det  # type: ignore
+        self.det_gran_score_recall += sample_res.stats.det.gran_score_recall  # type: ignore
+        self.det_num_char_tp_recall += sample_res.stats.det.num_char_tp_recall  # type: ignore
+        self.det_gran_score_precision += sample_res.stats.det.gran_score_precision  # type: ignore
+        self.det_num_char_tp_precision += sample_res.stats.det.num_char_tp_precision  # type: ignore
+        self.det_num_char_fp += sample_res.stats.det.num_char_fp  # type: ignore
 
     def compute(self):
         det_r, det_p, det_h = self.__calculate_rph(
@@ -203,7 +216,7 @@ class CLEvalMetric(Metric):
         }
 
         for scale_bin, metric in self.scalewise_metric.items():
-            return_dict["scale_wise"][scale_bin] = metric.compute()
+            return_dict["scale_wise"][str(scale_bin)] = metric.compute()
 
         return return_dict
 
@@ -231,16 +244,22 @@ class CLEvalMetric(Metric):
         tp_det = num_char_tp_precision
 
         # Sample Score : Character correct length - Granularity Penalty
-        recall = torch.tensor(0.0, dtype=torch.float32, device=self.device) if total_gt == 0 else (
-                max(0.0, tp_gt - gran_gt) / total_gt)
-        precision = torch.tensor(0.0, dtype=torch.float32, device=self.device) if total_det == 0 \
+        recall = (
+            torch.tensor(0.0, dtype=torch.float32, device=self.device)
+            if total_gt == 0
+            else (max(0.0, tp_gt - gran_gt) / total_gt)
+        )
+        precision = (
+            torch.tensor(0.0, dtype=torch.float32, device=self.device)
+            if total_det == 0
             else max(0.0, tp_det - gran_det) / total_det
+        )
         hmean = self.harmonic_mean(recall, precision)
         return recall, precision, hmean
 
     def harmonic_mean(self, score1, score2):
         """get harmonic mean value"""
         if score1 + score2 == 0:
-            return torch.tensor(0, dtype=torch.float32, device=self.device)
+            return torch.tensor(0.0, dtype=torch.float32, device=self.device)
         else:
             return (2 * score1 * score2) / (score1 + score2)

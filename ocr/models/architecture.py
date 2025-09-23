@@ -1,7 +1,8 @@
 import torch.nn as nn
 from hydra.utils import instantiate
-from .encoder import get_encoder_by_cfg
+
 from .decoder import get_decoder_by_cfg
+from .encoder import get_encoder_by_cfg
 from .head import get_head_by_cfg
 from .loss import get_loss_by_cfg
 
@@ -33,7 +34,7 @@ class OCRModel(nn.Module):
         optimizer_config = self.cfg.optimizer
         optimizer = instantiate(optimizer_config, params=self.parameters())
 
-        if 'scheduler' in self.cfg:
+        if "scheduler" in self.cfg:
             scheduler_config = self.cfg.scheduler
             scheduler = instantiate(scheduler_config, optimizer=optimizer)
             return [optimizer], [scheduler]

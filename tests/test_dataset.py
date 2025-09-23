@@ -1,10 +1,11 @@
-import pytest
 import json
-import numpy as np
 import tempfile
 from pathlib import Path
-from PIL import Image
 from unittest.mock import Mock
+
+import numpy as np
+import pytest
+from PIL import Image
 
 from ocr.datasets.base import OCRDataset
 
@@ -23,17 +24,11 @@ class TestOCRDataset:
             "images": {
                 "image1.jpg": {
                     "words": {
-                        "word1": {
-                            "points": [[10, 10], [50, 10], [50, 30], [10, 30]]
-                        },
-                        "word2": {
-                            "points": [[60, 10], [100, 10], [100, 30], [60, 30]]
-                        }
+                        "word1": {"points": [[10, 10], [50, 10], [50, 30], [10, 30]]},
+                        "word2": {"points": [[60, 10], [100, 10], [100, 30], [60, 30]]},
                     }
                 },
-                "image2.jpg": {
-                    "words": {}
-                }
+                "image2.jpg": {"words": {}},
             }
         }
 
@@ -46,18 +41,20 @@ class TestOCRDataset:
         img3_path = temp_dir / "image3.png"  # Extra image without annotation
 
         # Create dummy images
-        img = Image.new('RGB', (100, 100), color='red')
+        img = Image.new("RGB", (100, 100), color="red")
         img.save(img1_path)
         img.save(img2_path)
         img.save(img3_path)
 
         return [img1_path, img2_path, img3_path]
 
-    def test_dataset_with_annotations(self, temp_dir, sample_annotations, create_sample_images):
+    def test_dataset_with_annotations(
+        self, temp_dir, sample_annotations, create_sample_images
+    ):
         """Test dataset loading with annotation file."""
         # Create annotation file
         annotation_path = temp_dir / "annotations.json"
-        with open(annotation_path, 'w') as f:
+        with open(annotation_path, "w") as f:
             json.dump(sample_annotations, f)
 
         # Create dataset
@@ -92,11 +89,15 @@ class TestOCRDataset:
         """Test __getitem__ method."""
         # Create annotation file
         annotation_path = temp_dir / "annotations.json"
-        with open(annotation_path, 'w') as f:
+        with open(annotation_path, "w") as f:
             json.dump(sample_annotations, f)
 
         transform = Mock()
-        transform.return_value = {"image": "transformed_image", "polygons": "transformed_polygons", "inverse_matrix": "inverse_matrix"}
+        transform.return_value = {
+            "image": "transformed_image",
+            "polygons": "transformed_polygons",
+            "inverse_matrix": "inverse_matrix",
+        }
 
         dataset = OCRDataset(temp_dir, annotation_path, transform)
 
@@ -108,24 +109,22 @@ class TestOCRDataset:
 
         # Verify the call arguments
         call_args, call_kwargs = transform.call_args
-        assert 'image' in call_kwargs
-        assert isinstance(call_kwargs['image'], np.ndarray)  # numpy array
-        assert call_kwargs['image'].shape == (100, 100, 3)
+        assert "image" in call_kwargs
+        assert isinstance(call_kwargs["image"], np.ndarray)  # numpy array
+        assert call_kwargs["image"].shape == (100, 100, 3)
 
     def test_missing_image_file(self, temp_dir):
         """Test behavior when annotation references non-existent image."""
         annotations = {
             "images": {
                 "missing.jpg": {
-                    "words": {
-                        "word1": {"points": [[0, 0], [10, 10], [10, 0]]}
-                    }
+                    "words": {"word1": {"points": [[0, 0], [10, 10], [10, 0]]}}
                 }
             }
         }
 
         annotation_path = temp_dir / "annotations.json"
-        with open(annotation_path, 'w') as f:
+        with open(annotation_path, "w") as f:
             json.dump(annotations, f)
 
         transform = Mock()
@@ -142,14 +141,14 @@ class TestOCRDataset:
                     "words": {
                         "word1": {"points": []},  # Empty points
                         "word2": {"points": [[0, 0], [10, 10]]},  # Valid points
-                        "word3": {"points": []}  # Another empty
+                        "word3": {"points": []},  # Another empty
                     }
                 }
             }
         }
 
         annotation_path = temp_dir / "annotations.json"
-        with open(annotation_path, 'w') as f:
+        with open(annotation_path, "w") as f:
             json.dump(annotations, f)
 
         transform = Mock()
@@ -162,10 +161,10 @@ class TestOCRDataset:
     def test_image_extensions(self, temp_dir):
         """Test that dataset recognizes different image extensions."""
         # Create images with different extensions
-        extensions = ['jpg', 'jpeg', 'png']
+        extensions = ["jpg", "jpeg", "png"]
         for ext in extensions:
             img_path = temp_dir / f"test.{ext}"
-            img = Image.new('RGB', (50, 50), color='blue')
+            img = Image.new("RGB", (50, 50), color="blue")
             img.save(img_path)
 
         transform = Mock()
@@ -180,7 +179,7 @@ class TestOCRDataset:
         """Test that extension matching is case insensitive."""
         # Create image with uppercase extension
         img_path = temp_dir / "test.JPG"
-        img = Image.new('RGB', (50, 50), color='green')
+        img = Image.new("RGB", (50, 50), color="green")
         img.save(img_path)
 
         transform = Mock()

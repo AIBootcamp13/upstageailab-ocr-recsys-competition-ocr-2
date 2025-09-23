@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * 참고 논문:
 * CLEval: Character-Level Evaluation for Text Detection and Recognition Tasks
@@ -7,7 +7,7 @@
 * 출처 Repository:
 * https://github.com/clovaai/CLEval/tree/master/cleval
 *****************************************************************************************
-'''
+"""
 
 import codecs
 import json
@@ -28,7 +28,11 @@ def load_zip_file(file):
     pairs = dict()
     for name in archive.namelist():
         key_name = (
-            name.replace("gt_", "").replace("res_", "").replace(".txt", "").replace(".json", "").replace(".jpg", "")
+            name.replace("gt_", "")
+            .replace("res_", "")
+            .replace(".txt", "")
+            .replace(".json", "")
+            .replace(".jpg", "")
         )
         pairs[key_name] = archive.read(name)
     return pairs
@@ -84,24 +88,41 @@ def ltrb_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. " "Should be: xmin,ymin,xmax,ymax,confidence,transcription")
+            raise ValueError(
+                "Format incorrect. "
+                "Should be: xmin,ymin,xmax,ymax,confidence,transcription"
+            )
     elif with_confidence:
         m = re.match(
-            r"^\s*(-?[0-9]+)\s*," r"\s*(-?[0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-1].?[0-9]*)\s*$",
+            r"^\s*(-?[0-9]+)\s*,"
+            r"\s*(-?[0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,"
+            r"\s*([0-1].?[0-9]*)\s*$",
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. Should be: xmin,ymin,xmax,ymax,confidence")
+            raise ValueError(
+                "Format incorrect. Should be: xmin,ymin,xmax,ymax,confidence"
+            )
     elif with_transcription:
         m = re.match(
-            r"^\s*(-?[0-9]+)\s*," r"\s*(-?[0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-9]+)\s*,(.*)$",
+            r"^\s*(-?[0-9]+)\s*,"
+            r"\s*(-?[0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,(.*)$",
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. Should be: xmin,ymin,xmax,ymax,transcription")
+            raise ValueError(
+                "Format incorrect. Should be: xmin,ymin,xmax,ymax,transcription"
+            )
     else:
         m = re.match(
-            r"^\s*(-?[0-9]+)\s*," r"\s*(-?[0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-9]+)\s*,?\s*$",
+            r"^\s*(-?[0-9]+)\s*,"
+            r"\s*(-?[0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,"
+            r"\s*([0-9]+)\s*,?\s*$",
             line,
         )
         if m is None:
@@ -124,7 +145,10 @@ def quad_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. " "Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence,transcription")
+            raise ValueError(
+                "Format incorrect. "
+                "Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence,transcription"
+            )
     elif with_confidence:
         m = re.match(
             r"^\s*(-?[0-9]+)\s*,"
@@ -139,7 +163,9 @@ def quad_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence")
+            raise ValueError(
+                "Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence"
+            )
     elif with_transcription:
         m = re.match(
             r"^\s*(-?[0-9]+)\s*,"
@@ -153,7 +179,9 @@ def quad_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,transcription")
+            raise ValueError(
+                "Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,transcription"
+            )
     else:
         if line[-1] == ",":
             line = line[:-1]

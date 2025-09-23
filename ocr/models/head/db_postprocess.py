@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * Modified from https://github.com/MhLiao/DB/blob/master/structure/representers/
 *               seg_detector_representer.py
@@ -10,22 +10,24 @@
 * 참고 Repository:
 * https://github.com/MhLiao/DB/
 *****************************************************************************************
-'''
+"""
 
 import cv2
 import numpy as np
-from shapely.geometry import Polygon
 import pyclipper
 import torch
+from shapely.geometry import Polygon
 
 
 class DBPostProcessor:
-    def __init__(self, thresh=0.3, box_thresh=0.7, max_candidates=1000, use_polygon=False):
-        self.min_size = 3                       # minimum size of text region
-        self.thresh = thresh                    # threshold for binarization
-        self.box_thresh = box_thresh            # threshold for text region proposals
-        self.max_candidates = max_candidates    # max number of text region proposals
-        self.use_polygon = use_polygon          # use polygon or box
+    def __init__(
+        self, thresh=0.3, box_thresh=0.7, max_candidates=1000, use_polygon=False
+    ):
+        self.min_size = 3  # minimum size of text region
+        self.thresh = thresh  # threshold for binarization
+        self.box_thresh = box_thresh  # threshold for text region proposals
+        self.max_candidates = max_candidates  # max number of text region proposals
+        self.use_polygon = use_polygon  # use polygon or box
 
     def represent(self, batch, _pred):
         """
@@ -39,18 +41,20 @@ class DBPostProcessor:
         pred:
             prob_maps: text region segmentation map, with shape (N, 1, H, W)
         """
-        assert 'images' in batch is not None, "images is required in batch"
-        images = batch['images']
+        assert "images" in batch is not None, "images is required in batch"
+        images = batch["images"]
 
         # Use prob_maps if pred is a dict
         if isinstance(_pred, dict):
-            assert 'prob_maps' in _pred is not None, "prob_maps is required in _pred"
-            pred = _pred['prob_maps']
+            assert "prob_maps" in _pred is not None, "prob_maps is required in _pred"
+            pred = _pred["prob_maps"]
         else:
             pred = _pred
 
-        assert 'inverse_matrix' in batch is not None, "inverse_matrix is required in batch"
-        inverse_matrix = batch['inverse_matrix']
+        assert (
+            "inverse_matrix" in batch is not None
+        ), "inverse_matrix is required in batch"
+        inverse_matrix = batch["inverse_matrix"]
 
         # Binarize the prediction
         segmentation = self.binarize(pred)
@@ -61,15 +65,17 @@ class DBPostProcessor:
             if self.use_polygon:
                 # Get polygons from segmentation
                 boxes, scores = self.polygons_from_bitmap(
-                                        pred[batch_index],
-                                        segmentation[batch_index],
-                                        inverse_matrix=inverse_matrix[batch_index])
+                    pred[batch_index],
+                    segmentation[batch_index],
+                    inverse_matrix=inverse_matrix[batch_index],
+                )
             else:
                 # Get boxes from segmentation
                 boxes, scores = self.boxes_from_bitmap(
-                                        pred[batch_index],
-                                        segmentation[batch_index],
-                                        inverse_matrix=inverse_matrix[batch_index])
+                    pred[batch_index],
+                    segmentation[batch_index],
+                    inverse_matrix=inverse_matrix[batch_index],
+                )
             # Append to batch
             boxes_batch.append(boxes)
             scores_batch.append(scores)
@@ -94,8 +100,7 @@ class DBPostProcessor:
         # Binarize the prediction
         return pred > torch.Tensor([self.thresh]).to(device=pred.device)
 
-    def polygons_from_bitmap(self, pred, _bitmap,
-                             inverse_matrix=None):
+    def polygons_from_bitmap(self, pred, _bitmap, inverse_matrix=None):
         """
         Extracts polygons and their scores from a bitmap image.
 
@@ -114,11 +119,11 @@ class DBPostProcessor:
         # contours: a list of contours
         # https://docs.opencv.org/4.9.0/d4/d73/tutorial_py_contours_begin.html
         contours, _ = cv2.findContours(
-            (bitmap * 255).astype(np.uint8),
-            cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
+        )
 
         # Get the top N contours
-        for contour in contours[:self.max_candidates]:
+        for contour in contours[: self.max_candidates]:
             # Approximate the contour with Douglas-Peucker algorithm
             # https://docs.opencv.org/4.9.0/dc/dcf/tutorial_js_contour_features.html
             epsilon = 0.002 * cv2.arcLength(contour, True)
@@ -158,8 +163,7 @@ class DBPostProcessor:
 
         return boxes, scores
 
-    def boxes_from_bitmap(self, pred, _bitmap,
-                          inverse_matrix=None):
+    def boxes_from_bitmap(self, pred, _bitmap, inverse_matrix=None):
         """
         Extracts bounding boxes and their scores from a bitmap image.
 
@@ -178,8 +182,8 @@ class DBPostProcessor:
         # contours: a list of contours
         # https://docs.opencv.org/4.9.0/d4/d73/tutorial_py_contours_begin.html
         contours, _ = cv2.findContours(
-            (bitmap * 255).astype(np.uint8),
-            cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
+        )
         num_contours = min(len(contours), self.max_candidates)
 
         # Get the top N contours
@@ -261,8 +265,7 @@ class DBPostProcessor:
             index_2 = 3
             index_3 = 2
 
-        box = [points[index_1], points[index_2],
-               points[index_3], points[index_4]]
+        box = [points[index_1], points[index_2], points[index_3], points[index_4]]
         return box, min(bounding_box[1])
 
     def box_score_fast(self, bitmap, _box):
@@ -289,4 +292,4 @@ class DBPostProcessor:
 
         cv2.fillPoly(mask, box.reshape(1, -1, 2).astype(np.int32), 1)
 
-        return cv2.mean(bitmap[ymin:ymax + 1, xmin:xmax + 1], mask)[0]
+        return cv2.mean(bitmap[ymin : ymax + 1, xmin : xmax + 1], mask)[0]

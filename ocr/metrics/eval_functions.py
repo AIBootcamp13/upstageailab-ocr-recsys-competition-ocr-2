@@ -1,4 +1,4 @@
-'''
+"""
 *****************************************************************************************
 * 참고 논문:
 * CLEval: Character-Level Evaluation for Text Detection and Recognition Tasks
@@ -7,7 +7,7 @@
 * 출처 Repository:
 * https://github.com/clovaai/CLEval/tree/master/cleval
 *****************************************************************************************
-'''
+"""
 
 from dataclasses import dataclass
 from typing import List
@@ -37,7 +37,7 @@ class EvalMaterial:
     pcc_mat_list: List[NDArray]  # list of pcc_mat which has (len_det, len_pcc) shape.
     pcc_mat_sum: NDArray[np.int16]  # (len_gt, len_det)
     ap_mat: NDArray[np.float32]  # (len_gt, len_det)
-    ap_mat_binary: NDArray[bool]  # (len_gt, len_det)
+    ap_mat_binary: NDArray[np.bool_]  # (len_gt, len_det)
     ap_constraint: float
     gt_valid_indices: set
     det_valid_indices: set
@@ -74,7 +74,9 @@ def evaluation(args, gt_boxes, det_boxes, scale_range=(0.0, 1.0)):
     pcc_mat_list, pcc_mat_sum = calc_pcc_inclusion(det_boxes, gt_pcc_points)
 
     # prepare valid indices
-    det_dc_indices = get_det_dc_indices(gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det)
+    det_dc_indices = get_det_dc_indices(
+        gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det
+    )
     gt_valid_indices = set(range(len_gt)) - gt_dc_indices
     det_valid_indices = set(range(len_det)) - det_dc_indices
 
@@ -117,7 +119,7 @@ def prepare_gt(gt_boxes, is_case_sensitive, vertical_aspect_ratio_thresh, scale_
             gt_box.transcription = gt_box.transcription.upper()
 
         # if gt_box.is_dc or (gt_box.scale is not None and not scale_range[0] <= gt_box.scale <=
-            # scale_range[1]):
+        # scale_range[1]):
         if gt_box.is_dc:
             gt_dc_indices.add(gt_idx)
         gt_pcc_point = gt_box.pseudo_character_center(vertical_aspect_ratio_thresh)
@@ -165,6 +167,7 @@ def calc_area_precision(gt_boxes, det_boxes, ap_constraint):
     ap_mat_binary = ap_mat >= ap_constraint
     return ap_mat, ap_mat_binary
 
+
 def calc_pcc_inclusion(det_boxes, gt_pcc_points):
     """fill PCC counting matrix by iterating each GTbox and DETbox"""
     len_gt = len(gt_pcc_points)
@@ -186,7 +189,9 @@ def calc_pcc_inclusion(det_boxes, gt_pcc_points):
     return pcc_mat_list, pcc_mat_sum
 
 
-def get_det_dc_indices(gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det):
+def get_det_dc_indices(
+    gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det
+):
     """Filter detection Don't care boxes"""
     det_dc_indices = set()
     if len(gt_dc_indices) > 0:
@@ -212,7 +217,9 @@ def calc_match_matrix(eval_material):
     # one-to-one match
     for gt_idx in em.gt_valid_indices:
         for det_idx in em.det_valid_indices:
-            is_matched = one_to_one_match(em.pcc_mat_sum, gt_idx, det_idx, em.ap_mat_binary, em.len_gt, em.len_det)
+            is_matched = one_to_one_match(
+                em.pcc_mat_sum, gt_idx, det_idx, em.ap_mat_binary, em.len_gt, em.len_det
+            )
             if is_matched:
                 match_result = MatchResult(
                     gt_ids=[gt_idx],
@@ -258,7 +265,9 @@ def calc_match_matrix(eval_material):
             if match_mat[gt_idx, det_idx]:
                 continue
             for pcc_idx in range(len(em.gt_pcc_points[gt_idx])):
-                em.pcc_mat_sum[gt_idx, det_idx] -= em.pcc_mat_list[gt_idx][det_idx, pcc_idx]
+                em.pcc_mat_sum[gt_idx, det_idx] -= em.pcc_mat_list[gt_idx][
+                    det_idx, pcc_idx
+                ]
                 em.pcc_mat_list[gt_idx][det_idx, pcc_idx] = 0
     return match_mat, match_results
 
@@ -400,7 +409,9 @@ def eval_det(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
         res_mat[gt_idx, -2] = found_gt_chars
 
     # Calculate precision / recall
-    num_char_gt, num_char_det = get_num_total_char(gt_boxes, em.pcc_mat_sum, em.gt_valid_indices, em.det_valid_indices)
+    num_char_gt, num_char_det = get_num_total_char(
+        gt_boxes, em.pcc_mat_sum, em.gt_valid_indices, em.det_valid_indices
+    )
     num_char_fp = get_num_fp_char(det_boxes, em.det_valid_indices, match_mat_gts_sum)
     num_char_det += num_char_fp
     extract_stats(sample_res.stats.det, num_char_fp, num_char_gt, num_char_det, res_mat)
@@ -410,10 +421,14 @@ def eval_det(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
         for match_res in sample_res.matches:
             gt_ids = match_res.gt_ids
             det_ids = match_res.det_ids
-            num_char_gt, num_char_det = get_num_total_char(gt_boxes, em.pcc_mat_sum, gt_ids, det_ids)
+            num_char_gt, num_char_det = get_num_total_char(
+                gt_boxes, em.pcc_mat_sum, gt_ids, det_ids
+            )
             num_char_fp = get_num_fp_char(det_boxes, det_ids, match_mat_gts_sum)
             num_char_det += num_char_fp
-            extract_stats(match_res.det, num_char_fp, num_char_gt, num_char_det, res_mat)
+            extract_stats(
+                match_res.det, num_char_fp, num_char_gt, num_char_det, res_mat
+            )
 
 
 def get_num_total_char(gt_boxes, pcc_mat_sum, gt_valid_indices, det_valid_indices):
@@ -433,8 +448,9 @@ def get_num_fp_char(det_boxes, det_valid_indices, match_mat_gts_sum):
     for det_idx in det_valid_indices:
         # no match with any GTs && not matched with don't care
         if match_mat_gts_sum[det_idx] == 0:
-            fp_char_count = round(0.5 + 1 / (np.finfo(np.float32).eps + det_boxes[
-                det_idx].aspect_ratio()))
+            fp_char_count = round(
+                0.5 + 1 / (np.finfo(np.float32).eps + det_boxes[det_idx].aspect_ratio())
+            )
             fp_char_counts += min(fp_char_count, 100)
     return fp_char_counts
 
@@ -478,7 +494,9 @@ def eval_e2e(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
             matched_gt_indices = np.where(match_mat[:, det_idx])[0]
             gran_weight = args.PRECISION_GRANULARITY_PENALTY_WEIGHT
             res_mat[-1, det_idx] = get_gran_score(len(matched_gt_indices), gran_weight)
-        res_mat[-2, det_idx] = len(det_trans[det_idx]) - len(det_trans_not_found[det_idx])
+        res_mat[-2, det_idx] = len(det_trans[det_idx]) - len(
+            det_trans_not_found[det_idx]
+        )
 
     num_char_det = sum([len(det_trans[i]) for i in em.det_valid_indices])
     num_char_fp = num_char_det - np.sum(res_mat[-2])
@@ -490,7 +508,9 @@ def eval_e2e(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
             num_char_det = sum([len(det_trans[i]) for i in det_ids])
             num_char_fp = num_char_det - np.sum(res_mat[-2][det_ids])
             num_char_gt = match_res.det.num_char_gt
-            extract_stats(match_res.e2e, num_char_fp, num_char_gt, num_char_det, res_mat)
+            extract_stats(
+                match_res.e2e, num_char_fp, num_char_gt, num_char_det, res_mat
+            )
 
 
 def sort_detbox_order_by_pcc(gt_idx, matched_det_indices, gt_pcc_points, pcc_mat_list):
@@ -513,7 +533,9 @@ def sort_detbox_order_by_pcc(gt_idx, matched_det_indices, gt_pcc_points, pcc_mat
     return ordered_indices
 
 
-def lcs_elimination(gt_trans, gt_trans_not_found, det_trans_not_found, gt_idx, sorted_det_indices):
+def lcs_elimination(
+    gt_trans, gt_trans_not_found, det_trans_not_found, gt_idx, sorted_det_indices
+):
     """longest common sequence elimination by sorted detection boxes"""
     target_string = "".join(det_trans_not_found[i] for i in sorted_det_indices)
     lcs_length, lcs_string = lcs(gt_trans[gt_idx], target_string)

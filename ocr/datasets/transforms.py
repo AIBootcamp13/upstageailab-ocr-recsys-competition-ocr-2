@@ -1,15 +1,15 @@
-import numpy as np
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from collections import OrderedDict
+
+import albumentations as A
+import numpy as np
+from albumentations.pytorch import ToTensorV2
 
 
 class DBTransforms:
     def __init__(self, transforms, keypoint_params):
-        self.transform = A.Compose([
-            *transforms,
-            ToTensorV2()
-        ], keypoint_params=keypoint_params)
+        self.transform = A.Compose(
+            [*transforms, ToTensorV2()], keypoint_params=keypoint_params
+        )
 
     def __call__(self, image, polygons):
         height, width = image.shape[:2]
@@ -17,35 +17,41 @@ class DBTransforms:
         keypoints = []
         if polygons is not None:
             # Polygons 정보를 Keypoints 형태로 변환
-            keypoints = [point for polygon in polygons for point in polygon.reshape(-1, 2)]
+            keypoints = [
+                point for polygon in polygons for point in polygon.reshape(-1, 2)
+            ]
             # keypoints가 이미지의 크기를 벗어나지 않도록 제한
             keypoints = self.clamp_keypoints(keypoints, width, height)
 
         # Image transform / Geometric transform의 경우 keypoints를 변환
         transformed = self.transform(image=image, keypoints=keypoints)
-        transformed_image = transformed['image']
-        keypoints = transformed['keypoints']
+        transformed_image = transformed["image"]
+        keypoints = transformed["keypoints"]
 
         # Keypoints 재변환을 위한 Matrix 계산
         _, new_height, new_width = transformed_image.shape
         crop_box = self.calculate_cropbox((width, height), max(new_height, new_width))
-        inverse_matrix = self. calculate_inverse_transform((width, height),
-                                                           (new_width, new_height),
-                                                           crop_box=crop_box)
+        inverse_matrix = self.calculate_inverse_transform(
+            (width, height), (new_width, new_height), crop_box=crop_box
+        )
 
         # Keypoints 정보를 Polygons 형태로 변환
-        keypoints = transformed['keypoints']
+        keypoints = transformed["keypoints"]
         transformed_polygons = []
         index = 0
         if polygons is not None:
             for polygon in polygons:
                 num_points = polygon.shape[1]
-                transformed_polygons.append(np.array([keypoints[index:index + num_points]]))
+                transformed_polygons.append(
+                    np.array([keypoints[index : index + num_points]])
+                )
                 index += num_points
 
-        return OrderedDict(image=transformed_image,
-                           polygons=transformed_polygons,
-                           inverse_matrix=inverse_matrix)
+        return OrderedDict(
+            image=transformed_image,
+            polygons=transformed_polygons,
+            inverse_matrix=inverse_matrix,
+        )
 
     def clamp_keypoints(self, keypoints, img_width, img_height):
         clamped_keypoints = []
@@ -67,11 +73,7 @@ class DBTransforms:
         # Scale back to the original size
         scale_x = ox / tx
         scale_y = oy / ty
-        scale_matrix = np.array([
-            [scale_x, 0, 0],
-            [0, scale_y, 0],
-            [0, 0, 1]
-        ])
+        scale_matrix = np.array([[scale_x, 0, 0], [0, scale_y, 0], [0, 0, 1]])
 
         # Padding back to the original size
         translation_matrix = np.eye(3)

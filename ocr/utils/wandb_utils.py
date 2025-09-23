@@ -1,12 +1,15 @@
 # src/utils/wandb_utils.py
 # NEEDS TO BE REPURPOSED FOR TEXT DETECTION
 
-from omegaconf import DictConfig
-import wandb
+import hashlib
+import os
+
 import cv2
 import numpy as np
 import torch
-import os, hashlib
+import wandb
+from omegaconf import DictConfig
+
 
 def generate_run_name(cfg: DictConfig) -> str:
     """Generate a descriptive, stable run name.
@@ -17,9 +20,9 @@ def generate_run_name(cfg: DictConfig) -> str:
         <user>_<model>-b<bs>-lr<lr>_SCORE_PLACEHOLDER
     """
     user_prefix = cfg.wandb.get("user_prefix", "user")
-    model_name = cfg.model.get('name', 'model').replace("_", "-")
-    batch_size = cfg.data.get('batch_size', 'N/A')
-    lr_float = cfg.training.get('learning_rate', 0)
+    model_name = cfg.model.get("name", "model").replace("_", "-")
+    batch_size = cfg.data.get("batch_size", "N/A")
+    lr_float = cfg.training.get("learning_rate", 0)
     lr_str = f"{lr_float:.0e}".replace("e-0", "e")
     # Prefer wandb.experiment_tag; fall back to top-level or data tag
     tag = (
@@ -36,6 +39,7 @@ def generate_run_name(cfg: DictConfig) -> str:
     else:
         core = f"{user_prefix}_{model_details}"
     return f"{core}_SCORE_PLACEHOLDER"
+
 
 def finalize_run(final_loss: float):
     """Updates the run name with the final score and saves summary metrics."""
@@ -55,7 +59,10 @@ def finalize_run(final_loss: float):
 
     wandb.finish()
 
-def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: int = 42, filenames=None):
+
+def log_validation_images(
+    images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: int = 42, filenames=None
+):
     """Logs images with ground truth (green) and predicted (red) boxes to W&B.
 
     Adds a compact legend overlay and samples up to `limit` images with a fixed seed
@@ -132,12 +139,16 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
         # Draw ground truth boxes (in green)
         for box in gt_iter:
             box = np.array(box).reshape(4, 2).astype(np.int32)
-            cv2.polylines(img_to_draw, [box], isClosed=True, color=(0, 255, 0), thickness=2)
+            cv2.polylines(
+                img_to_draw, [box], isClosed=True, color=(0, 255, 0), thickness=2
+            )
 
         # Draw predicted boxes (in red)
         for box in pred_iter:
             box = np.array(box).reshape(4, 2).astype(np.int32)
-            cv2.polylines(img_to_draw, [box], isClosed=True, color=(255, 0, 0), thickness=2)
+            cv2.polylines(
+                img_to_draw, [box], isClosed=True, color=(255, 0, 0), thickness=2
+            )
 
         # Add small legend (top-left)
         legend_h = 36
@@ -148,9 +159,27 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
         cv2.addWeighted(overlay, alpha, img_to_draw, 1 - alpha, 0, dst=img_to_draw)
         # Green = GT, Red = Pred
         cv2.line(img_to_draw, (8, 12), (32, 12), (0, 255, 0), 3)
-        cv2.putText(img_to_draw, "GT", (38, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(
+            img_to_draw,
+            "GT",
+            (38, 16),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (220, 220, 220),
+            1,
+            cv2.LINE_AA,
+        )
         cv2.line(img_to_draw, (8, 26), (32, 26), (255, 0, 0), 3)
-        cv2.putText(img_to_draw, "Pred", (38, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(
+            img_to_draw,
+            "Pred",
+            (38, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (220, 220, 220),
+            1,
+            cv2.LINE_AA,
+        )
 
         # Ensure image is uint8 and in [0,255] range
         img_uint8 = np.clip(img_to_draw, 0, 255).astype(np.uint8)
@@ -160,7 +189,9 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
         # NOTE: Use original sampled index `i` (not the display ordering `rank`).
         # Previous implementation used `rank`, which reorders images by (GT/PRED presence)
         # causing filename/image mismatches in W&B captions.
-        fname = "(unknown)"; orig_w = -1; orig_h = -1
+        fname = "(unknown)"
+        orig_w = -1
+        orig_h = -1
         if filenames and i < len(filenames):
             fname, orig_w, orig_h = filenames[i]
             meta_prefix = f"{fname} ({orig_w}x{orig_h})"
@@ -171,17 +202,21 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
         if os.environ.get("LOG_VAL_IMAGE_TABLE", "0") == "1":
             # Lightweight perceptual fingerprint: SHA1 of raw bytes
             img_hash = hashlib.sha1(img_uint8.tobytes()).hexdigest()[:12]
-            table_rows.append([
-                rank,               # display order
-                i,                  # original sample index
-                fname if (filenames and i < len(filenames)) else "(unknown)",
-                orig_w if (filenames and i < len(filenames)) else -1,
-                orig_h if (filenames and i < len(filenames)) else -1,
-                g, p,
-                img_uint8.shape[1], img_uint8.shape[0],  # logged W,H
-                img_hash,
-                caption,
-            ])
+            table_rows.append(
+                [
+                    rank,  # display order
+                    i,  # original sample index
+                    fname if (filenames and i < len(filenames)) else "(unknown)",
+                    orig_w if (filenames and i < len(filenames)) else -1,
+                    orig_h if (filenames and i < len(filenames)) else -1,
+                    g,
+                    p,
+                    img_uint8.shape[1],
+                    img_uint8.shape[0],  # logged W,H
+                    img_hash,
+                    caption,
+                ]
+            )
 
     # Pad images to the same size to avoid W&B UI warnings
     if drawn_images:
@@ -192,7 +227,15 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
             pad_bottom = max_h - h
             pad_right = max_w - w
             if pad_bottom > 0 or pad_right > 0:
-                img_padded = cv2.copyMakeBorder(img, 0, pad_bottom, 0, pad_right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+                img_padded = cv2.copyMakeBorder(
+                    img,
+                    0,
+                    pad_bottom,
+                    0,
+                    pad_right,
+                    cv2.BORDER_CONSTANT,
+                    value=(0, 0, 0),
+                )
             else:
                 img_padded = img
             log_images.append(wandb.Image(img_padded, caption=captions[idx]))
@@ -200,8 +243,21 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
     if log_images:
         payload = {"validation_images": log_images}
         if table_rows:
-            table = wandb.Table(columns=[  # type: ignore[arg-type]
-                "display_rank","orig_index","filename","orig_w","orig_h","gt_count","pred_count","logged_w","logged_h","sha1_12","caption"
-            ], data=table_rows)
+            table = wandb.Table(
+                columns=[  # type: ignore[arg-type]
+                    "display_rank",
+                    "orig_index",
+                    "filename",
+                    "orig_w",
+                    "orig_h",
+                    "gt_count",
+                    "pred_count",
+                    "logged_w",
+                    "logged_h",
+                    "sha1_12",
+                    "caption",
+                ],
+                data=table_rows,
+            )
             payload["validation_image_table"] = table  # type: ignore[assignment]
         wandb.log(payload)

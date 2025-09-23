@@ -1,9 +1,10 @@
 import json
+from collections import OrderedDict
+from pathlib import Path
+
 import numpy as np
 from PIL import Image
-from pathlib import Path
 from torch.utils.data import Dataset
-from collections import OrderedDict
 
 Image.MAX_IMAGE_PIXELS = 108000000
 EXIF_ORIENTATION = 274  # Orientation Information: 274
@@ -18,24 +19,26 @@ class OCRDataset(Dataset):
 
         # annotation_path가 없다면, image_path에서 이미지만 불러오기
         if annotation_path is None:
-            for file in self.image_path.glob('*'):
-                if file.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+            for file in self.image_path.glob("*"):
+                if file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
                     self.anns[file.name] = None
             return
 
-        with open(annotation_path, 'r') as f:
+        with open(annotation_path, "r") as f:
             annotations = json.load(f)
 
-            for filename in annotations['images'].keys():
+            for filename in annotations["images"].keys():
                 # Image file이 경로에 존재하는지 확인
                 if (self.image_path / filename).exists():
                     # words 정보를 가지고 있는지 확인
-                    if 'words' in annotations['images'][filename]:
+                    if "words" in annotations["images"][filename]:
                         # Words의 Points 변환
-                        gt_words = annotations['images'][filename]['words']
-                        polygons = [np.array([np.round(word_data['points'])], dtype=np.int32)
-                                    for word_data in gt_words.values()
-                                    if len(word_data['points'])]
+                        gt_words = annotations["images"][filename]["words"]
+                        polygons = [
+                            np.array([np.round(word_data["points"])], dtype=np.int32)
+                            for word_data in gt_words.values()
+                            if len(word_data["points"])
+                        ]
                         self.anns[filename] = polygons if polygons else None
                     else:
                         self.anns[filename] = None
@@ -45,7 +48,7 @@ class OCRDataset(Dataset):
 
     def __getitem__(self, idx):
         image_filename = list(self.anns.keys())[idx]
-        image = Image.open(self.image_path / image_filename).convert('RGB')
+        image = Image.open(self.image_path / image_filename).convert("RGB")
 
         # EXIF정보를 확인하여 이미지 회전
         exif = image.getexif()
@@ -64,10 +67,11 @@ class OCRDataset(Dataset):
 
         # Image transform
         transformed = self.transform(image=np.array(image), polygons=polygons)
-        item.update(image=transformed['image'],
-                    polygons=transformed['polygons'],
-                    inverse_matrix=transformed['inverse_matrix'],
-                    )
+        item.update(
+            image=transformed["image"],
+            polygons=transformed["polygons"],
+            inverse_matrix=transformed["inverse_matrix"],
+        )
 
         return item
 
