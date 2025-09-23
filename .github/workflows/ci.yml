@@ -30,7 +30,7 @@ jobs:
             ${{ runner.os }}-uv-
 
       - name: Install dependencies
-        run: uv pip sync pyproject.toml --all-extras
+        run: uv pip sync pyproject.toml -- --all-extras
 
       - name: Format check with black
         run: uv run black --check --diff .

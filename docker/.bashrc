@@ -117,7 +117,7 @@ alias dhelper="./docker/docker-helper.sh"
 # OCR Project aliases (using the robust python -m pytest pattern)
 alias train='uv run python runners/train.py'
 alias predict='uv run python runners/predict.py'
-alias test='uv run python -m pytest tests/'
+alias run-tests='uv run python -m pytest tests/'
 
 # === Utility Functions ===
 # Extract various archive formats
