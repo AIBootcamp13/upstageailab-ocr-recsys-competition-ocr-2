@@ -88,9 +88,9 @@ def setup_augmentation_pipeline(config: Optional[DictConfig] = None) -> Optional
     ]
 
     # Add custom transforms from config if available
-    if config and hasattr(config, 'augmentation'):
+    if config and hasattr(config, "augmentation"):
         aug_config = config.augmentation
-        if hasattr(aug_config, 'additional_transforms'):
+        if hasattr(aug_config, "additional_transforms"):
             # Would parse additional transforms from config
             pass
 
