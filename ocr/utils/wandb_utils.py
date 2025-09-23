@@ -7,8 +7,9 @@ import os
 import cv2
 import numpy as np
 import torch
-import wandb
 from omegaconf import DictConfig
+
+import wandb
 
 
 def generate_run_name(cfg: DictConfig) -> str:
