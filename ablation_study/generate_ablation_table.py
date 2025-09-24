@@ -16,9 +16,10 @@ Usage:
 """
 
 import argparse
-import pandas as pd
 from pathlib import Path
+
 import numpy as np
+import pandas as pd
 
 
 def load_results(csv_path: str) -> pd.DataFrame:
@@ -39,8 +40,13 @@ def extract_config_value(config_str: str, key: str):
     return config_str
 
 
-def create_ablation_table(df: pd.DataFrame, ablation_type: str, metric: str,
-                         baseline: str = None, columns: list = None) -> pd.DataFrame:
+def create_ablation_table(
+    df: pd.DataFrame,
+    ablation_type: str,
+    metric: str,
+    baseline: str = None,
+    columns: list = None,
+) -> pd.DataFrame:
     """
     Create a formatted ablation table.
 
@@ -57,21 +63,21 @@ def create_ablation_table(df: pd.DataFrame, ablation_type: str, metric: str,
 
     # Define column mappings based on ablation type
     column_mappings = {
-        'learning_rate': {
-            'config_col': 'training.learning_rate',
-            'display_name': 'Learning Rate',
-            'format_func': lambda x: f"{x:.0e}"
+        "learning_rate": {
+            "config_col": "training.learning_rate",
+            "display_name": "Learning Rate",
+            "format_func": lambda x: f"{x:.0e}",
         },
-        'batch_size': {
-            'config_col': 'data.batch_size',
-            'display_name': 'Batch Size',
-            'format_func': str
+        "batch_size": {
+            "config_col": "data.batch_size",
+            "display_name": "Batch Size",
+            "format_func": str,
         },
-        'model': {
-            'config_col': 'model.backbone.name',
-            'display_name': 'Model',
-            'format_func': str
-        }
+        "model": {
+            "config_col": "model.backbone.name",
+            "display_name": "Model",
+            "format_func": str,
+        },
     }
 
     if ablation_type not in column_mappings:
@@ -81,19 +87,25 @@ def create_ablation_table(df: pd.DataFrame, ablation_type: str, metric: str,
 
         # Use first column as the varying parameter
         config_col = columns[0]
-        display_name = config_col.split('.')[-1].title()
+        display_name = config_col.split(".")[-1].title()
         format_func = str
     else:
         mapping = column_mappings[ablation_type]
-        config_col = mapping['config_col']
-        display_name = mapping['display_name']
-        format_func = mapping['format_func']
+        config_col = mapping["config_col"]
+        display_name = mapping["display_name"]
+        format_func = mapping["format_func"]
 
     # Filter to relevant columns
     if columns:
         available_columns = [col for col in columns if col in df.columns]
     else:
-        available_columns = [config_col, metric, 'val/recall', 'val/precision', 'duration']
+        available_columns = [
+            config_col,
+            metric,
+            "val/recall",
+            "val/precision",
+            "duration",
+        ]
 
     # Keep only available columns
     available_columns = [col for col in available_columns if col in df.columns]
@@ -114,8 +126,12 @@ def create_ablation_table(df: pd.DataFrame, ablation_type: str, metric: str,
     if baseline and metric in df.columns:
         baseline_value = df[df[config_col] == baseline][metric].mean()
         if not np.isnan(baseline_value):
-            table_df['Improvement'] = ((table_df[metric] - baseline_value) / baseline_value * 100).round(2)
-            table_df['Improvement'] = table_df['Improvement'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+            table_df["Improvement"] = (
+                (table_df[metric] - baseline_value) / baseline_value * 100
+            ).round(2)
+            table_df["Improvement"] = table_df["Improvement"].apply(
+                lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%"
+            )
 
     # Sort by primary metric (descending)
     if metric in table_df.columns:
@@ -127,41 +143,54 @@ def create_ablation_table(df: pd.DataFrame, ablation_type: str, metric: str,
 def save_table_markdown(table_df: pd.DataFrame, output_path: str):
     """Save table as markdown format."""
     markdown_table = table_df.to_markdown(index=False, floatfmt=".4f")
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         f.write("# Ablation Study Results\n\n")
         f.write(markdown_table)
     print(f"Markdown table saved to {output_path}")
 
 
-def save_table_latex(table_df: pd.DataFrame, output_path: str, caption: str = "Ablation Study Results"):
+def save_table_latex(
+    table_df: pd.DataFrame, output_path: str, caption: str = "Ablation Study Results"
+):
     """Save table as LaTeX format."""
-    latex_table = table_df.to_latex(index=False, float_format="%.4f", caption=caption, label="tab:ablation")
-    with open(output_path, 'w') as f:
+    latex_table = table_df.to_latex(
+        index=False, float_format="%.4f", caption=caption, label="tab:ablation"
+    )
+    with open(output_path, "w") as f:
         f.write(latex_table)
     print(f"LaTeX table saved to {output_path}")
 
 
 def print_table(table_df: pd.DataFrame):
     """Print formatted table to console."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("ABLATION STUDY RESULTS")
-    print("="*80)
+    print("=" * 80)
     print(table_df.to_string(index=False, float_format="%.4f"))
-    print("="*80)
+    print("=" * 80)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate ablation study tables")
     parser.add_argument("--input", required=True, help="Input CSV file with results")
-    parser.add_argument("--ablation-type", required=True,
-                       choices=['learning_rate', 'batch_size', 'model', 'custom'],
-                       help="Type of ablation study")
+    parser.add_argument(
+        "--ablation-type",
+        required=True,
+        choices=["learning_rate", "batch_size", "model", "custom"],
+        help="Type of ablation study",
+    )
     parser.add_argument("--metric", required=True, help="Primary metric to compare")
-    parser.add_argument("--baseline", help="Baseline configuration for relative comparison")
-    parser.add_argument("--columns", nargs="+", help="Specific columns to include (for custom ablation)")
+    parser.add_argument(
+        "--baseline", help="Baseline configuration for relative comparison"
+    )
+    parser.add_argument(
+        "--columns", nargs="+", help="Specific columns to include (for custom ablation)"
+    )
     parser.add_argument("--output-md", help="Output markdown file")
     parser.add_argument("--output-latex", help="Output LaTeX file")
-    parser.add_argument("--caption", default="Ablation Study Results", help="LaTeX table caption")
+    parser.add_argument(
+        "--caption", default="Ablation Study Results", help="LaTeX table caption"
+    )
 
     args = parser.parse_args()
 

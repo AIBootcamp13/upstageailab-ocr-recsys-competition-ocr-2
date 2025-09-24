@@ -2,37 +2,39 @@
 
 import os
 import sys
+
 import cv2
 import numpy as np
 import torch
-from tqdm import tqdm
 from hydra import compose, initialize
 from omegaconf import DictConfig, OmegaConf
+from tqdm import tqdm
 
 # Add the project root to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
 
 from ocr.datasets import OCRDataset
 from ocr.datasets.transforms import DBTransforms
+
 
 def calculate_normalization_stats(cfg: DictConfig):
     print("🚀 Calculating normalization stats for the training dataset...")
 
     # Create a minimal transform for loading images
     temp_transform = DBTransforms(
-        transforms=[{'_target_': 'albumentations.pytorch.ToTensorV2', 'p': 1.0}],
-        keypoint_params={'format': 'xy', 'remove_invisible': True}
+        transforms=[{"_target_": "albumentations.pytorch.ToTensorV2", "p": 1.0}],
+        keypoint_params={"format": "xy", "remove_invisible": True},
     )
 
     # Get dataset paths from config
-    dataset_base_path = cfg.get('dataset_base_path', '/data/datasets/')
+    dataset_base_path = cfg.get("dataset_base_path", "/data/datasets/")
     train_image_path = f"{dataset_base_path}images/train"
     train_annotation_path = f"{dataset_base_path}jsons/train.json"
 
     dataset = OCRDataset(
         image_path=train_image_path,
         annotation_path=train_annotation_path,
-        transform=temp_transform
+        transform=temp_transform,
     )
     print(f"Found {len(dataset)} images in the training set.")
 
@@ -42,7 +44,7 @@ def calculate_normalization_stats(cfg: DictConfig):
 
     for i in tqdm(range(len(dataset)), desc="Processing images"):
         sample = dataset[i]
-        image_tensor = sample['image']  # Already a tensor from the transform
+        image_tensor = sample["image"]  # Already a tensor from the transform
 
         # Convert to numpy and denormalize if needed
         if image_tensor.dtype == torch.float32:
@@ -52,11 +54,11 @@ def calculate_normalization_stats(cfg: DictConfig):
             image_np = image_tensor.permute(1, 2, 0).numpy()
 
         channel_sum += image_np.sum(axis=(0, 1))
-        channel_sum_sq += (image_np ** 2).sum(axis=(0, 1))
+        channel_sum_sq += (image_np**2).sum(axis=(0, 1))
         pixel_count += image_np.shape[0] * image_np.shape[1]
 
     mean = channel_sum / pixel_count
-    std = np.sqrt((channel_sum_sq / pixel_count) - (mean ** 2))
+    std = np.sqrt((channel_sum_sq / pixel_count) - (mean**2))
 
     mean_norm, std_norm = mean / 255.0, std / 255.0
 
@@ -68,9 +70,10 @@ def calculate_normalization_stats(cfg: DictConfig):
     print("-----------------------------------------")
     print("\nUpdate `configs/transforms/default.yaml` with these values.")
 
+
 if __name__ == "__main__":
     # Load config using the project's structure
-    config_dir = os.path.join(os.path.dirname(__file__), '../../../configs')
+    config_dir = os.path.join(os.path.dirname(__file__), "../../../configs")
     with initialize(config_path=config_dir, version_base="1.2"):
         cfg = compose(config_name="train")
         calculate_normalization_stats(cfg)

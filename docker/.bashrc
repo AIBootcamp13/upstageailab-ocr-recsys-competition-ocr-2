@@ -60,12 +60,29 @@ fi
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
 
-# UV environment variables
+# === UV Environment Management ===
+# UV is the primary package manager for this project
 export UV_LINK_MODE=copy
 export PATH="$HOME/.cargo/bin:$PATH"
-if [ -f "$HOME/.cargo/env" ]; then
-    source "$HOME/.cargo/env"
-fi
+
+# Auto-activate UV environment if .venv exists in current directory
+uv_auto_activate() {
+    if [ -f ".venv/bin/activate" ] && [ -z "$VIRTUAL_ENV" ]; then
+        source .venv/bin/activate
+        export UV_ACTIVE=1
+    fi
+}
+
+# Check for UV environment on directory change
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND$'\n'}uv_auto_activate"
+
+# UV aliases for common commands
+alias uv-run='uv run'
+alias uv-add='uv add'
+alias uv-sync='uv sync --group dev'
+alias uv-test='uv run pytest tests/ -v --tb=short'
+alias uv-lint='uv run flake8 .'
+alias uv-format='uv run black . && uv run isort .'
 
 # Properly initialize Conda to override any external activation scripts.
 if [ -f "/opt/conda/etc/profile.d/conda.sh" ]; then

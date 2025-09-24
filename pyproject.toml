@@ -15,7 +15,7 @@ dependencies = [
     "hydra-core==1.3.2",
     "icecream==2.1.3",
     "imageio==2.33.0",
-    "lightning==2.1.3",
+    "lightning>=2.4.0",
     "matplotlib==3.8.2",
     "numpy>=1.24.0,<2.0.0",
     "numba==0.58.1",
@@ -23,6 +23,7 @@ dependencies = [
     "pandas==2.1.4",
     "pathlib==1.0.1",
     "Pillow==10.1.0",
+    "plotly>=5.17.0",
     "Polygon3==3.0.9.1",
     "pyclipper==1.3.0.post5",
     "PyYAML==6.0.1",
@@ -33,6 +34,7 @@ dependencies = [
     "scipy==1.11.4",
     "seaborn==0.13.0",
     "shapely==2.0.2",
+    "streamlit>=1.28.0",
     "tensorboard==2.15.1",
     "tensorboard-data-server==0.7.2",
     "timm==0.9.12",
@@ -45,7 +47,7 @@ dependencies = [
 ]
 [project.optional-dependencies]
 dev = [
-    "pytorch-lightning==2.1.3",  # Optional for development
+    "lightning>=2.4.0",
     "pytest",
     "black",
     "isort",
@@ -70,7 +72,7 @@ packages = ["ocr"]
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -95,6 +97,21 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "__pycache__",
+    ".mypy_cache",
+    ".tox",
+    ".eggs",
+    ".git",
+    ".hg",
+]
+
 [tool.mypy]
 ignore_missing_imports = true
 # Specific modules without stubs
@@ -114,4 +131,5 @@ ignore_missing_imports = true
 dev = [
     "nvidia-ml-py>=13.580.82",
     "psutil>=5.9.8",
+    "pytest>=8.4.2",
 ]

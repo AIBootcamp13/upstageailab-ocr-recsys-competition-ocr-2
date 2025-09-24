@@ -1,15 +1,19 @@
 # scripts/analyze_worst_images.py
 
-import os
-import json
-import cv2
-import pandas as pd
 import argparse
-import matplotlib.pyplot as plt
-import numpy as np
+import json
+import os
 from typing import Any
 
-def draw_bboxes_on_image(image: np.ndarray, gt_boxes: Any, pred_boxes: Any) -> np.ndarray:
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+
+def draw_bboxes_on_image(
+    image: np.ndarray, gt_boxes: Any, pred_boxes: Any
+) -> np.ndarray:
     vis_image = image.copy()
     # Draw ground truth boxes in GREEN
     for bbox in gt_boxes:
@@ -21,21 +25,24 @@ def draw_bboxes_on_image(image: np.ndarray, gt_boxes: Any, pred_boxes: Any) -> n
         cv2.polylines(vis_image, [pts], isClosed=True, color=(255, 0, 0), thickness=2)
     return cv2.cvtColor(vis_image, cv2.COLOR_BGR2RGB)
 
+
 def analyze_worst_images(results_json_path: str, image_dir: str, top_n: int = 10):
     print(f"🔍 Analyzing results from: {results_json_path}")
     if not os.path.exists(results_json_path):
         print(f"❌ Error: Results file not found at '{results_json_path}'")
         return
 
-    with open(results_json_path, 'r') as f:
+    with open(results_json_path, "r") as f:
         per_sample_results = json.load(f)
 
-    results_list = [{'filename': fname, **metrics} for fname, metrics in per_sample_results.items()]
+    results_list = [
+        {"filename": fname, **metrics} for fname, metrics in per_sample_results.items()
+    ]
     df = pd.DataFrame(results_list)
     worst_df = df.sort_values(by="hmean", ascending=True).head(top_n)
 
     print(f"\n--- Top {top_n} Worst Performing Images ---")
-    print(worst_df[['filename', 'hmean', 'precision', 'recall']].to_string())
+    print(worst_df[["filename", "hmean", "precision", "recall"]].to_string())
 
     plt.figure(figsize=(20, top_n * 5))
     for i, row in enumerate(worst_df.itertuples()):
@@ -71,16 +78,30 @@ def analyze_worst_images(results_json_path: str, image_dir: str, top_n: int = 10
         ax = plt.subplot(top_n // 2 + 1, 2, i + 1)
         ax = plt.subplot(top_n // 2 + 1, 2, i + 1)
         ax.imshow(vis_image)
-        ax.set_title(f"{row.filename}\nH-Mean: {row.hmean:.3f} | P: {row.precision:.3f} | R: {row.recall:.3f}")
-        ax.axis('off')
+        ax.set_title(
+            f"{row.filename}\nH-Mean: {row.hmean:.3f} | P: {row.precision:.3f} | R: {row.recall:.3f}"
+        )
+        ax.axis("off")
 
     plt.tight_layout()
     plt.show()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze and visualize worst-performing images.")
-    parser.add_argument("results_json", type=str, help="Path to 'per_sample_results.json'.")
-    parser.add_argument("--image_dir", type=str, default="data/ICDAR17_Korean/images", help="Path to validation images.")
-    parser.add_argument("--top_n", type=int, default=10, help="Number of worst images to display.")
+    parser = argparse.ArgumentParser(
+        description="Analyze and visualize worst-performing images."
+    )
+    parser.add_argument(
+        "results_json", type=str, help="Path to 'per_sample_results.json'."
+    )
+    parser.add_argument(
+        "--image_dir",
+        type=str,
+        default="data/ICDAR17_Korean/images",
+        help="Path to validation images.",
+    )
+    parser.add_argument(
+        "--top_n", type=int, default=10, help="Number of worst images to display."
+    )
     args = parser.parse_args()
     analyze_worst_images(args.results_json, args.image_dir, args.top_n)

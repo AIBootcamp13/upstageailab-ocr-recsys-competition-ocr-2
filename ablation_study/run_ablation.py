@@ -35,9 +35,10 @@ from omegaconf import DictConfig, OmegaConf
 # Add project root to path
 sys.path.append(str(Path(__file__).parent))
 
-from ocr.lightning_modules import get_pl_modules_by_cfg
 import lightning.pytorch as pl
+
 import wandb
+from ocr.lightning_modules import get_pl_modules_by_cfg
 
 
 def run_single_experiment(cfg: DictConfig) -> dict:
@@ -59,7 +60,7 @@ def run_single_experiment(cfg: DictConfig) -> dict:
             project=cfg.get("project_name", "OCR_Ablation"),
             name=cfg.get("exp_name", "ablation_run"),
             config=OmegaConf.to_container(cfg, resolve=True),
-            tags=[cfg.get("experiment_tag", "ablation")]
+            tags=[cfg.get("experiment_tag", "ablation")],
         )
 
     try:
@@ -80,7 +81,7 @@ def run_single_experiment(cfg: DictConfig) -> dict:
 
         # Get final metrics
         final_metrics = {}
-        if hasattr(trainer, 'callback_metrics'):
+        if hasattr(trainer, "callback_metrics"):
             final_metrics = dict(trainer.callback_metrics)
 
         # Test if test data is available
@@ -91,14 +92,14 @@ def run_single_experiment(cfg: DictConfig) -> dict:
         return {
             "status": "success",
             "metrics": final_metrics,
-            "config": OmegaConf.to_container(cfg, resolve=True)
+            "config": OmegaConf.to_container(cfg, resolve=True),
         }
 
     except Exception as e:
         return {
             "status": "failed",
             "error": str(e),
-            "config": OmegaConf.to_container(cfg, resolve=True)
+            "config": OmegaConf.to_container(cfg, resolve=True),
         }
     finally:
         if wandb.run:

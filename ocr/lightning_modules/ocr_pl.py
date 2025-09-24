@@ -1,8 +1,8 @@
 import json
+import multiprocessing as mp
 from collections import OrderedDict, defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
-import multiprocessing as mp
 from pathlib import Path
 
 import lightning.pytorch as pl
@@ -64,6 +64,7 @@ class OCRPLModule(pl.LightningModule):
         for gt_filename, gt_words in self.dataset["val"].anns.items():
             if gt_filename not in self.validation_step_outputs:
                 import logging
+
                 logging.warning(
                     f"Missing predictions for ground truth file '{gt_filename}' during validation epoch end. "
                     "This may indicate a data loading or prediction issue."
@@ -84,8 +85,14 @@ class OCRPLModule(pl.LightningModule):
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
-                for future in tqdm(as_completed(futures), total=len(futures), desc="Parallel Evaluation"):
+                futures = [
+                    executor.submit(evaluate_single_sample, task) for task in eval_tasks
+                ]
+                for future in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc="Parallel Evaluation",
+                ):
                     recall, precision, hmean = future.result()
                     cleval_metrics["recall"].append(recall)
                     cleval_metrics["precision"].append(precision)
@@ -126,8 +133,14 @@ class OCRPLModule(pl.LightningModule):
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
-                for future in tqdm(as_completed(futures), total=len(futures), desc="Parallel Evaluation"):
+                futures = [
+                    executor.submit(evaluate_single_sample, task) for task in eval_tasks
+                ]
+                for future in tqdm(
+                    as_completed(futures),
+                    total=len(futures),
+                    desc="Parallel Evaluation",
+                ):
                     recall, precision, hmean = future.result()
                     cleval_metrics["recall"].append(recall)
                     cleval_metrics["precision"].append(precision)

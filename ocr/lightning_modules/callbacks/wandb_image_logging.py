@@ -1,5 +1,6 @@
-import torch
 import lightning.pytorch as pl
+import torch
+
 from ocr.utils.wandb_utils import log_validation_images
 
 
@@ -20,13 +21,16 @@ class WandbImageLoggingCallback(pl.Callback):
         # to properly collect images, ground truth, and predictions during validation
 
         # Log a simple metric to show the callback is working
-        if hasattr(trainer.logger, 'experiment'):
+        if hasattr(trainer.logger, "experiment"):
             try:
                 import wandb
+
                 if wandb.run:
-                    wandb.log({
-                        "validation_epoch": trainer.current_epoch,
-                        "validation_logged": True
-                    })
+                    wandb.log(
+                        {
+                            "validation_epoch": trainer.current_epoch,
+                            "validation_logged": True,
+                        }
+                    )
             except ImportError:
                 pass

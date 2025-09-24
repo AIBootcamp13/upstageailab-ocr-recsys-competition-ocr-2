@@ -20,7 +20,7 @@ Receipt text detection using DBNet architecture with PyTorch Lightning. Modular 
 ## Context Files
 - `docs/copilot/context.md` - Core project understanding
 - `docs/copilot/data-context.md` - Data processing and evaluation
-- `docs/copilot/quick-reference.md` - Common patterns and utilities
+- `docs/copilot/quick-reference.md` - Common patterns, utilities, and reusable scripts
 - `docs/maintenance/project-state.md` - Current project status
 
 ## Architecture Patterns

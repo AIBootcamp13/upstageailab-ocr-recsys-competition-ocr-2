@@ -117,8 +117,40 @@
 │   ├── predict.py
 │   ├── test.py
 │   └── train.py
+├── ui/
+│   ├── command_builder.py
+│   ├── evaluation_viewer.py
+│   ├── components/
+│   ├── utils/
+│   └── README.md
 └── tests/
 ```
+
+### UI 도구
+
+프로젝트에는 명령어 구축과 결과 분석을 위한 Streamlit 기반 UI 도구가 포함되어 있습니다.
+
+#### Command Builder (`ui/command_builder.py`)
+훈련, 테스트, 예측 명령어를 직관적인 UI로 구축하고 실행할 수 있는 도구입니다.
+
+**주요 기능:**
+- 모델 아키텍처 선택 (인코더, 디코더, 헤드, 손실 함수)
+- 학습 파라미터 조정 (학습률, 배치 크기, 에폭 수)
+- 실험 설정 (W&B 통합, 체크포인트 재개)
+- 실시간 명령어 검증 및 미리보기
+- 원클릭 명령어 실행 및 진행 상황 모니터링
+
+**사용법:**
+```bash
+# 명령어 구축 UI 실행
+python run_ui.py command_builder
+
+# 또는 직접 실행
+uv run streamlit run ui/command_builder.py
+```
+
+#### Evaluation Viewer (`ui/evaluation_viewer.py`) - ✅ Implemented
+평가 결과를 시각화하고 분석하는 도구입니다.
 
 ### 주요 구성 파일
 
@@ -416,14 +448,39 @@ uv run python ocr/utils/convert_submission.py --json_path outputs/ocr_training/s
 
 ## 설치 및 설정
 
-### 환경 설정
+### 🚨 환경 설정 (중요)
+
+이 프로젝트는 **UV** 패키지 매니저를 사용합니다. 다른 패키지 매니저(pip, conda, poetry)를 사용하지 마세요.
 
 ```bash
-# 의존성 설치
-uv sync
+# 자동 환경 설정 (권장)
+./setup-environment.sh
 
-# 개발 의존성 설치 (개발용)
-uv sync --extra dev
+# 또는 수동으로:
+# 1. 의존성 설치
+uv sync --group dev
+
+# 2. 환경 확인
+uv run python -c "import torch; print('PyTorch:', torch.__version__)"
+```
+
+### VS Code 설정
+
+프로젝트를 VS Code에서 열면 자동으로 다음 설정이 적용됩니다:
+- Python 인터프리터: `./.venv/bin/python`
+- 터미널: 자동으로 가상환경 활성화
+- 모든 Python 명령어는 `uv run` 접두사 사용
+
+### 모든 명령어는 `uv run` 사용
+
+```bash
+# ❌ 잘못된 사용
+python runners/train.py
+pytest tests/
+
+# ✅ 올바른 사용
+uv run python runners/train.py
+uv run pytest tests/
 ```
 
 ### 로컬 테스트

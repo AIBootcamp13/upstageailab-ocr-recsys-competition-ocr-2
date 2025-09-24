@@ -10,7 +10,9 @@ import warnings
 from contextlib import contextmanager
 
 # Suppress the pynvml deprecation warning before importing torch
-warnings.filterwarnings("ignore", message=".*pynvml package is deprecated.*", category=FutureWarning)
+warnings.filterwarnings(
+    "ignore", message=".*pynvml package is deprecated.*", category=FutureWarning
+)
 
 import psutil
 import torch
@@ -39,8 +41,10 @@ def gpu_profiler(device=0, log_interval=10):
 
         print("-" * 60)
         print(f"Total training time: {total_time:.2f}s")
-        print(f"Final GPU Memory: {used_mem / 1024**2:.0f}MB / {total_mem / 1024**2:.0f}MB "
-              f"({used_mem / total_mem * 100:.1f}%)")
+        print(
+            f"Final GPU Memory: {used_mem / 1024**2:.0f}MB / {total_mem / 1024**2:.0f}MB "
+            f"({used_mem / total_mem * 100:.1f}%)"
+        )
 
 
 def profile_system():
@@ -55,7 +59,9 @@ def profile_system():
         print(f"GPU Count: {torch.cuda.device_count()}")
         for i in range(torch.cuda.device_count()):
             print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
-            print(f"  Memory: {torch.cuda.get_device_properties(i).total_memory / 1024**3:.1f}GB")
+            print(
+                f"  Memory: {torch.cuda.get_device_properties(i).total_memory / 1024**3:.1f}GB"
+            )
     else:
         print("CUDA Available: No")
     print("-" * 60)
@@ -63,8 +69,12 @@ def profile_system():
 
 def main():
     parser = argparse.ArgumentParser(description="Profile OCR training performance")
-    parser.add_argument("--profile-system", action="store_true", help="Profile system resources")
-    parser.add_argument("--gpu-device", type=int, default=0, help="GPU device to profile")
+    parser.add_argument(
+        "--profile-system", action="store_true", help="Profile system resources"
+    )
+    parser.add_argument(
+        "--gpu-device", type=int, default=0, help="GPU device to profile"
+    )
 
     args = parser.parse_args()
 
