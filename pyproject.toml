@@ -43,7 +43,6 @@ dependencies = [
     "torch>=2.8.0",
     "torchvision>=0.18.0",
 ]
-
 [project.optional-dependencies]
 dev = [
     "pytorch-lightning==2.1.3",  # Optional for development
@@ -56,6 +55,7 @@ dev = [
     "types-shapely",
     "types-tqdm",
     "types-Pillow",
+    "psutil==5.9.8",
 ]
 
 [build-system]
@@ -109,3 +109,9 @@ module = [
     "Polygon",
 ]
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "nvidia-ml-py>=13.580.82",
+    "psutil>=5.9.8",
+]

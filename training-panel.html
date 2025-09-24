@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Training Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #d1d5db;
+        }
+
+        .card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+        }
+
+        .label {
+            color: #9ca3af;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        #command-output {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-item:hover {
+            background-color: #374151;
+        }
+    </style>
+</head>
+
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">OCR Model Training Dashboard</h1>
+            <p class="text-lg text-gray-400 mt-2">Visually configure hyperparameters and generate training commands.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Configuration Panel -->
+            <div class="lg:col-span-2">
+                <div class="card p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold text-white mb-6 border-b border-gray-600 pb-4">Experiment
+                        Configuration</h2>
+                    <form id="param-form" class="space-y-6">
+
+                        <!-- Training Settings -->
+                        <div>
+                            <h3 class="text-lg font-medium text-blue-400 mb-3">Training Settings</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="preset" class="label block mb-1 text-sm font-medium">Preset</label>
+                                    <input type="text" id="preset" value="example"
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label for="epochs" class="label block mb-1 text-sm font-medium">Epochs</label>
+                                    <input type="number" id="epochs" value="10" min="1"
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Model Settings -->
+                        <div>
+                            <h3 class="text-lg font-medium text-blue-400 mb-3">Model Settings</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="backbone" class="label block mb-1 text-sm font-medium">Backbone</label>
+                                    <select id="backbone"
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        <option value="resnet50">ResNet-50</option>
+                                        <option value="resnet34">ResNet-34</option>
+                                        <option value="mobilenet_v3_large">MobileNetV3-Large</option>
+                                        <option value="efficientnet_b0">EfficientNet-B0</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="lr" class="label block mb-1 text-sm font-medium">Learning Rate: <span
+                                            id="lr-value" class="font-semibold text-blue-300">0.007</span></label>
+                                    <input type="range" id="lr" min="0.0001" max="0.01" step="0.0001" value="0.007"
+                                        class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Settings -->
+                        <div>
+                            <h3 class="text-lg font-medium text-blue-400 mb-3">Data Settings</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="batch_size" class="label block mb-1 text-sm font-medium">Batch
+                                        Size</label>
+                                    <select id="batch_size"
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        <option value="4">4</option>
+                                        <option value="8">8</option>
+                                        <option value="16" selected>16</option>
+                                        <option value="32">32</option>
+                                        <option value="64">64</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="num_workers" class="label block mb-1 text-sm font-medium">Num
+                                        Workers</label>
+                                    <input type="number" id="num_workers" value="4" min="0"
+                                        class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-4 flex justify-end">
+                            <button type="button" id="reset-btn"
+                                class="btn bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md shadow-md">
+                                Reset to Defaults
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Command Output & History -->
+            <div class="space-y-8">
+                <!-- Generated Command -->
+                <div class="card p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold text-white mb-4">Generated Command</h2>
+                    <div class="relative">
+                        <pre id="command-output" class="p-4 rounded-md text-sm text-green-300 overflow-x-auto"></pre>
+                        <button id="copy-btn" title="Copy to Clipboard"
+                            class="absolute top-2 right-2 p-2 bg-gray-700 rounded-md hover:bg-gray-600">
+                            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="copy-feedback" class="text-green-400 text-sm mt-2 h-5"></div>
+                    <button id="run-btn"
+                        class="btn w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-md shadow-lg">
+                        Log Run & Copy Command
+                    </button>
+                </div>
+
+                <!-- History -->
+                <div class="card p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold text-white mb-4">Run History</h2>
+                    <div id="history-log" class="space-y-2 max-h-80 overflow-y-auto pr-2">
+                        <p class="text-gray-400 italic">No runs logged yet.</p>
+                    </div>
+                    <button id="clear-history-btn"
+                        class="btn w-full mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-md shadow-md">
+                        Clear History
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('param-form');
+        const commandOutput = document.getElementById('command-output');
+        const lrValueSpan = document.getElementById('lr-value');
+        const copyBtn = document.getElementById('copy-btn');
+        const runBtn = document.getElementById('run-btn');
+        const historyLog = document.getElementById('history-log');
+        const copyFeedback = document.getElementById('copy-feedback');
+        const resetBtn = document.getElementById('reset-btn');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+        const defaultValues = {
+            preset: 'example',
+            epochs: '10',
+            backbone: 'resnet50',
+            lr: '0.007',
+            batch_size: '16',
+            num_workers: '4'
+        };
+
+        function getFormValues() {
+            const formData = new FormData(form);
+            const values = {};
+            // Manual iteration for all fields including those not in FormData by default
+            document.querySelectorAll('#param-form input, #param-form select').forEach(el => {
+                values[el.id] = el.value;
+            });
+            return values;
+        }
+
+        function generateCommand() {
+            const values = getFormValues();
+            const lr = parseFloat(values.lr).toFixed(4);
+            lrValueSpan.textContent = lr;
+
+            // This structure assumes your python script and Hydra config
+            // can accept command-line overrides.
+            let command = `python runners/train.py preset=${values.preset} \\\n`;
+            command += `  trainer.max_epochs=${values.epochs} \\\n`;
+            command += `  model.optimizer.lr=${lr} \\\n`;
+            command += `  datamodule.batch_size=${values.batch_size} \\\n`;
+            command += `  datamodule.num_workers=${values.num_workers} \\\n`;
+            command += `  model.backbone=${values.backbone}`;
+
+            commandOutput.textContent = command;
+        }
+
+        function copyToClipboard(text) {
+            // Using document.execCommand for wider compatibility in sandboxed environments
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            document.body.removeChild(textArea);
+
+            if (success) {
+                copyFeedback.textContent = 'Copied to clipboard!';
+                setTimeout(() => copyFeedback.textContent = '', 2000);
+            } else {
+                copyFeedback.textContent = 'Copy failed!';
+                setTimeout(() => copyFeedback.textContent = '', 2000);
+            }
+        }
+
+        function logRun() {
+            const commandText = commandOutput.textContent.replace(/ \\\n  /g, ' ');
+            if (historyLog.querySelector('p')) {
+                historyLog.innerHTML = ''; // Clear initial message
+            }
+
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item p-3 bg-gray-800 rounded-md cursor-pointer border border-gray-700';
+            historyItem.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <p class="text-xs font-mono text-gray-400">${timestamp}</p>
+                    <button class="copy-history-btn p-1 rounded hover:bg-gray-600" title="Copy Command">
+                        <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                </div>
+                <code class="block text-xs text-gray-200 mt-2 break-all">${commandText}</code>
+            `;
+
+            historyLog.prepend(historyItem);
+
+            historyItem.querySelector('.copy-history-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyToClipboard(commandText);
+            });
+
+            historyItem.addEventListener('click', () => {
+                copyToClipboard(commandText);
+            });
+        }
+
+        function resetForm() {
+            Object.keys(defaultValues).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.value = defaultValues[key];
+                }
+            });
+            generateCommand();
+        }
+
+        // Event Listeners
+        form.addEventListener('input', generateCommand);
+        form.addEventListener('change', generateCommand); // For select elements
+
+        copyBtn.addEventListener('click', () => {
+            copyToClipboard(commandOutput.textContent.replace(/ \\\n  /g, ' '));
+        });
+
+        runBtn.addEventListener('click', () => {
+            const commandText = commandOutput.textContent.replace(/ \\\n  /g, ' ');
+            copyToClipboard(commandText);
+            logRun();
+        });
+
+        resetBtn.addEventListener('click', resetForm);
+
+        clearHistoryBtn.addEventListener('click', () => {
+            historyLog.innerHTML = '<p class="text-gray-400 italic">No runs logged yet.</p>';
+        });
+
+        // Initial command generation on page load
+        generateCommand();
+    </script>
+</body>
+
+</html>

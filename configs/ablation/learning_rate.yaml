@@ -1,0 +1,17 @@
+# Learning Rate Ablation Study
+# Usage: python run_ablation.py +ablation=learning_rate experiment_tag=lr_ablation
+
+defaults:
+  - _self_
+
+# Override training parameters for learning rate sweep
+training:
+  learning_rate: [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]
+
+# Keep other settings minimal for fast iteration
+trainer:
+  max_epochs: 5  # Reduced for ablation studies
+
+# Enable wandb for tracking
+wandb: true
+experiment_tag: "lr_ablation"

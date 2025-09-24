@@ -1,0 +1,21 @@
+# Batch Size Ablation Study
+# Usage: python run_ablation.py +ablation=batch_size experiment_tag=batch_size_ablation
+
+defaults:
+  - _self_
+
+# Override data parameters for batch size sweep
+data:
+  batch_size: [4, 8, 16, 32]
+
+# Adjust learning rate based on batch size (larger batch = higher LR)
+training:
+  learning_rate: [1e-3, 2e-3, 4e-3, 8e-3]
+
+# Keep epochs low for ablation
+trainer:
+  max_epochs: 5
+
+# Enable wandb for tracking
+wandb: true
+experiment_tag: "batch_size_ablation"

@@ -26,9 +26,11 @@ def train(config):
 
     if config.get("wandb"):
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
+        from ocr.utils.wandb_utils import generate_run_name  # noqa: E402
 
+        run_name = generate_run_name(config)
         logger = Logger(
-            config.exp_name,
+            run_name,
             project=config.project_name,
             config=dict(config),
         )
@@ -53,6 +55,11 @@ def train(config):
         ),
     ]
 
+    # Add wandb image logging callback if wandb is enabled
+    if config.get("wandb"):
+        from ocr.lightning_modules.callbacks.wandb_image_logging import WandbImageLoggingCallback  # noqa: E402
+        callbacks.append(WandbImageLoggingCallback(log_every_n_epochs=5))  # Log every 5 epochs
+
     trainer = pl.Trainer(**config.trainer, logger=logger, callbacks=callbacks)
 
     trainer.fit(
@@ -64,6 +71,17 @@ def train(config):
         model_module,
         data_module,
     )
+
+    # Finalize wandb run if wandb was used
+    if config.get("wandb"):
+        from ocr.utils.wandb_utils import finalize_run  # noqa: E402
+        # Get final validation loss as a simple metric for finalization
+        final_loss = trainer.callback_metrics.get("val/loss", 0.0)
+        try:
+            final_loss = float(final_loss.item() if hasattr(final_loss, 'item') else final_loss)
+        except:
+            final_loss = 0.0
+        finalize_run(final_loss)
 
 
 if __name__ == "__main__":

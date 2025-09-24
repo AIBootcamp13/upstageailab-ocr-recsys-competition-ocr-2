@@ -1,4 +1,4 @@
- <!-- Github Decorative Badges -->
+<!-- Github Decorative Badges -->
 <div align="center">
 
 [![CI](https://github.com/AIBootcamp13/upstageailab-ocr-recsys-competition-ocr-2/actions/workflows/ci.yml/badge.svg)](https://github.com/AIBootcamp13/upstageailab-ocr-recsys-competition-ocr-2/actions)
@@ -184,7 +184,7 @@ JSON 파일은 이미지 파일명을 텍스트 경계 상자의 좌표에 매�
 
 #### DBNet: 미분 가능한 이진화를 통한 실시간 장면 텍스트 검출
 
-![DBNet](https://www.researchgate.net/publication/369783176/figure/fig1/AS:11431281137414188@1680649387586/Structure-of-DBNet-DBNet-is-a-novel-network-architecture-for-real-time-scene-text.png)
+![DBNet](docs/assets/images/00_refactor_bsaeline/flow-chart-of-the-dbnet.png)
 
 ### 베이스라인 성능
 
@@ -220,6 +220,120 @@ uv run python runners/test.py preset=example "checkpoint_path=outputs/ocr_traini
 ```bash
 # 사용 예시
 uv run python runners/predict.py preset=example "checkpoint_path=outputs/ocr_training/checkpoints/epoch-8-step-1845.ckpt"
+```
+
+### Ablation Studies ( ablation studies )
+
+이 프로젝트는 체계적인 ablation studies를 위한 완전한 워크플로우를 제공합니다. 하이퍼파라미터 튜닝, 모델 아키텍처 비교, 데이터 증강 실험 등을 자동화하여 연구 효율성을 높입니다.
+
+#### Quick Start
+
+```bash
+# 1. Learning rate ablation study
+python ablation_workflow.py --ablation learning_rate --tag lr_study
+
+# 2. Batch size ablation study
+python ablation_workflow.py --ablation batch_size --tag batch_study
+
+# 3. Model architecture comparison
+python ablation_workflow.py --ablation model_architecture --tag model_study
+```
+
+#### Available Ablation Types
+
+- **`learning_rate`**: 학습률 스윕 (1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5)
+- **`batch_size`**: 배치 크기 스윕 (4, 8, 16, 32)
+- **`model_architecture`**: 백본 아키텍처 비교 (resnet18, resnet34, resnet50, mobilenet_v3_small, efficientnet_b0)
+- **`custom`**: 사용자 정의 설정
+
+#### Manual Control
+
+각 단계별로 개별 실행 가능:
+
+```bash
+# 1. Run experiments only
+python run_ablation.py +ablation=learning_rate experiment_tag=my_lr_study -m
+
+# 2. Collect results from wandb
+python collect_results.py --project OCR_Ablation --tag my_lr_study --output results.csv
+
+# 3. Generate comparison table
+python generate_ablation_table.py --input results.csv --ablation-type learning_rate --metric val/hmean --output-md table.md
+```
+
+#### Configuration
+
+Ablation 설정은 `configs/ablation/` 디렉토리에 YAML 파일로 정의:
+
+```yaml
+# configs/ablation/learning_rate.yaml
+defaults:
+  - _self_
+
+training:
+  learning_rate: [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]
+
+trainer:
+  max_epochs: 5
+
+wandb: true
+experiment_tag: "lr_ablation"
+```
+
+#### Custom Ablations
+
+Hydra의 강력한 설정 시스템을 활용하여 복잡한 ablation studies 생성:
+
+```bash
+# Multiple parameter sweep
+python run_ablation.py \
+  training.learning_rate=1e-3,5e-4,1e-4 \
+  data.batch_size=8,16,32 \
+  experiment_tag=multi_param_study \
+  -m
+
+# Architecture + augmentation sweep
+python run_ablation.py \
+  +ablation=custom \
+  model.backbone.name=resnet18,resnet50 \
+  augmentation.rotate.limit=15,30 \
+  experiment_tag=arch_aug_study \
+  -m
+```
+
+#### Results Analysis
+
+자동 생성되는 결과물:
+- **CSV 파일**: 모든 실험의 상세 메트릭
+- **마크다운 테이블**: 발표용 비교 테이블
+- **LaTeX 테이블**: 논문용 테이블
+- **시각화**: 성능 추이 그래프
+
+#### wandb Integration
+
+모든 ablation studies는 자동으로 wandb에 기록되며:
+- 실험별 메트릭 추적
+- 하이퍼파라미터 로깅
+- 모델 체크포인트 저장
+- 실시간 비교 대시보드
+
+---
+
+#### 사용 예시
+```bash
+# 1. Run unit tests
+uv run pytest tests/ -v
+
+# 2. Train model (adjust epochs as needed)
+uv run python runners/train.py preset=example trainer.max_epochs=10 dataset_base_path="/path/to/data/datasets/"
+
+# 3. Generate predictions
+uv run python runners/predict.py preset=example checkpoint_path="outputs/ocr_training/checkpoints/best.ckpt" dataset_base_path="/path/to/data/datasets/"
+
+# 4. Convert to submission format
+uv run python ocr/utils/convert_submission.py --json_path outputs/ocr_training/submissions/latest.json --output_path submission.csv
+
+
 ```
 
 ### 모델 개선 사항
@@ -429,4 +543,3 @@ uv run pytest tests/test_new_feature.py -v
 ---
 
 **마지막 업데이트**: 2025년 9월 23일
-```

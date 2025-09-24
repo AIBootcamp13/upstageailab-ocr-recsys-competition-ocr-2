@@ -1,6 +1,8 @@
 import json
 from collections import OrderedDict, defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
+import multiprocessing as mp
 from pathlib import Path
 
 import lightning.pytorch as pl
@@ -10,6 +12,15 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ocr.metrics import CLEvalMetric
+
+
+def evaluate_single_sample(args):
+    """Helper function for parallel evaluation of a single sample."""
+    det_quads, gt_quads = args
+    metric = CLEvalMetric()
+    metric(det_quads, gt_quads)
+    result = metric.compute()
+    return result["recall"].item(), result["precision"].item(), result["f1"].item()
 
 
 class OCRPLModule(pl.LightningModule):
@@ -48,14 +59,18 @@ class OCRPLModule(pl.LightningModule):
     def on_validation_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        for gt_filename, gt_words in tqdm(
-            self.dataset["val"].anns.items(), desc="Evaluation"
-        ):
+        # Prepare evaluation tasks
+        eval_tasks = []
+        for gt_filename, gt_words in self.dataset["val"].anns.items():
             if gt_filename not in self.validation_step_outputs:
-                # TODO: Check if this is on_sanity?
-                cleval_metrics["recall"].append(np.array(0.0, dtype=np.float32))
-                cleval_metrics["precision"].append(np.array(0.0, dtype=np.float32))
-                cleval_metrics["hmean"].append(np.array(0.0, dtype=np.float32))
+                import logging
+                logging.warning(
+                    f"Missing predictions for ground truth file '{gt_filename}' during validation epoch end. "
+                    "This may indicate a data loading or prediction issue."
+                )
+                cleval_metrics["recall"].append(0.0)
+                cleval_metrics["precision"].append(0.0)
+                cleval_metrics["hmean"].append(0.0)
                 continue
 
             pred = self.validation_step_outputs[gt_filename]
@@ -63,17 +78,22 @@ class OCRPLModule(pl.LightningModule):
                 [point for coord in polygons for point in coord] for polygons in pred
             ]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+            eval_tasks.append((det_quads, gt_quads))
 
-            self.metric(det_quads, gt_quads)
-            cleval = self.metric.compute()
-            cleval_metrics["recall"].append(cleval["det_r"].cpu().numpy())
-            cleval_metrics["precision"].append(cleval["det_p"].cpu().numpy())
-            cleval_metrics["hmean"].append(cleval["det_h"].cpu().numpy())
-            self.metric.reset()
+        # Parallel evaluation
+        if eval_tasks:
+            num_workers = min(mp.cpu_count(), len(eval_tasks))
+            with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
+                for future in tqdm(as_completed(futures), total=len(futures), desc="Parallel Evaluation"):
+                    recall, precision, hmean = future.result()
+                    cleval_metrics["recall"].append(recall)
+                    cleval_metrics["precision"].append(precision)
+                    cleval_metrics["hmean"].append(hmean)
 
-        recall = np.mean(cleval_metrics["recall"])
-        precision = np.mean(cleval_metrics["precision"])
-        hmean = np.mean(cleval_metrics["hmean"])
+        recall = float(np.mean(cleval_metrics["recall"]))
+        precision = float(np.mean(cleval_metrics["precision"]))
+        hmean = float(np.mean(cleval_metrics["hmean"]))
 
         self.log("val/recall", recall, on_epoch=True, prog_bar=True)
         self.log("val/precision", precision, on_epoch=True, prog_bar=True)
@@ -92,25 +112,30 @@ class OCRPLModule(pl.LightningModule):
     def on_test_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        for gt_filename, gt_words in tqdm(
-            self.dataset["test"].anns.items(), desc="Evaluation"
-        ):
+        # Prepare evaluation tasks
+        eval_tasks = []
+        for gt_filename, gt_words in self.dataset["test"].anns.items():
             pred = self.test_step_outputs[gt_filename]
             det_quads = [
                 [point for coord in polygons for point in coord] for polygons in pred
             ]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+            eval_tasks.append((det_quads, gt_quads))
 
-            self.metric(det_quads, gt_quads)
-            cleval = self.metric.compute()
-            cleval_metrics["recall"].append(cleval["det_r"].cpu().numpy())
-            cleval_metrics["precision"].append(cleval["det_p"].cpu().numpy())
-            cleval_metrics["hmean"].append(cleval["det_h"].cpu().numpy())
-            self.metric.reset()
+        # Parallel evaluation
+        if eval_tasks:
+            num_workers = min(mp.cpu_count(), len(eval_tasks))
+            with ProcessPoolExecutor(max_workers=num_workers) as executor:
+                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
+                for future in tqdm(as_completed(futures), total=len(futures), desc="Parallel Evaluation"):
+                    recall, precision, hmean = future.result()
+                    cleval_metrics["recall"].append(recall)
+                    cleval_metrics["precision"].append(precision)
+                    cleval_metrics["hmean"].append(hmean)
 
-        recall = np.mean(cleval_metrics["recall"])
-        precision = np.mean(cleval_metrics["precision"])
-        hmean = np.mean(cleval_metrics["hmean"])
+        recall = float(np.mean(cleval_metrics["recall"]))
+        precision = float(np.mean(cleval_metrics["precision"]))
+        hmean = float(np.mean(cleval_metrics["hmean"]))
 
         self.log("test/recall", recall, on_epoch=True, prog_bar=True)
         self.log("test/precision", precision, on_epoch=True, prog_bar=True)

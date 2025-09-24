@@ -33,5 +33,4 @@ Receipt text detection using DBNet architecture with PyTorch Lightning. Modular 
 - All public functions need type hints and docstrings
 - Unit test coverage for core components
 - Integration tests for end-to-end pipelines
-- Use icecream for debugging, rich for console output</content>
-<parameter name="filePath">/home/vscode/workspace/upstage-receipt-text-detection-dbnet-baseline/.github/copilot-instructions.md
+- Use icecream for debugging, rich for console output
