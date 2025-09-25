@@ -1,6 +1,9 @@
 defaults:
   - _self_
-  - preset:
+  - base
+  - preset/datasets/db
+  - preset/models/model_example
+  - preset/lightning_modules/base
   - override hydra/hydra_logging: disabled
   - override hydra/job_logging: disabled
 

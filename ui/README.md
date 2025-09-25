@@ -1,4 +1,78 @@
-# OCR Project Streamlit U#### Evaluation Viewer (`ui/evaluation_viewer.py`) - ✅ Implemented
+# OCR Project Streamlit UI
+
+This directory contains Streamlit applications for managing OCR training workflows and real-time inference.
+
+## Applications
+
+### Command Builder (`command_builder.py`)
+A user-friendly interface for building and executing training, testing, and prediction commands.
+
+**Features:**
+- Interactive model architecture selection (encoders, decoders, heads, losses)
+- Training parameter adjustment (learning rate, batch size, epochs)
+- Experiment configuration (W&B integration, checkpoint resuming)
+- Real-time command validation and preview
+- One-click command execution with progress monitoring
+- **Improved process management** - Safe process group handling prevents orphaned training processes
+
+**Process Safety:**
+- Uses process groups for complete cleanup on interruption
+- Automatic termination of DataLoader worker processes
+- Graceful shutdown handling for interrupted training sessions
+- Integration with process monitoring utilities
+
+**Usage:**
+```bash
+# Run the command builder UI
+python run_ui.py command_builder
+
+# Or directly with streamlit
+uv run streamlit run ui/command_builder.py
+```
+
+### Inference UI (`inference_ui.py`) - ✅ New!
+Real-time OCR inference interface for instant predictions on uploaded images.
+
+**Features:**
+- Drag-and-drop image upload (supports JPG, PNG, BMP)
+- Model checkpoint selection from trained models
+- Real-time inference with progress tracking
+- Interactive visualization of OCR predictions
+- Batch processing for multiple images
+- Demo mode with mock predictions when models aren't available
+
+**Setup Requirements:**
+```bash
+# Ensure virtual environment is activated
+source .venv/bin/activate  # or use your preferred method
+
+# Install dependencies
+uv sync
+
+# For real inference (optional - demo mode works without this)
+# Train a model first using the command builder UI
+```
+
+**Usage:**
+```bash
+# Run the inference UI
+python run_ui.py inference
+
+# Or directly with streamlit
+uv run streamlit run ui/inference_ui.py
+```
+
+**Inference Workflow:**
+1. Upload one or more images via drag-and-drop
+2. Select a trained model checkpoint (or use demo mode)
+3. Click "Run Inference" for instant results
+4. View predictions overlaid on images
+5. Extract and copy recognized text
+
+**Demo Mode:**
+If no trained models are available, the UI automatically switches to demo mode with mock predictions, allowing you to test the interface and workflow before training models.
+
+### Evaluation Viewer (`evaluation_viewer.py`) - ✅ Implemented
 An interface for viewing and analyzing OCR evaluation results.
 
 **주요 기능:**
@@ -22,7 +96,6 @@ python demo_evaluation_viewer.py
 - 예측 분포 히스토그램
 - 바운딩 박스 면적 및 종횡비 분석
 - 개별 이미지 예측 결과 시각화
-This directory contains Streamlit applications for managing OCR training workflows.
 
 ## Applications
 
@@ -48,6 +121,32 @@ uv run streamlit run ui/command_builder.py
 ### Evaluation Viewer (`evaluation_viewer.py`) - Coming Soon
 An interface for viewing and analyzing evaluation results.
 
+### Resource Monitor (`resource_monitor.py`) - ✅ New!
+A comprehensive monitoring interface for system resources, training processes, and GPU utilization.
+
+**Features:**
+- Real-time CPU, memory, and GPU resource monitoring
+- Training process and worker process status display
+- Process management with safe termination and force kill options
+- GPU memory usage visualization with progress bars
+- Auto-refresh capability (5-second intervals)
+- Quick action buttons for process cleanup and emergency stops
+
+**Process Management:**
+- View all training processes and their worker processes
+- Terminate processes gracefully (SIGTERM) or forcefully (SIGKILL)
+- Confirmation dialogs for dangerous operations
+- Integration with the process monitor utility script
+
+**Usage:**
+```bash
+# Run the resource monitor UI
+python run_ui.py resource_monitor
+
+# Or directly with streamlit
+uv run streamlit run ui/resource_monitor.py
+```
+
 ## Architecture
 
 The UI is built with a modular design:
@@ -56,6 +155,8 @@ The UI is built with a modular design:
 ui/
 ├── command_builder.py          # Main command builder app
 ├── evaluation_viewer.py        # Evaluation results viewer (planned)
+├── inference_ui.py            # Real-time inference interface
+├── resource_monitor.py         # System resource and process monitor
 ├── components/                 # Reusable UI components
 ├── utils/                      # Utility modules
 │   ├── config_parser.py        # Parses Hydra configurations

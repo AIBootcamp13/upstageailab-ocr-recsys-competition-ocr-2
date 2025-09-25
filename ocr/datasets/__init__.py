@@ -3,6 +3,7 @@ from hydra.utils import instantiate
 from .base import OCRDataset
 from .db_collate_fn import DBCollateFN
 from .transforms import DBTransforms
+from .preprocessing import DocumentPreprocessor, LensStylePreprocessorAlbumentations
 
 
 def get_datasets_by_cfg(config):

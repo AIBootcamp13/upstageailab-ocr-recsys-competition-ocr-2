@@ -1,6 +1,6 @@
 # @package _global_
 
-dataset_base_path: "/data/datasets/"   # Change your path
+dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"   # Relative to current working directory
 
 datasets:
   train_dataset:

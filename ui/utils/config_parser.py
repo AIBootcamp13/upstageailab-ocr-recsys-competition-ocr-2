@@ -103,7 +103,7 @@ class ConfigParser:
                             "max_epochs": {
                                 "default": trainer.get("max_epochs", 10),
                                 "min": 1,
-                                "max": 100,
+                                "max": 200,
                                 "type": "int",
                             },
                             "batch_size": {
@@ -120,7 +120,7 @@ class ConfigParser:
                     {
                         "learning_rate": {
                             "default": 0.001,
-                            "min": 1e-6,
+                            "min": 1e-5,
                             "max": 1e-2,
                             "type": "float",
                         },
@@ -189,10 +189,36 @@ class ConfigParser:
         if config.get("max_epochs", 0) <= 0:
             errors.append("max_epochs must be positive")
 
-        if not (1e-6 <= config.get("learning_rate", 0) <= 1e-2):
-            errors.append("learning_rate must be between 1e-6 and 1e-2")
+        if not (1e-5 <= config.get("learning_rate", 0) <= 1e-2):
+            errors.append("learning_rate must be between 1e-5 and 1e-2")
 
         if config.get("batch_size", 0) <= 0:
             errors.append("batch_size must be positive")
 
         return errors
+
+    def get_available_checkpoints(self) -> List[str]:
+        """Get available checkpoint files for resuming training.
+
+        Returns:
+            List of available checkpoint file paths.
+        """
+        if "checkpoints" in self._cache:
+            return self._cache["checkpoints"]
+
+        checkpoints = []
+        outputs_dir = self.config_dir.parent / "outputs"
+
+        if outputs_dir.exists():
+            # Look for checkpoint files in all experiment directories
+            for exp_dir in outputs_dir.glob("*"):
+                if exp_dir.is_dir():
+                    checkpoint_dir = exp_dir / "checkpoints"
+                    if checkpoint_dir.exists():
+                        checkpoints.extend([
+                            str(ckpt_file.relative_to(self.config_dir.parent))
+                            for ckpt_file in checkpoint_dir.glob("*.ckpt")
+                        ])
+
+        self._cache["checkpoints"] = checkpoints
+        return checkpoints

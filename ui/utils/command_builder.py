@@ -6,9 +6,11 @@ for training, testing, and prediction based on user selections.
 """
 
 import os
+import signal
 import subprocess
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -24,7 +26,7 @@ class CommandBuilder:
         """
         if project_root is None:
             # Default to project root relative to this file
-            self.project_root = Path(__file__).parent.parent.parent
+            self.project_root = Path(__file__).resolve().parent.parent.parent
         else:
             self.project_root = Path(project_root)
 
@@ -37,7 +39,9 @@ class CommandBuilder:
             cmd_parts: Command parts list to modify.
             overrides: List of override strings.
         """
-        cmd_parts.extend(["--config-path", str(self.project_root / "configs")])
+        # Ensure the config path is absolute
+        config_path = self.project_root / "configs"
+        cmd_parts.extend(["--config-path", str(config_path.resolve())])
         cmd_parts.extend(overrides)
 
     def build_train_command(self, config: Dict[str, Any]) -> str:
@@ -49,7 +53,7 @@ class CommandBuilder:
         Returns:
             Complete CLI command string.
         """
-        cmd_parts = ["python", str(self.runners_dir / "train.py")]
+        cmd_parts = ["uv", "run", "python", str(self.runners_dir / "train.py")]
 
         # Add overrides
         overrides = self._build_overrides(config)
@@ -66,7 +70,7 @@ class CommandBuilder:
         Returns:
             Complete CLI command string.
         """
-        cmd_parts = ["python", str(self.runners_dir / "test.py")]
+        cmd_parts = ["uv", "run", "python", str(self.runners_dir / "test.py")]
 
         # Add overrides
         overrides = self._build_test_overrides(config)
@@ -83,7 +87,7 @@ class CommandBuilder:
         Returns:
             Complete CLI command string.
         """
-        cmd_parts = ["python", str(self.runners_dir / "predict.py")]
+        cmd_parts = ["uv", "run", "python", str(self.runners_dir / "predict.py")]
 
         # Add overrides
         overrides = self._build_predict_overrides(config)
@@ -102,40 +106,28 @@ class CommandBuilder:
         """
         overrides = []
 
+        # Add encoder_path override with + prefix to allow adding new keys
+        overrides.append("+models.encoder.encoder_path=null")
+
         # Model configuration
         if "encoder" in config:
             overrides.append(f"models.encoder.model_name={config['encoder']}")
-
-        if "decoder" in config:
-            overrides.append(
-                f"models.decoder._target=ocr.models.decoder.{config['decoder']}.UNet"
-            )
-
-        if "head" in config:
-            overrides.append(
-                f"models.head._target=ocr.models.head.{config['head']}.DBHead"
-            )
-
-        if "loss" in config:
-            overrides.append(
-                f"models.loss._target=ocr.models.loss.{config['loss']}.DBLoss"
-            )
 
         # Training parameters
         if "learning_rate" in config:
             overrides.append(f"models.optimizer.lr={config['learning_rate']}")
 
         if "batch_size" in config:
-            overrides.append("data.batch_size=" + str(config["batch_size"]))
+            overrides.append(f"+data.batch_size={config['batch_size']}")
 
         if "max_epochs" in config:
-            overrides.append("trainer.max_epochs=" + str(config["max_epochs"]))
+            overrides.append(f"trainer.max_epochs={config['max_epochs']}")
 
         if "seed" in config:
-            overrides.append("seed=" + str(config["seed"]))
+            overrides.append(f"seed={config['seed']}")
 
         # Experiment settings
-        if "exp_name" in config:
+        if "exp_name" in config and config["exp_name"]:
             overrides.append(f"exp_name={config['exp_name']}")
 
         if "wandb" in config:
@@ -157,10 +149,17 @@ class CommandBuilder:
         """
         overrides = []
 
-        if "checkpoint_path" in config:
+        # Include default model configuration for testing
+        overrides.extend([
+            "models.encoder.model_name=resnet18",
+            "models.optimizer.lr=0.001",
+            "+models.encoder.encoder_path=null"
+        ])
+
+        if "checkpoint_path" in config and config["checkpoint_path"]:
             overrides.append(f"checkpoint_path={config['checkpoint_path']}")
 
-        if "exp_name" in config:
+        if "exp_name" in config and config["exp_name"]:
             overrides.append(f"exp_name={config['exp_name']}")
 
         return overrides
@@ -176,10 +175,17 @@ class CommandBuilder:
         """
         overrides = []
 
-        if "checkpoint_path" in config:
+        # Include default model configuration for prediction
+        overrides.extend([
+            "models.encoder.model_name=resnet18",
+            "models.optimizer.lr=0.001",
+            "+models.encoder.encoder_path=null"
+        ])
+
+        if "checkpoint_path" in config and config["checkpoint_path"]:
             overrides.append(f"checkpoint_path={config['checkpoint_path']}")
 
-        if "exp_name" in config:
+        if "exp_name" in config and config["exp_name"]:
             overrides.append(f"exp_name={config['exp_name']}")
 
         if "minified_json" in config:
@@ -197,28 +203,32 @@ class CommandBuilder:
             Tuple of (is_valid, error_message).
         """
         try:
-            # Parse the command
             parts = command.split()
             if not parts:
                 return False, "Empty command"
 
-            script_path = parts[1] if len(parts) > 1 else ""
-            if not Path(script_path).exists():
-                return False, f"Script not found: {script_path}"
+            # Check for 'uv run python' structure
+            if parts[:3] == ["uv", "run", "python"]:
+                script_path = Path(parts[3])
+                if not script_path.exists():
+                    return False, f"Script not found: {script_path}"
+                return True, ""
 
-            return True, ""
+            return False, "Command must start with 'uv run python'"
 
         except Exception as e:
-            return False, f"Command validation error: {str(e)}"
+            return False, f"Command validation error: {e}"
 
-    def execute_command(
-        self, command: str, cwd: Optional[str] = None
+    def execute_command_streaming(
+        self, command: str, cwd: Optional[str] = None,
+        progress_callback: Optional[Callable[[str], None]] = None
     ) -> Tuple[int, str, str]:
-        """Execute a command and return the results.
+        """Execute a command with streaming output and process group management.
 
         Args:
             command: Command string to execute.
             cwd: Working directory for execution.
+            progress_callback: Optional callback function to handle output lines in real-time.
 
         Returns:
             Tuple of (return_code, stdout, stderr).
@@ -227,16 +237,89 @@ class CommandBuilder:
             cwd = str(self.project_root)
 
         try:
-            result = subprocess.run(
-                command,
-                shell=True,
+            # Use Popen with process group for better cleanup control
+            process = subprocess.Popen(
+                command.split(),
                 cwd=cwd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=300,  # 5 minute timeout
+                bufsize=1,  # Line buffered
+                universal_newlines=True,
+                preexec_fn=os.setsid  # Create new process group
             )
-            return result.returncode, result.stdout, result.stderr
-        except subprocess.TimeoutExpired:
-            return -1, "", "Command timed out after 5 minutes"
+
+            stdout_lines = []
+            stderr_lines = []
+
+            # Read output streams
+            while True:
+                # Check if process is still running
+                if process.poll() is not None:
+                    break
+
+                # Read stdout
+                if process.stdout:
+                    line = process.stdout.readline()
+                    if line:
+                        stdout_lines.append(line.rstrip())
+                        if progress_callback:
+                            progress_callback(f"OUT: {line.rstrip()}")
+
+                # Read stderr
+                if process.stderr:
+                    line = process.stderr.readline()
+                    if line:
+                        stderr_lines.append(line.rstrip())
+                        if progress_callback:
+                            progress_callback(f"ERR: {line.rstrip()}")
+
+                # Small delay to prevent busy waiting
+                time.sleep(0.1)
+
+            # Get any remaining output
+            if process.stdout:
+                remaining_stdout, remaining_stderr = process.communicate()
+                if remaining_stdout:
+                    for line in remaining_stdout.splitlines():
+                        stdout_lines.append(line)
+                        if progress_callback:
+                            progress_callback(f"OUT: {line}")
+                if remaining_stderr:
+                    for line in remaining_stderr.splitlines():
+                        stderr_lines.append(line)
+                        if progress_callback:
+                            progress_callback(f"ERR: {line}")
+
+            return process.returncode, '\n'.join(stdout_lines), '\n'.join(stderr_lines)
+
+        except FileNotFoundError:
+            return -1, "", "Execution error: 'uv' command not found. Is it installed and in your PATH?"
         except Exception as e:
-            return -1, "", f"Execution error: {str(e)}"
+            return -1, "", f"An unexpected execution error occurred: {e}"
+
+    def terminate_process_group(self, process: subprocess.Popen) -> bool:
+        """Terminate a process group to ensure all child processes are killed.
+
+        Args:
+            process: The Popen process object.
+
+        Returns:
+            True if termination was successful, False otherwise.
+        """
+        try:
+            if process.poll() is None:  # Process is still running
+                # Send SIGTERM to the entire process group
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+
+                # Wait a bit for graceful shutdown
+                try:
+                    process.wait(timeout=5.0)
+                except subprocess.TimeoutExpired:
+                    # If still running, force kill
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    process.wait()
+            return True
+        except (ProcessLookupError, OSError) as e:
+            # Process might already be dead
+            return False

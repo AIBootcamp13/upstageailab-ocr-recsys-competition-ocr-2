@@ -167,13 +167,22 @@ def render_train_interface(
 
         checkpoint_path = ""
         if resume_training:
-            checkpoint_path = st.text_input(
-                "Checkpoint Path",
-                value="",
-                help="Path to checkpoint file to resume from",
-            )
+            available_checkpoints = config_parser.get_available_checkpoints()
+            if available_checkpoints:
+                checkpoint_path = st.selectbox(
+                    "Checkpoint Path",
+                    available_checkpoints,
+                    help="Select a checkpoint file to resume from",
+                )
+            else:
+                st.warning("No checkpoint files found in outputs directory")
+                checkpoint_path = st.text_input(
+                    "Checkpoint Path",
+                    value="",
+                    help="Path to checkpoint file to resume from",
+                )
 
-    # Build configuration
+    # Build the config dictionary directly from the current state of all widgets
     config = {
         "encoder": encoder,
         "decoder": decoder,
@@ -184,29 +193,35 @@ def render_train_interface(
         "max_epochs": max_epochs,
         "seed": seed,
         "exp_name": exp_name,
-        "wandb": use_wandb,
+        "wandb": use_wandb,  # The value from the checkbox is now correctly used every time
     }
 
     if resume_training and checkpoint_path:
         config["resume"] = checkpoint_path
 
-    # Generate command
+    # Generate the command from the up-to-date config
     command = command_builder.build_train_command(config)
 
     st.subheader("Generated Command")
-    st.code(command, language="bash")
 
-    # Validation
-    is_valid, error_msg = command_builder.validate_command(command)
+    # The text area now directly displays the command generated on this script run.
+    # Manual edits are temporary; changing any widget will regenerate the command.
+    edited_command = st.text_area(
+        "Command (editable)",
+        value=command,
+        height=150,
+        help="The command updates automatically when you change settings above.",
+        key="train_command_input"
+    )
+
+    # Validate the command shown in the text area
+    is_valid, error_msg = command_builder.validate_command(edited_command)
     if not is_valid:
         st.error(f"Command validation failed: {error_msg}")
     else:
         st.success("Command is valid")
-
-        # Execute button
         if st.button("🚀 Execute Training", type="primary"):
-            execute_command(command_builder, command)
-
+            execute_command(command_builder, edited_command)
 
 def render_test_interface(config_parser: ConfigParser, command_builder: CommandBuilder):
     """Render the testing command interface."""
@@ -242,10 +257,18 @@ def render_test_interface(config_parser: ConfigParser, command_builder: CommandB
     command = command_builder.build_test_command(config)
 
     st.subheader("Generated Command")
-    st.code(command, language="bash")
 
-    # Validation
-    is_valid, error_msg = command_builder.validate_command(command)
+    # Make command editable
+    edited_command = st.text_area(
+        "Command (editable)",
+        value=command,
+        height=150,
+        help="You can edit the command before executing",
+        key="test_command"
+    )
+
+    # Show command validation
+    is_valid, error_msg = command_builder.validate_command(edited_command)
     if not is_valid:
         st.error(f"Command validation failed: {error_msg}")
     else:
@@ -253,7 +276,7 @@ def render_test_interface(config_parser: ConfigParser, command_builder: CommandB
 
         # Execute button
         if st.button("🧪 Execute Testing", type="primary"):
-            execute_command(command_builder, command)
+            execute_command(command_builder, edited_command)
 
 
 def render_predict_interface(
@@ -297,10 +320,18 @@ def render_predict_interface(
     command = command_builder.build_predict_command(config)
 
     st.subheader("Generated Command")
-    st.code(command, language="bash")
 
-    # Validation
-    is_valid, error_msg = command_builder.validate_command(command)
+    # Make command editable
+    edited_command = st.text_area(
+        "Command (editable)",
+        value=command,
+        height=150,
+        help="You can edit the command before executing",
+        key="predict_command"
+    )
+
+    # Show command validation
+    is_valid, error_msg = command_builder.validate_command(edited_command)
     if not is_valid:
         st.error(f"Command validation failed: {error_msg}")
     else:
@@ -308,34 +339,123 @@ def render_predict_interface(
 
         # Execute button
         if st.button("🔮 Execute Prediction", type="primary"):
-            execute_command(command_builder, command)
+            execute_command(command_builder, edited_command)
 
 
 def execute_command(command_builder: CommandBuilder, command: str):
-    """Execute a command and display results."""
-    with st.spinner("Executing command..."):
-        return_code, stdout, stderr = command_builder.execute_command(command)
+    """Execute a command and display results with real-time progress and safety mechanisms."""
+    import time
+    from collections import deque
 
-    if return_code == 0:
-        st.success("Command executed successfully!")
+    # Create placeholders for dynamic updates
+    status_placeholder = st.empty()
+    progress_placeholder = st.empty()
+    output_container = st.container()
+    error_container = st.container()
 
-        if stdout:
-            with st.expander("Standard Output"):
-                st.code(stdout)
+    status_placeholder.info("🚀 Starting command execution...")
 
-        if stderr:
-            with st.expander("Standard Error (Warnings)"):
-                st.code(stderr)
-    else:
-        st.error(f"Command failed with return code {return_code}")
+    # Create a deque to store recent output lines for display
+    output_lines = deque(maxlen=100)  # Keep last 100 lines for safety
+    output_display = output_container.empty()
+    error_display = error_container.empty()
 
-        if stdout:
-            with st.expander("Standard Output"):
-                st.code(stdout)
+    start_time = time.time()
+    execution_failed = False
 
-        if stderr:
-            with st.expander("Standard Error"):
-                st.code(stderr)
+    def progress_callback(line: str):
+        """Callback to handle real-time output with error handling."""
+        try:
+            output_lines.append(line)
+            # Update display with recent output
+            recent_output = '\n'.join(list(output_lines)[-25:])  # Show last 25 lines
+            formatted_output = format_command_output(recent_output)
+            output_display.code(f"🖥️ Live Output (Last 25 lines):\n{formatted_output}", language="text")
+
+            # Check for common error patterns and warn user
+            if any(error_word in line.lower() for error_word in ['error', 'exception', 'failed', 'traceback']):
+                error_display.warning(f"⚠️ Potential issue detected: {line[:100]}...")
+
+        except Exception as e:
+            # If callback fails, log it but don't crash the execution
+            error_display.error(f"⚠️ Output display error: {e}")
+
+    try:
+        # Use streaming execution with timeout safety
+        return_code, stdout, stderr = command_builder.execute_command_streaming(
+            command, progress_callback=progress_callback
+        )
+
+        execution_time = time.time() - start_time
+
+        # Clear progress indicators
+        status_placeholder.empty()
+        progress_placeholder.empty()
+
+        if return_code == 0:
+            status_placeholder.success(f"✅ Command completed successfully in {execution_time:.1f}s!")
+        else:
+            status_placeholder.error(f"❌ Command failed with return code {return_code} after {execution_time:.1f}s")
+            execution_failed = True
+
+        # Always display complete outputs in organized sections
+        with output_container:
+            if stdout.strip():
+                with st.expander("📄 Complete Standard Output", expanded=execution_failed):
+                    formatted_output = format_command_output(stdout)
+                    st.code(formatted_output, language="text")
+
+            if stderr.strip():
+                with st.expander("⚠️ Complete Standard Error", expanded=True):
+                    formatted_error = format_command_output(stderr)
+                    st.code(formatted_error, language="text")
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        status_placeholder.error(f"💥 Execution error after {execution_time:.1f}s: {e}")
+        error_display.error(f"Full error: {str(e)}")
+        execution_failed = True
+
+    finally:
+        # Clean up displays but keep final output visible
+        try:
+            if not execution_failed:
+                output_display.empty()
+                error_display.empty()
+        except:
+            pass
+
+        # Ensure we always show some indication of completion
+        if execution_failed:
+            st.error("❌ Command execution encountered issues. Check the output above for details.")
+        else:
+            st.success("✅ Command execution completed. Check outputs above for results.")
+
+def format_command_output(output: str) -> str:
+    """Format command output for better readability."""
+    if not output.strip():
+        return output
+
+    lines = output.split('\n')
+    formatted_lines = []
+
+    for line in lines:
+        # Add visual indicators for common patterns
+        if 'epoch' in line.lower() and 'loss' in line.lower():
+            formatted_lines.append(f"📊 {line}")
+        elif 'error' in line.lower() or 'exception' in line.lower():
+            formatted_lines.append(f"❌ {line}")
+        elif 'warning' in line.lower():
+            formatted_lines.append(f"⚠️ {line}")
+        elif 'success' in line.lower() or 'completed' in line.lower():
+            formatted_lines.append(f"✅ {line}")
+        elif line.strip().startswith('[') and ']' in line:
+            # Progress bars or bracketed output
+            formatted_lines.append(f"🔄 {line}")
+        else:
+            formatted_lines.append(line)
+
+    return '\n'.join(formatted_lines)
 
 
 if __name__ == "__main__":

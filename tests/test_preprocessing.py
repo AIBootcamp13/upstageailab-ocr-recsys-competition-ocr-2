@@ -1,0 +1,178 @@
+"""
+Tests for Microsoft Lens-style document preprocessing.
+"""
+
+import pytest
+import numpy as np
+import cv2
+from pathlib import Path
+
+from ocr.datasets.preprocessing import DocumentPreprocessor, LensStylePreprocessorAlbumentations
+
+
+class TestDocumentPreprocessor:
+    """Test cases for DocumentPreprocessor class."""
+
+    @pytest.fixture
+    def sample_image(self):
+        """Create a sample test image."""
+        return np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+
+    @pytest.fixture
+    def preprocessor(self):
+        """Create a DocumentPreprocessor instance."""
+        return DocumentPreprocessor(
+            enable_document_detection=True,
+            enable_perspective_correction=True,
+            enable_enhancement=True,
+            enable_text_enhancement=False,  # Updated default
+            target_size=(640, 640)
+        )
+
+    def test_initialization(self, preprocessor):
+        """Test preprocessor initialization."""
+        assert preprocessor.enable_document_detection is True
+        assert preprocessor.enable_perspective_correction is True
+        assert preprocessor.enable_enhancement is True
+        assert preprocessor.enable_text_enhancement is False  # Updated default
+        assert preprocessor.target_size == (640, 640)
+
+    def test_preprocessing_pipeline(self, preprocessor, sample_image):
+        """Test the full preprocessing pipeline."""
+        result = preprocessor(sample_image)
+
+        # Check that result contains expected keys
+        assert 'image' in result
+        assert 'metadata' in result
+
+        # Check that processed image has correct shape
+        processed_image = result['image']
+        assert processed_image.shape == (640, 640, 3)
+
+        # Check metadata structure
+        metadata = result['metadata']
+        assert 'original_shape' in metadata
+        assert 'processing_steps' in metadata
+        assert 'final_shape' in metadata
+
+    def test_document_detection(self, preprocessor, sample_image):
+        """Test document boundary detection."""
+        corners = preprocessor._detect_document_boundaries(sample_image)
+
+        # For random noise image, detection might fail (which is expected)
+        # We just check that the method doesn't crash
+        assert corners is None or isinstance(corners, np.ndarray)
+
+    def test_image_enhancement(self, preprocessor, sample_image):
+        """Test image enhancement functionality."""
+        enhanced, applied = preprocessor._enhance_image(sample_image)
+
+        assert enhanced.shape == sample_image.shape
+        assert isinstance(applied, list)
+        assert len(applied) > 0
+
+    def test_text_enhancement(self, preprocessor, sample_image):
+        """Test text-specific enhancement."""
+        enhanced = preprocessor._enhance_text_regions(sample_image)
+
+        assert enhanced.shape == sample_image.shape
+
+    def test_resize_to_target(self, preprocessor):
+        """Test image resizing to target dimensions."""
+        # Create a smaller test image
+        small_image = np.random.randint(0, 255, (240, 320, 3), dtype=np.uint8)
+
+        resized = preprocessor._resize_to_target(small_image)
+
+        assert resized.shape == (640, 640, 3)
+
+    def test_order_corners(self, preprocessor):
+        """Test corner ordering functionality."""
+        # Create test corners
+        corners = np.array([
+            [100, 100],  # top-left
+            [200, 100],  # top-right
+            [200, 200],  # bottom-right
+            [100, 200]   # bottom-left
+        ])
+
+        ordered = preprocessor._order_corners(corners)
+
+        assert ordered.shape == (4, 2)
+
+
+class TestLensStylePreprocessorAlbumentations:
+    """Test cases for Albumentations wrapper."""
+
+    def test_albumentations_wrapper(self):
+        """Test Albumentations-compatible wrapper."""
+        # Create a numpy array image for testing
+        sample_image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+
+        preprocessor = DocumentPreprocessor()
+        wrapper = LensStylePreprocessorAlbumentations(preprocessor)
+
+        # Test the call method
+        result = wrapper(sample_image)
+
+        # Should return just the processed image
+        assert isinstance(result, np.ndarray)
+        assert result.shape[-1] == 3  # RGB image
+
+    def test_transform_init_args(self):
+        """Test transform initialization arguments."""
+        preprocessor = DocumentPreprocessor()
+        wrapper = LensStylePreprocessorAlbumentations(preprocessor)
+
+        args = wrapper.get_transform_init_args_names()
+
+        assert isinstance(args, list)
+
+
+class TestPreprocessingIntegration:
+    """Integration tests for preprocessing components."""
+
+    @pytest.fixture
+    def preprocessor(self):
+        """Create a DocumentPreprocessor instance for integration tests."""
+        return DocumentPreprocessor(
+            enable_document_detection=True,
+            enable_perspective_correction=True,
+            enable_enhancement=True,
+            enable_text_enhancement=False,  # Updated default
+            target_size=(640, 640)
+        )
+
+    def test_preprocessing_with_real_image(self):
+        """Test preprocessing with a more realistic document-like image."""
+        # Create a more document-like image (white background with some content)
+        image = np.full((480, 640, 3), 255, dtype=np.uint8)
+
+        # Add some "text" regions (darker areas)
+        image[100:150, 100:500] = [100, 100, 100]  # horizontal text line
+        image[200:250, 100:400] = [80, 80, 80]    # another text line
+
+        preprocessor = DocumentPreprocessor(
+            enable_document_detection=False,  # Skip detection for this test
+            enable_perspective_correction=False,  # Skip correction for this test
+            enable_enhancement=True,
+            enable_text_enhancement=True
+        )
+
+        result = preprocessor(image)
+
+        assert result['image'].shape == (640, 640, 3)
+        assert 'image_enhancement' in result['metadata']['processing_steps']
+        assert 'text_enhancement' in result['metadata']['processing_steps']
+
+    def test_error_handling(self, preprocessor):
+        """Test error handling in preprocessing pipeline."""
+        # Test with invalid input (shouldn't crash)
+        invalid_image = np.array([])  # Empty array
+
+        # Should handle gracefully and return fallback result
+        result = preprocessor(invalid_image)
+
+        # Should still return a valid result structure
+        assert 'image' in result
+        assert 'metadata' in result

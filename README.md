@@ -106,6 +106,17 @@
 │   │       └── ...
 │   └── jsons/
 ├── docs/
+│   ├── api-reference.md
+│   ├── architecture-overview.md
+│   ├── process-management-guide.md
+│   ├── component-diagrams.md
+│   ├── workflow-diagram.md
+│   ├── maintenance/
+│   │   └── project-state.md
+│   └── development/
+│       ├── coding-standards.md
+│       ├── naming-conventions.md
+│       └── testing-guide.md
 ├── ocr/
 │   ├── datasets/
 │   ├── lightning_modules/
@@ -117,9 +128,13 @@
 │   ├── predict.py
 │   ├── test.py
 │   └── train.py
+├── scripts/
+│   └── process_monitor.py
 ├── ui/
 │   ├── command_builder.py
 │   ├── evaluation_viewer.py
+│   ├── inference_ui.py
+│   ├── resource_monitor.py
 │   ├── components/
 │   ├── utils/
 │   └── README.md
@@ -151,6 +166,48 @@ uv run streamlit run ui/command_builder.py
 
 #### Evaluation Viewer (`ui/evaluation_viewer.py`) - ✅ Implemented
 평가 결과를 시각화하고 분석하는 도구입니다.
+
+### 유틸리티 스크립트
+
+#### Process Monitor (`scripts/process_monitor.py`) - ✅ Implemented
+훈련 프로세스와 작업자 프로세스를 모니터링하고 정리하는 유틸리티입니다.
+
+**주요 기능:**
+- 고아 프로세스 감지 및 정리
+- 훈련 프로세스와 DataLoader 작업자 프로세스 모니터링
+- 안전한 프로세스 종료 (SIGTERM) 및 강제 종료 (SIGKILL) 지원
+- 드라이런 모드로 미리보기 기능
+
+**사용법:**
+```bash
+# 현재 실행 중인 훈련 프로세스 목록 보기
+python scripts/process_monitor.py --list
+
+# 모든 고아 프로세스 정리 (안전 모드)
+python scripts/process_monitor.py --cleanup
+
+# 강제 정리 (SIGKILL 사용)
+python scripts/process_monitor.py --cleanup --force
+
+# 정리할 프로세스 미리보기 (실제로는 정리하지 않음)
+python scripts/process_monitor.py --cleanup --dry-run
+```
+
+#### Resource Monitor (`ui/resource_monitor.py`) - ✅ New!
+시스템 리소스, 훈련 프로세스, GPU 사용량을 실시간으로 모니터링하는 도구입니다.
+
+**주요 기능:**
+- CPU, 메모리, GPU 리소스 실시간 모니터링
+- 훈련 프로세스와 작업자 프로세스 상태 표시
+- 프로세스 관리 (안전 종료 및 강제 종료)
+- GPU 메모리 사용량 시각화
+- 자동 새로고침 기능
+
+**사용법:**
+```bash
+# 리소스 모니터 UI 실행
+python run_ui.py resource_monitor
+```
 
 ### 주요 구성 파일
 
@@ -578,6 +635,7 @@ uv run pytest tests/test_new_feature.py -v
 
 ## 참고 자료
 
+- [프로세스 관리 가이드](docs/process-management-guide.md) - 훈련 프로세스 관리 및 고아 프로세스 방지
 - [DBNet](https://github.com/MhLiao/DB)
 - [Hydra](https://hydra.cc/docs/intro/)
 - [PyTorch Lightning](https://pytorch-lightning.readthedocs.io/en/latest/)

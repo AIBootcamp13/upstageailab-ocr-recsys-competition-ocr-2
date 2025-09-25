@@ -1,5 +1,6 @@
 import os
 import sys
+import signal
 
 import hydra
 import lightning.pytorch as pl
@@ -11,6 +12,52 @@ from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
 
+# Global variables for cleanup
+trainer = None
+data_module = None
+
+def signal_handler(signum, frame):
+    """Handle interrupt signals to ensure graceful shutdown."""
+    print(f"\nReceived signal {signum}. Shutting down gracefully...")
+
+    try:
+        if trainer is not None:
+            print("Stopping trainer...")
+            # Lightning handles SIGINT automatically for graceful shutdown
+    except Exception as e:
+        print(f"Error during trainer shutdown: {e}")
+
+    try:
+        if data_module is not None:
+            print("Cleaning up data module...")
+            # DataLoader workers will be cleaned up by process group termination
+    except Exception as e:
+        print(f"Error during data module cleanup: {e}")
+
+    # Force terminate any remaining child processes
+    try:
+        os.killpg(os.getpgrp(), signal.SIGTERM)
+    except Exception as e:
+        print(f"Error terminating process group: {e}")
+
+    print("Shutdown complete.")
+    sys.exit(1)
+    try:
+        os.killpg(os.getpgrp(), signal.SIGTERM)
+    except Exception as e:
+        print(f"Error terminating process group: {e}")
+
+    print("Shutdown complete.")
+    sys.exit(1)
+
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+# Set process group so we can kill all child processes
+os.setpgrp()
+
 
 @hydra.main(config_path=CONFIG_DIR, config_name="train", version_base="1.2")
 def train(config):
@@ -20,7 +67,14 @@ def train(config):
     Args:
         `config` (dict): A dictionary containing configuration settings for training.
     """
+    global trainer, data_module
+
     pl.seed_everything(config.get("seed", 42), workers=True)
+
+    # Enable Tensor Core utilization for better GPU performance
+    import torch
+
+    torch.set_float32_matmul_precision("high")
 
     model_module, data_module = get_pl_modules_by_cfg(config)
 
@@ -85,10 +139,12 @@ def train(config):
         # Get final validation loss as a simple metric for finalization
         final_loss = trainer.callback_metrics.get("val/loss", 0.0)
         try:
-            final_loss = float(
-                final_loss.item() if hasattr(final_loss, "item") else final_loss
-            )
-        except:
+            # Handle both tensor and scalar values safely
+            if hasattr(final_loss, "item") and callable(getattr(final_loss, "item")):
+                final_loss = float(final_loss.item())
+            else:
+                final_loss = float(final_loss)
+        except (ValueError, TypeError, AttributeError):
             final_loss = 0.0
         finalize_run(final_loss)
 

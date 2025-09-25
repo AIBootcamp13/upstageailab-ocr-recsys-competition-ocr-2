@@ -1,0 +1,94 @@
+# Preprocessing Configuration
+# Microsoft Lens-style document preprocessing
+
+preprocessing:
+  # Document boundary detection
+  enable_document_detection: true
+
+  # Perspective correction
+  enable_perspective_correction: true
+
+  # General image enhancement (mild parameters)
+  enable_enhancement: true
+
+  # Enhancement method: "conservative" or "office_lens"
+  enhancement_method: "conservative"
+
+  # Text-specific enhancement (disabled by default as it can be destructive)
+  enable_text_enhancement: false
+
+  # Target size for processed images
+  target_size: [640, 640]
+
+# Albumentations-compatible preprocessor
+lens_style_preprocessor:
+  _target_: ${dataset_path}.LensStylePreprocessorAlbumentations
+  preprocessor:
+    _target_: ${dataset_path}.DocumentPreprocessor
+    enable_document_detection: ${preprocessing.enable_document_detection}
+    enable_perspective_correction: ${preprocessing.enable_perspective_correction}
+    enable_enhancement: ${preprocessing.enable_enhancement}
+    enhancement_method: ${preprocessing.enhancement_method}
+    enable_text_enhancement: ${preprocessing.enable_text_enhancement}
+    target_size: ${preprocessing.target_size}
+
+# Enhanced transforms with preprocessing
+enhanced_transforms:
+  train_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+      - ${lens_style_preprocessor}
+      - _target_: albumentations.HorizontalFlip
+        p: 0.5
+      - _target_: albumentations.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: 'xy'
+      remove_invisible: True
+
+  val_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+      - ${lens_style_preprocessor}
+      - _target_: albumentations.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: 'xy'
+      remove_invisible: True
+
+  test_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+      - ${lens_style_preprocessor}
+      - _target_: albumentations.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: 'xy'
+      remove_invisible: True
+
+  predict_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+      - ${lens_style_preprocessor}
+
+# Office Lens enhanced preprocessor (more sophisticated enhancement)
+lens_style_preprocessor_office_lens:
+  _target_: ${dataset_path}.LensStylePreprocessorAlbumentations
+  preprocessor:
+    _target_: ${dataset_path}.DocumentPreprocessor
+    enable_document_detection: ${preprocessing.enable_document_detection}
+    enable_perspective_correction: ${preprocessing.enable_perspective_correction}
+    enable_enhancement: ${preprocessing.enable_enhancement}
+    enhancement_method: "office_lens"
+    enable_text_enhancement: ${preprocessing.enable_text_enhancement}
+    target_size: ${preprocessing.target_size}
+      - _target_: albumentations.Normalize
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+    keypoint_params: null
