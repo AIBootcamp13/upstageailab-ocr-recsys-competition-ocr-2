@@ -10,7 +10,6 @@
 """
 
 from dataclasses import dataclass
-from typing import List
 
 import numpy as np
 from numba import njit
@@ -26,8 +25,8 @@ class EvalMaterial:
     These are used for calculating eval results.
     """
 
-    gt_pcc_points: List[List]  # [gt_idx][pcc_idx] nested list which has variable length
-    pcc_mat_list: List[NDArray]  # list of pcc_mat which has (len_det, len_pcc) shape.
+    gt_pcc_points: list[list]  # [gt_idx][pcc_idx] nested list which has variable length
+    pcc_mat_list: list[NDArray]  # list of pcc_mat which has (len_det, len_pcc) shape.
     pcc_mat_sum: NDArray[np.int16]  # (len_gt, len_det)
     ap_mat: NDArray[np.float32]  # (len_gt, len_det)
     ap_mat_binary: NDArray[np.bool_]  # (len_gt, len_det)

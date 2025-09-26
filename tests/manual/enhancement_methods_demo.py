@@ -79,7 +79,7 @@ def create_multi_image_comparison(image_paths, output_dir="enhancement_compariso
     successful_count = 0
 
     for i, image_path in enumerate(image_paths):
-        print(f"Processing image {i+1}/{len(image_paths)}: {os.path.basename(image_path)}")
+        print(f"Processing image {i + 1}/{len(image_paths)}: {os.path.basename(image_path)}")
 
         # Load original image
         original_image = cv2.imread(image_path)
@@ -128,7 +128,7 @@ def create_individual_comparisons(image_paths, output_dir="enhancement_compariso
     print("Creating individual comparison images...")
 
     for i, image_path in enumerate(image_paths):
-        print(f"Processing {i+1}/{len(image_paths)}: {os.path.basename(image_path)}")
+        print(f"Processing {i + 1}/{len(image_paths)}: {os.path.basename(image_path)}")
 
         # Load original
         original_image = cv2.imread(image_path)
@@ -156,7 +156,7 @@ def create_individual_comparisons(image_paths, output_dir="enhancement_compariso
         axes[2].axis("off")
 
         plt.tight_layout()
-        filename = f"{output_dir}/comparison_{i+1:02d}_{os.path.basename(image_path).replace('.jpg', '.png')}"
+        filename = f"{output_dir}/comparison_{i + 1:02d}_{os.path.basename(image_path).replace('.jpg', '.png')}"
         plt.savefig(filename, dpi=150, bbox_inches="tight")
         plt.close()
 

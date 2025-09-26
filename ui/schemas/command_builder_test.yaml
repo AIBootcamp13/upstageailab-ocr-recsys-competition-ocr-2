@@ -1,8 +1,9 @@
 title: "OCR Testing Command Builder"
 
+# UI schema for Streamlit command builder. Only for UI input validation and command building.
 constant_overrides:
-  - "models.encoder.model_name=resnet18"
-  - "models.optimizer.lr=0.001"
+  - "model.encoder.model_name=resnet18"
+  - "model.optimizer.lr=0.001"
 
 ui_elements:
   - key: exp_name

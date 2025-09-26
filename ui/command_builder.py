@@ -11,7 +11,7 @@ import sys
 import traceback
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -62,9 +62,7 @@ def render_train_interface(config_parser: ConfigParser, command_builder: Command
     schema_path = Path(__file__).parent / "schemas" / "command_builder_train.yaml"
 
     # 1) Generate UI from schema
-    gen = generate_ui_from_schema(str(schema_path))
-
-    # 2) Validate inputs
+    gen = generate_ui_from_schema(str(schema_path))  # 2) Validate inputs
     errors = validate_inputs(gen.values, str(schema_path))
 
     # Option to avoid name collisions across models
@@ -135,7 +133,7 @@ def render_train_interface(config_parser: ConfigParser, command_builder: Command
             execute_command(command_builder, edited_command)
 
 
-def maybe_suffix_exp_name(overrides: List[str], values: Dict[str, Any], append_suffix: bool) -> List[str]:
+def maybe_suffix_exp_name(overrides: list[str], values: dict[str, Any], append_suffix: bool) -> list[str]:
     """Optionally append encoder name to exp_name in overrides to avoid collisions.
 
     Only applies when append_suffix is True, encoder is set, and not resuming.
@@ -416,12 +414,12 @@ def pretty_format_command(cmd: str) -> str:
     lines = []
     if head:
         head_line = " ".join(head)
-        lines.append(head_line + (" \\\\" if tail else ""))
+        lines.append(head_line + (" \\" if tail else ""))
     if tail:
         # Put each remaining token on its own line for readability
         for i, tok in enumerate(tail):
             is_last = i == len(tail) - 1
-            cont = "" if is_last else " \\\\"
+            cont = "" if is_last else " \\"
             lines.append(f"  {tok}{cont}")
     if fallback_note:
         lines.insert(0, fallback_note)

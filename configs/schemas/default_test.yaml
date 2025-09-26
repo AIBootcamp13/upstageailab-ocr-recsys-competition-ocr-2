@@ -1,0 +1,62 @@
+# schemas/default_test.yaml
+exp_name: ocr_testing
+exp_version: v1.0
+log_dir: outputs/ocr_training/logs
+checkpoint_dir: outputs/ocr_training/checkpoints
+seed: 42
+model:
+  encoder:
+    _target_: ocr.models.encoder.TimmBackbone
+    model_name: resnet18
+    select_features: [1, 2, 3, 4]
+    pretrained: true
+  decoder:
+    _target_: ocr.models.decoder.UNet
+    in_channels: [64, 128, 256, 512]
+    strides: [4, 8, 16, 32]
+    inner_channels: 256
+    output_channels: 64
+    bias: false
+  head:
+    _target_: ocr.models.head.DBHead
+    in_channels: 256
+    upscale: 4
+    k: 50
+    bias: false
+    smooth: false
+    postprocess:
+      thresh: 0.3
+      box_thresh: 0.4
+      max_candidates: 300
+      use_polygon: false
+  loss:
+    _target_: ocr.models.loss.DBLoss
+    negative_ratio: 3.0
+    eps: 1e-6
+    prob_map_loss_weight: 5.0
+    thresh_map_loss_weight: 10.0
+    binary_map_loss_weight: 1.0
+  optimizer:
+    _target_: torch.optim.Adam
+    lr: 0.001
+    weight_decay: 0.0001
+  scheduler:
+    _target_: torch.optim.lr_scheduler.StepLR
+    step_size: 100
+    gamma: 0.1
+datasets:
+  test:
+    _target_: ocr.datasets.OCRDataset
+    image_path: data/datasets/images/val
+    annotation_path: data/datasets/jsons/val.json
+    transform:
+      _target_: ocr.datasets.DBTransforms
+      transforms:
+        - _target_: albumentations.LongestMaxSize
+          max_size: 640
+          p: 1.0
+        - _target_: albumentations.PadIfNeeded
+          min_width: 640
+          min_height: 640
+          border_mode: 0
+          p: 1.0

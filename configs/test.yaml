@@ -1,7 +1,6 @@
 defaults:
   - _self_
   - base
-  - preset/datasets/db
   - preset/models/model_example
   - preset/lightning_modules/base
   - override hydra/hydra_logging: disabled
@@ -9,9 +8,4 @@ defaults:
 
 seed: 42
 exp_name: "ocr_training"
-project_name: "OCRProject"
-
-wandb: False
-exp_version: "v1.0"
-
 checkpoint_path: null

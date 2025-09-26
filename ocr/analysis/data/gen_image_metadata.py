@@ -15,6 +15,7 @@ Usage:
 
 Later you can refine buckets or add median text height (would require parsing UFO GT).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -57,15 +58,15 @@ def main():
         bucket = propose_bucket(short_side)
         key_bin = 360 if short_side < 360 else 480 if short_side < 480 else 640 if short_side < 640 else ">640"
         hist[key_bin] += 1
-        meta[p.name] = dict(
-            w=w,
-            h=h,
-            short=short_side,
-            long=long_side,
-            aspect=aspect,
-            area=w * h,
-            proposed_bucket=bucket,
-        )
+        meta[p.name] = {
+            "w": w,
+            "h": h,
+            "short": short_side,
+            "long": long_side,
+            "aspect": aspect,
+            "area": w * h,
+            "proposed_bucket": bucket,
+        }
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

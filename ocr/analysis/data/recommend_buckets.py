@@ -16,6 +16,7 @@ Usage:
 
 Output: YAML snippet printed to stdout you can paste into training config.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,7 +56,7 @@ def main():
     )
     args = ap.parse_args()
 
-    with open(args.metadata, "r") as f:
+    with open(args.metadata) as f:
         meta = json.load(f)["meta"]
 
     skipped_count = 0
@@ -74,7 +75,7 @@ def main():
     shorts.sort()
     q25, q50, q75 = np.percentile(shorts, [25, 50, 75])
     thresholds = [int(math.ceil(x)) for x in [q25, q50, q75]]
-    thresholds = sorted(list(dict.fromkeys(thresholds)))  # unique preserving order
+    thresholds = sorted(dict.fromkeys(thresholds))  # unique preserving order
 
     # Derive per-bucket sets
     edges = thresholds + [10**9]

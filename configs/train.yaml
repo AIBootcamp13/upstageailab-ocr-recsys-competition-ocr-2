@@ -1,7 +1,6 @@
 defaults:
   - _self_
   - base
-  - preset/datasets/db
   - preset/models/model_example
   - preset/lightning_modules/base
   - override hydra/hydra_logging: disabled
@@ -9,55 +8,4 @@ defaults:
 
 seed: 42
 exp_name: "ocr_training"
-project_name: "receipt-text-recognition-ocr-project"
-
-wandb: True
-exp_version: "v1.0"
-
 resume: null
-
-trainer:
-  max_epochs: 1
-  num_sanity_val_steps: 1
-  log_every_n_steps: 10  # Log more frequently for testing
-  check_val_every_n_epoch: 1
-  deterministic: False
-  accumulate_grad_batches: 1
-  accelerator: gpu
-  devices: 1
-    # precision: "16-mixed"  # Can enable for 2x speed boost if your GPU supports it
-
-# Optimized dataloader settings for better performance and process safety
-dataloaders:
-  train_dataloader:
-    batch_size: ${data.batch_size}
-    shuffle: true
-    num_workers: 2  # Reduced for better process control
-    pin_memory: true
-    persistent_workers: false  # Disabled to prevent orphaned processes
-    prefetch_factor: 2
-  val_dataloader:
-    batch_size: ${data.batch_size}
-    shuffle: false
-    num_workers: 1  # Reduced for validation stability
-    pin_memory: true
-    persistent_workers: false  # Disabled for safety
-    prefetch_factor: 1
-  test_dataloader:
-    batch_size: ${data.batch_size}
-    shuffle: false
-    num_workers: 1  # Reduced for test stability
-    pin_memory: true
-    persistent_workers: false  # Disabled for safety
-    prefetch_factor: 1
-  predict_dataloader:
-    batch_size: ${data.batch_size}
-    shuffle: false
-    num_workers: 1  # Reduced for prediction stability
-    pin_memory: true
-    persistent_workers: false  # Disabled for safety
-    prefetch_factor: 1
-
-# Collate function for batching
-collate_fn:
-  _target_: ${dataset_path}.DBCollateFN

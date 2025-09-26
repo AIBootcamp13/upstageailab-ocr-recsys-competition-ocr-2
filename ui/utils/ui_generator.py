@@ -9,7 +9,7 @@ overrides and constant overrides.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import streamlit as st
 import yaml
@@ -18,13 +18,13 @@ from ui.utils.config_parser import ConfigParser
 
 
 @st.cache_data(show_spinner=False)
-def _load_schema(schema_path: str) -> Dict[str, Any]:
-    with open(schema_path, "r") as f:
+def _load_schema(schema_path: str) -> dict[str, Any]:
+    with open(schema_path) as f:
         return yaml.safe_load(f) or {}
 
 
 @st.cache_data(show_spinner=False)
-def _get_options_from_source(source: str) -> List[str]:
+def _get_options_from_source(source: str) -> list[str]:
     """Resolve dynamic options list by a simple registry backed by ConfigParser."""
     cp = ConfigParser()
     if source == "models.backbones":
@@ -38,7 +38,7 @@ def _get_options_from_source(source: str) -> List[str]:
     return []
 
 
-def _is_visible(visible_if: Optional[str], values: Dict[str, Any]) -> bool:
+def _is_visible(visible_if: str | None, values: dict[str, Any]) -> bool:
     """Very small safe evaluator for boolean expressions like `a == true`.
 
     Supports: ==, !=, and, or, parentheses; variables are keys in `values`.
@@ -47,7 +47,7 @@ def _is_visible(visible_if: Optional[str], values: Dict[str, Any]) -> bool:
         return True
 
     # Build a safe namespace mapping true/false/null and variables
-    ns: Dict[str, Any] = {
+    ns: dict[str, Any] = {
         "true": True,
         "false": False,
         "null": None,
@@ -62,7 +62,7 @@ def _is_visible(visible_if: Optional[str], values: Dict[str, Any]) -> bool:
         return True
 
 
-def _to_override(k: str, v: Any) -> Optional[str]:
+def _to_override(k: str, v: Any) -> str | None:
     if v is None or v == "":
         return None
     if isinstance(v, bool):
@@ -72,20 +72,20 @@ def _to_override(k: str, v: Any) -> Optional[str]:
 
 @dataclass
 class UIGenerateResult:
-    values: Dict[str, Any]
-    overrides: List[str]
-    constant_overrides: List[str]
+    values: dict[str, Any]
+    overrides: list[str]
+    constant_overrides: list[str]
 
 
-def compute_overrides(schema: Dict[str, Any], values: Dict[str, Any]) -> Tuple[List[str], List[str]]:
+def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Compute hydra overrides from schema and collected values (pure function).
 
     Returns:
         (overrides, constant_overrides)
     """
-    elements: List[Dict[str, Any]] = schema.get("ui_elements", [])
-    constant_overrides: List[str] = schema.get("constant_overrides", [])
-    overrides: List[str] = []
+    elements: list[dict[str, Any]] = schema.get("ui_elements", [])
+    constant_overrides: list[str] = schema.get("constant_overrides", [])
+    overrides: list[str] = []
     for element in elements:
         key = element.get("key")
         if not isinstance(key, str) or not key:
@@ -93,8 +93,16 @@ def compute_overrides(schema: Dict[str, Any], values: Dict[str, Any]) -> Tuple[L
         override_key = element.get("hydra_override")
         if not override_key:
             continue
-        if ov := _to_override(override_key, values.get(key)):
-            overrides.append(ov)
+
+        value = values.get(key)
+        if isinstance(override_key, list):
+            for k in override_key:
+                if ov := _to_override(k, value):
+                    overrides.append(ov)
+        else:
+            if ov := _to_override(override_key, value):
+                overrides.append(ov)
+
     return overrides, constant_overrides
 
 
@@ -106,10 +114,10 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
         UIGenerateResult with values, overrides, and constant_overrides.
     """
     schema = _load_schema(schema_path)
-    elements: List[Dict[str, Any]] = schema.get("ui_elements", [])
-    constant_overrides: List[str] = schema.get("constant_overrides", [])
+    elements: list[dict[str, Any]] = schema.get("ui_elements", [])
+    constant_overrides: list[str] = schema.get("constant_overrides", [])
 
-    values: Dict[str, Any] = {}
+    values: dict[str, Any] = {}
 
     # First pass: render or compute defaults so visibility can reference earlier values
     for element in elements:
@@ -141,7 +149,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
         if etype == "text_input":
             values[key] = st.text_input(label, value=default or "", help=element.get("help"))
         elif etype == "number_input":
-            kwargs: Dict[str, Any] = {}
+            kwargs: dict[str, Any] = {}
             if default is not None:
                 kwargs["value"] = default
             if element.get("min_value") is not None:

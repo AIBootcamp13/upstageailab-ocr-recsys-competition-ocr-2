@@ -114,7 +114,7 @@ def render_single_run_analysis():
         outputs_dir = project_root / "outputs"
         if outputs_dir.exists():
             if prediction_files := sorted(
-                list(outputs_dir.rglob("**/predictions/submission.csv")),
+                outputs_dir.rglob("**/predictions/submission.csv"),
                 reverse=True,
             ):
                 file_options = {str(f.relative_to(outputs_dir)): f for f in prediction_files}
@@ -189,9 +189,7 @@ def render_single_run_analysis():
                         if image_files:
                             display_advanced_analysis(df, image_dir)
                         else:
-                            st.warning(
-                                "The specified image directory does not contain any image files. " "Advanced analysis requires images."
-                            )
+                            st.warning("The specified image directory does not contain any image files. Advanced analysis requires images.")
                     else:
                         st.warning("The specified image directory does not exist. Advanced analysis requires images.")
 
@@ -309,7 +307,7 @@ def render_comparison_view():
     file_options = {}
 
     if outputs_dir.exists():
-        prediction_files = sorted(list(outputs_dir.rglob("**/predictions/submission.csv")), reverse=True)
+        prediction_files = sorted(outputs_dir.rglob("**/predictions/submission.csv"), reverse=True)
         if prediction_files:
             file_options = {str(f.relative_to(outputs_dir)): f for f in prediction_files}
 

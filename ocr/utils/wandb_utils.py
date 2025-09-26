@@ -18,7 +18,7 @@ def load_env_variables():
     env_file = Path(".env")
     if env_file.exists():
         try:
-            with open(env_file, "r") as f:
+            with open(env_file) as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#"):
@@ -47,27 +47,36 @@ def generate_run_name(cfg: DictConfig) -> str:
     Else:
         <user>_<model>-b<bs>-lr<lr>_SCORE_PLACEHOLDER
     """
-    # Handle case where wandb is just a boolean flag
-    if isinstance(cfg.wandb, bool):
+    # Handle case where wandb config might not exist
+    if hasattr(cfg, "wandb") and isinstance(cfg.wandb, bool):
         wandb_config: dict = {}
-    else:
+    elif hasattr(cfg, "wandb"):
         wandb_config = cfg.wandb or {}
+    else:
+        wandb_config = {}
 
     # Get user prefix from environment variable or config
     user_prefix = os.environ.get("WANDB_USER", wandb_config.get("user_prefix", "user"))
 
     # Get model name and make it concise
-    model_name = getattr(cfg, "model", {}).get("name", "model") if hasattr(cfg, "model") else "model"
+    model_name = getattr(cfg, "model", {}).get("encoder", {}).get("model_name", "model") if hasattr(cfg, "model") else "model"
     # Extract concise model name (remove common prefixes/suffixes)
     model_name = model_name.replace("model_", "").replace("_model", "").replace("encoder_", "").replace("_encoder", "")
     model_name = model_name.replace("_", "-")
 
-    batch_size = cfg.data.get("batch_size", "N/A") if hasattr(cfg, "data") else "N/A"
-    lr_float = getattr(cfg, "training", {}).get("learning_rate", 0) if hasattr(cfg, "training") else 0
+    batch_size = (
+        cfg.dataloaders.train_dataloader.get("batch_size", "N/A")
+        if hasattr(cfg, "dataloaders") and hasattr(cfg.dataloaders, "train_dataloader")
+        else "N/A"
+    )
+    lr_float = getattr(cfg, "model", {}).get("optimizer", {}).get("lr", 0) if hasattr(cfg, "model") else 0
     lr_str = f"{lr_float:.0e}".replace("e-0", "e")
 
     # Prefer wandb.experiment_tag; fall back to top-level or data tag
-    tag = wandb_config.get("experiment_tag") or getattr(cfg, "experiment_tag", None) or getattr(cfg.data, "experiment_tag", None)
+    # Get experiment tag from various possible locations
+    tag = wandb_config.get("experiment_tag")
+    if hasattr(cfg, "experiment_tag"):
+        tag = tag or cfg.experiment_tag
     if tag:
         tag = str(tag).strip().replace(" ", "-").replace("/", "-")[:40]
 

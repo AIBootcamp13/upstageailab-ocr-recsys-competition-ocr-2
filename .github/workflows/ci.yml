@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "00_refactor/baseline" ]
+    branches: [ "01_refactor/config" ]
   pull_request:
-    branches: [ "00_refactor/baseline" ]
+    branches: [ "01_refactor/config" ]
 
 jobs:
   lint-and-test:
@@ -35,23 +35,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Run pre-commit hooks
-        run: pre-commit run --all-files
-
-      - name: Format check with black
-        run: uv run black --check --diff .
-
-      # - name: Import sorting check with isort
-      #   run: uv run isort --check-only --diff .
-
-      - name: Lint with flake8
-        run: uv run flake8 .
-
-      - name: Type check with mypy
-        run: uv run mypy ocr/
+      - name: Run quality checks
+        run: make quality-check
 
       - name: Run tests
         run: uv run pytest tests/ -v
@@ -90,16 +75,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Auto-fix with pre-commit
+      - name: Auto-fix with Ruff
         run: |
-          uv run pre-commit run --all-files
+          uv run ruff check . --fix --unsafe-fixes
+          uv run ruff format .
           if [ -n "$(git status --porcelain)" ]; then
             git config --global user.name 'github-actions[bot]'
             git config --global user.email 'github-actions[bot]@users.noreply.github.com'
             git add .
-            git commit -m "🤖 Auto-fix: code formatting and linting"
+            git commit -m "🤖 Auto-fix: code formatting and linting with Ruff"
             git push
           fi

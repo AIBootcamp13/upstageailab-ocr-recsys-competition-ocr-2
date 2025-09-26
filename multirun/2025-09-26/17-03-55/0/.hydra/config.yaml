@@ -1,0 +1,272 @@
+seed: 42
+exp_name: ocr_training_gpu
+resume: null
+dataset_base_path: data/datasets/
+datasets:
+  train_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/train
+    annotation_path: ${dataset_base_path}jsons/train.json
+    transform: ${transforms.train_transform}
+  val_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.val_transform}
+  test_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.test_transform}
+  predict_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/test
+    annotation_path: null
+    transform: ${transforms.test_transform}
+transforms:
+  train_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.HorizontalFlip
+      p: 0.5
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  val_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  test_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  predict_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params: null
+collate_fn:
+  _target_: ${dataset_path}.DBCollateFN
+  shrink_ratio: 0.4
+  thresh_min: 0.3
+  thresh_max: 0.7
+train_dataloader:
+  batch_size: 2
+  shuffle: true
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 2
+val_dataloader:
+  batch_size: 2
+  shuffle: false
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 1
+test_dataloader:
+  batch_size: ${data.batch_size}
+  shuffle: false
+  num_workers: 1
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 1
+predict_dataloader:
+  batch_size: ${data.batch_size}
+  shuffle: false
+  num_workers: 1
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 1
+model:
+  _target_: ocr.models.DBNet
+  architecture:
+    _target_: ocr.models.architectures.DBNetArchitecture
+    backbone:
+      _target_: ocr.models.backbones.db_resnet18
+      pretrained: false
+      in_channels: 3
+    decoder:
+      _target_: ocr.models.decoders.DBUNet
+      in_channels:
+      - 64
+      - 128
+      - 256
+      - 512
+      output_channels: 256
+    head:
+      _target_: ocr.models.heads.DBHead
+      in_channels: 256
+      k: 50
+  loss:
+    _target_: ocr.models.losses.DBLoss
+    alpha: 1.0
+    beta: 10.0
+    negative_ratio: 3.0
+    reduction: mean
+paths:
+  log_dir: outputs/${exp_name}/logs
+  checkpoint_dir: outputs/${exp_name}/checkpoints
+  submission_dir: outputs/${exp_name}/submissions
+logger:
+  wandb: true
+  project_name: receipt-text-recognition-ocr-project
+  exp_version: v1.0
+trainer:
+  max_epochs: 1
+  num_sanity_val_steps: 1
+  log_every_n_steps: 1
+  check_val_every_n_epoch: 1
+  deterministic: false
+  accumulate_grad_batches: 1
+  accelerator: cpu
+  devices: 1
+callbacks:
+  early_stopping:
+    enabled: true
+    patience: 5
+  checkpoint:
+    enabled: true
+debug:
+  verbose: false
+  profiling: false
+dataset_path: ocr.datasets.preparations.base
+model_path: ocr.models
+encoder_path: ocr.models.encoder
+decoder_path: ocr.models.decoder
+head_path: ocr.models.head
+loss_path: ocr.models.loss
+lightning_path: ocr.lightning_modules
+data:
+  batch_size: 4
+models:
+  decoder:
+    _target_: ${decoder_path}.UNet
+    in_channels:
+    - 64
+    - 128
+    - 256
+    - 512
+    strides:
+    - 4
+    - 8
+    - 16
+    - 32
+    inner_channels: 256
+    output_channels: 256
+    bias: false
+  encoder:
+    _target_: ${encoder_path}.TimmBackbone
+    model_name: resnet18
+    select_features:
+    - 1
+    - 2
+    - 3
+    - 4
+    pretrained: true
+  head:
+    _target_: ${head_path}.DBHead
+    in_channels: 256
+    upscale: 4
+    k: 50
+    bias: false
+    smooth: false
+    postprocess:
+      thresh: 0.3
+      box_thresh: 0.4
+      max_candidates: 300
+      use_polygon: false
+  loss:
+    _target_: ${loss_path}.DBLoss
+    negative_ratio: 3.0
+    eps: 1.0e-06
+    prob_map_loss_weight: 5.0
+    thresh_map_loss_weight: 10.0
+    binary_map_loss_weight: 1.0
+  optimizer:
+    _target_: torch.optim.Adam
+    lr: 0.001
+    weight_decay: 0.0001
+  scheduler:
+    _target_: torch.optim.lr_scheduler.StepLR
+    step_size: 100
+    gamma: 0.1
+modules:
+  lightning_module:
+    _target_: ${lightning_path}.OCRPLModule
+  lightning_data_module:
+    _target_: ${lightning_path}.OCRDataPLModule

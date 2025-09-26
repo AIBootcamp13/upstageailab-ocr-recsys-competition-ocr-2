@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
 
-def _eval_condition(expr: str, values: Dict[str, Any]) -> bool:
+def _eval_condition(expr: str, values: dict[str, Any]) -> bool:
     if not expr:
         return False
     ns = {"true": True, "false": False, "null": None}
@@ -18,16 +18,16 @@ def _eval_condition(expr: str, values: Dict[str, Any]) -> bool:
         return False
 
 
-def validate_inputs(values: Dict[str, Any], schema_path: str) -> List[str]:
+def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
     """Validate collected values using rules in schema YAML.
 
     Returns:
         List of error messages (empty if valid).
     """
-    with open(schema_path, "r") as f:
+    with open(schema_path) as f:
         schema = yaml.safe_load(f) or {}
 
-    errors: List[str] = []
+    errors: list[str] = []
     elements = schema.get("ui_elements", [])
     for element in elements:
         key = element.get("key")

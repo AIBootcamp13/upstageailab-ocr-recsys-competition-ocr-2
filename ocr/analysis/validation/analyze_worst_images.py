@@ -30,7 +30,7 @@ def analyze_worst_images(results_json_path: str, image_dir: str, top_n: int = 10
         print(f"❌ Error: Results file not found at '{results_json_path}'")
         return
 
-    with open(results_json_path, "r") as f:
+    with open(results_json_path) as f:
         per_sample_results = json.load(f)
 
     results_list = [{"filename": fname, **metrics} for fname, metrics in per_sample_results.items()]

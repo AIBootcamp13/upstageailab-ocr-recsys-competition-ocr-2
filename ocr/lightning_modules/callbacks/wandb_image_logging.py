@@ -152,6 +152,8 @@ class WandbImageLoggingCallback(pl.Callback):
                     image = self.rotate_image(image, orientation)
                     # Transform ground truth polygons to match rotated image
                     gt_quads = self.transform_polygons_for_exif(gt_quads, orientation, original_size)
+                    # Transform prediction polygons to match rotated image
+                    pred_boxes = self.transform_polygons_for_exif(pred_boxes, orientation, original_size)
 
                 images.append(image)
                 gt_bboxes.append(gt_quads)

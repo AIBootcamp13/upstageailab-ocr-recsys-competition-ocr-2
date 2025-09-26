@@ -6,15 +6,17 @@ available options for the Streamlit UI components.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
+
+from ocr.models.core import registry
 
 
 class ConfigParser:
     """Parser for extracting configuration options from Hydra configs."""
 
-    def __init__(self, config_dir: Optional[str] = None):
+    def __init__(self, config_dir: str | None = None):
         """Initialize the config parser.
 
         Args:
@@ -29,7 +31,7 @@ class ConfigParser:
 
         self._cache = {}
 
-    def get_available_models(self) -> Dict[str, List[str]]:
+    def get_available_models(self) -> dict[str, list[str]]:
         """Get available model components (encoders, decoders, heads, losses).
 
         Returns:
@@ -53,18 +55,32 @@ class ConfigParser:
                 for yaml_file in dir_path.glob("*.yaml"):
                     models[component_type].append(yaml_file.stem)
 
+        # Add registry-discovered components (if not already present)
+        for enc in registry.list_encoders():
+            if enc not in models["encoders"]:
+                models["encoders"].append(enc)
+        for dec in registry.list_decoders():
+            if dec not in models["decoders"]:
+                models["decoders"].append(dec)
+        for head in registry.list_heads():
+            if head not in models["heads"]:
+                models["heads"].append(head)
+        for loss in registry.list_losses():
+            if loss not in models["losses"]:
+                models["losses"].append(loss)
+
         # Also check timm backbones for encoders
         encoder_config = self.config_dir / "preset" / "models" / "encoder" / "timm_backbone.yaml"
         if encoder_config.exists():
             try:
-                with open(encoder_config, "r") as f:
+                with open(encoder_config) as f:
                     yaml.safe_load(f)
                 # Extract common backbone names (this would be expanded based on timm)
                 models["backbones"] = [
                     "resnet18",
                     "resnet34",
                     "resnet50",
-                    "mobilenet_v3_small",
+                    "mobilenetv3_small_050",
                     "efficientnet_b0",
                 ]
             except Exception:
@@ -73,8 +89,12 @@ class ConfigParser:
         self._cache["models"] = models
         return models
 
-    def get_training_parameters(self) -> Dict[str, Any]:
-        """Get available training parameters and their ranges.
+    def get_available_architectures(self) -> list[str]:
+        """Get available architecture presets from the registry for UI selection."""
+        return registry.list_architectures()
+
+    def get_training_parameters(self) -> dict[str, Any]:
+        """Get available training parameters and their ranges from modular configs.
 
         Returns:
             Dictionary with parameter info including defaults and ranges.
@@ -82,55 +102,67 @@ class ConfigParser:
         if "training" in self._cache:
             return self._cache["training"]
 
-        # Parse from train.yaml and ablation configs
-        train_config = self.config_dir / "train.yaml"
+        # Parse from modular configs
         params = {}
 
-        if train_config.exists():
+        # Trainer config
+        trainer_config = self.config_dir / "trainer" / "default.yaml"
+        if trainer_config.exists():
             try:
-                with open(train_config, "r") as f:
-                    config = yaml.safe_load(f)
-
-                # Extract trainer parameters
-                if "trainer" in config:
-                    trainer = config["trainer"]
-                    params.update(
-                        {
-                            "max_epochs": {
-                                "default": trainer.get("max_epochs", 10),
-                                "min": 1,
-                                "max": 200,
-                                "type": "int",
-                            },
-                            "batch_size": {
-                                "default": 4,
-                                "min": 1,
-                                "max": 64,
-                                "type": "int",
-                            },
-                        }
-                    )
-
-                # Extract other parameters
-                params.update(
-                    {
-                        "learning_rate": {
-                            "default": 0.001,
-                            "min": 1e-5,
-                            "max": 1e-2,
-                            "type": "float",
-                        },
-                        "seed": {"default": config.get("seed", 42), "type": "int"},
-                    }
-                )
-
+                with open(trainer_config) as f:
+                    trainer = yaml.safe_load(f)
+                params["max_epochs"] = {
+                    "default": trainer.get("max_epochs", 10),
+                    "min": 1,
+                    "max": 200,
+                    "type": "int",
+                }
             except Exception as e:
-                print(f"Error parsing train config: {e}")
+                print(f"Error parsing trainer config: {e}")
+
+        # Data config (batch_size)
+        base_config = self.config_dir / "base.yaml"
+        if base_config.exists():
+            try:
+                with open(base_config) as f:
+                    base = yaml.safe_load(f)
+                batch_size = base.get("data", {}).get("batch_size", 4)
+                params["batch_size"] = {
+                    "default": batch_size,
+                    "min": 1,
+                    "max": 64,
+                    "type": "int",
+                }
+                params["seed"] = {"default": base.get("seed", 42), "type": "int"}
+            except Exception as e:
+                print(f"Error parsing base config: {e}")
+
+        # Logger config (wandb, exp_version)
+        logger_config = self.config_dir / "logger" / "default.yaml"
+        if logger_config.exists():
+            try:
+                with open(logger_config) as f:
+                    logger = yaml.safe_load(f)
+                params["wandb"] = {"default": logger.get("wandb", False), "type": "bool"}
+                params["exp_version"] = {"default": logger.get("exp_version", "v1.0"), "type": "str"}
+            except Exception as e:
+                print(f"Error parsing logger config: {e}")
+
+        # Paths config (log_dir, checkpoint_dir)
+        paths_config = self.config_dir / "paths" / "default.yaml"
+        if paths_config.exists():
+            try:
+                with open(paths_config) as f:
+                    paths = yaml.safe_load(f)
+                params["log_dir"] = {"default": paths.get("log_dir", "outputs/exp/logs"), "type": "str"}
+                params["checkpoint_dir"] = {"default": paths.get("checkpoint_dir", "outputs/exp/checkpoints"), "type": "str"}
+            except Exception as e:
+                print(f"Error parsing paths config: {e}")
 
         self._cache["training"] = params
         return params
 
-    def get_available_datasets(self) -> List[str]:
+    def get_available_datasets(self) -> list[str]:
         """Get available dataset configurations.
 
         Returns:
@@ -148,7 +180,7 @@ class ConfigParser:
         self._cache["datasets"] = datasets
         return datasets
 
-    def get_available_presets(self) -> List[str]:
+    def get_available_presets(self) -> list[str]:
         """Get available configuration presets.
 
         Returns:
@@ -166,7 +198,7 @@ class ConfigParser:
         self._cache["presets"] = presets
         return presets
 
-    def validate_config_combination(self, config: Dict[str, Any]) -> List[str]:
+    def validate_config_combination(self, config: dict[str, Any]) -> list[str]:
         """Validate a configuration combination.
 
         Args:
@@ -189,7 +221,7 @@ class ConfigParser:
 
         return errors
 
-    def get_available_checkpoints(self) -> List[str]:
+    def get_available_checkpoints(self) -> list[str]:
         """Get available checkpoint files for resuming training.
 
         Returns:

@@ -9,12 +9,12 @@ def convert_json_to_csv(json_path, output_path):
     # Check if CSV file already exists
     csv_file = Path(output_path)
     if csv_file.exists():
-        response = input(f"The file '{csv_file}' already exists. " f"Do you want to overwrite it? (yes/No): ").strip().lower()
+        response = input(f"The file '{csv_file}' already exists. Do you want to overwrite it? (yes/No): ").strip().lower()
         if response != "yes":
             print("Conversion cancelled.")
             return None
 
-    with open(json_path, "r") as json_file:
+    with open(json_path) as json_file:
         data = json.load(json_file)
     assert "images" in data, "The JSON file doesn't contain the 'images' key."
 

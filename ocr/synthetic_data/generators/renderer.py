@@ -3,7 +3,7 @@
 Text rendering on images for synthetic data.
 """
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 from omegaconf import DictConfig
@@ -15,13 +15,13 @@ from ..models import TextRegion
 class TextRenderer:
     """Renderer for synthetic text on images."""
 
-    def __init__(self, config: Optional[DictConfig] = None):
+    def __init__(self, config: DictConfig | None = None):
         """Initialize text renderer.
 
         Args:
             config: Configuration for text rendering
         """
-        self.config: Union[DictConfig, Dict[str, Any]] = config or {}
+        self.config: DictConfig | dict[str, Any] = config or {}
         self.font_cache: dict[tuple[str, int], Any] = {}
 
     def _get_font(self, font_path: str, size: int) -> Any:
@@ -48,9 +48,9 @@ class TextRenderer:
         self,
         image: np.ndarray,
         text: str,
-        position: Tuple[int, int],
+        position: tuple[int, int],
         font_size: int = 24,
-        color: Tuple[int, int, int] = (0, 0, 0),
+        color: tuple[int, int, int] = (0, 0, 0),
         angle: float = 0.0,
     ) -> TextRegion:
         """Render text on image and return region info.

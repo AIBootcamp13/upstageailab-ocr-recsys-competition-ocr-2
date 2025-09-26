@@ -302,13 +302,13 @@ uv run python runners/train.py preset=example
 #### 테스트
 ```bash
 # 사용 예시
-uv run python runners/test.py preset=example "checkpoint_path=outputs/ocr_training/checkpoints/epoch--step-1845.ckpt"
+uv run python runners/test.py preset=example checkpoint_path=\"outputs/ocr_training/checkpoints/epoch-9-step-1030.ckpt\"
 ```
 
 #### 예측
 ```bash
 # 사용 예시
-uv run python runners/predict.py preset=example "checkpoint_path=outputs/ocr_training/checkpoints/epoch-8-step-1845.ckpt"
+uv run python runners/predict.py preset=example checkpoint_path=\"outputs/ocr_training/checkpoints/epoch-8-step-1845.ckpt\"
 ```
 
 ### Ablation Studies ( ablation studies )
@@ -332,7 +332,7 @@ python ablation_workflow.py --ablation model_architecture --tag model_study
 
 - **`learning_rate`**: 학습률 스윕 (1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5)
 - **`batch_size`**: 배치 크기 스윕 (4, 8, 16, 32)
-- **`model_architecture`**: 백본 아키텍처 비교 (resnet18, resnet34, resnet50, mobilenet_v3_small, efficientnet_b0)
+- **`model_architecture`**: 백본 아키텍처 비교 (resnet18, resnet34, resnet50, mobilenetv3_small_050, efficientnet_b0)
 - **`custom`**: 사용자 정의 설정
 
 #### Manual Control

@@ -4,7 +4,7 @@ Background image generation for synthetic data.
 """
 
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 from omegaconf import DictConfig
@@ -13,15 +13,15 @@ from omegaconf import DictConfig
 class BackgroundGenerator:
     """Generator for synthetic image backgrounds."""
 
-    def __init__(self, config: Optional[DictConfig] = None):
+    def __init__(self, config: DictConfig | None = None):
         """Initialize background generator.
 
         Args:
             config: Configuration for background generation
         """
-        self.config: Union[DictConfig, Dict[str, Any]] = config or {}
+        self.config: DictConfig | dict[str, Any] = config or {}
 
-    def generate_plain_background(self, size: Tuple[int, int], color: Optional[Tuple[int, int, int]] = None) -> np.ndarray:
+    def generate_plain_background(self, size: tuple[int, int], color: tuple[int, int, int] | None = None) -> np.ndarray:
         """Generate plain color background.
 
         Args:
@@ -38,7 +38,7 @@ class BackgroundGenerator:
         image = np.full((*size[::-1], 3), color, dtype=np.uint8)
         return image
 
-    def generate_gradient_background(self, size: Tuple[int, int], colors: Optional[List[Tuple[int, int, int]]] = None) -> np.ndarray:
+    def generate_gradient_background(self, size: tuple[int, int], colors: list[tuple[int, int, int]] | None = None) -> np.ndarray:
         """Generate gradient background.
 
         Args:
@@ -62,7 +62,7 @@ class BackgroundGenerator:
 
         return image
 
-    def generate_noise_background(self, size: Tuple[int, int], intensity: float = 0.1) -> np.ndarray:
+    def generate_noise_background(self, size: tuple[int, int], intensity: float = 0.1) -> np.ndarray:
         """Generate noise background.
 
         Args:

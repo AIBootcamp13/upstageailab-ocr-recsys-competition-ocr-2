@@ -139,7 +139,7 @@ def generate_table(
 
 def create_visualization(input_file: str, ablation_type: str, metric: str, output_file: str):
     """Create visualization of ablation results."""
-    print(f"📈 Creating visualization...")
+    print("📈 Creating visualization...")
 
     try:
         import matplotlib.pyplot as plt
@@ -171,7 +171,7 @@ def create_visualization(input_file: str, ablation_type: str, metric: str, outpu
 
             plt.xlabel(x_label)
             plt.ylabel(metric.replace("val/", "").replace("test/", "").title())
-            plt.title(f'Ablation Study: {ablation_type.replace("_", " ").title()}')
+            plt.title(f"Ablation Study: {ablation_type.replace('_', ' ').title()}")
             plt.grid(True, alpha=0.3)
 
             plt.tight_layout()

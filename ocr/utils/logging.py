@@ -7,7 +7,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 try:
     import torch
@@ -50,7 +50,7 @@ class OCRLogger:
         self,
         name: str = "ocr",
         level: str = "INFO",
-        log_file: Optional[Union[str, Path]] = None,
+        log_file: str | Path | None = None,
         rich_console: bool = True,
     ):
         """Initialize OCR logger.
@@ -126,7 +126,7 @@ class OCRLogger:
         """Log critical message."""
         self.logger.critical(message, *args, **kwargs)
 
-    def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None):
+    def log_metrics(self, metrics: dict[str, Any], step: int | None = None):
         """Log training/validation metrics with rich formatting."""
         if self.rich_console:
             table = Table(title=f"Metrics {'(Step ' + str(step) + ')' if step else ''}")
@@ -145,7 +145,7 @@ class OCRLogger:
             metrics_str = ", ".join(f"{k}: {v}" for k, v in metrics.items())
             self.logger.info(f"Metrics: {metrics_str}")
 
-    def log_config(self, config: Dict[str, Any]):
+    def log_config(self, config: dict[str, Any]):
         """Log configuration with rich formatting."""
         if self.rich_console:
             config_text = self._format_config(config)
@@ -155,7 +155,7 @@ class OCRLogger:
         else:
             self.logger.info(f"Configuration: {config}")
 
-    def _format_config(self, config: Dict[str, Any], indent: int = 0) -> str:
+    def _format_config(self, config: dict[str, Any], indent: int = 0) -> str:
         """Format configuration dictionary for display."""
         lines = []
         for key, value in config.items():
@@ -229,7 +229,7 @@ class DebugTools:
             print(f"{name}_sample: {tensor.flatten()[:10] if tensor.numel() > 10 else tensor}")
 
     @staticmethod
-    def debug_model(model, input_shape: Optional[tuple] = None):
+    def debug_model(model, input_shape: tuple | None = None):
         """Debug model architecture and parameters."""
         if not TORCH_AVAILABLE:
             ic(f"Model debug not available - torch not installed: {model}")
@@ -290,19 +290,19 @@ debug = DebugTools()
 
 
 # Convenience functions
-def log_experiment_start(experiment_name: str, config: Dict[str, Any]):
+def log_experiment_start(experiment_name: str, config: dict[str, Any]):
     """Log experiment start with configuration."""
     logger.info(f"🚀 Starting experiment: {experiment_name}")
     logger.log_config(config)
 
 
-def log_experiment_end(experiment_name: str, metrics: Dict[str, Any]):
+def log_experiment_end(experiment_name: str, metrics: dict[str, Any]):
     """Log experiment completion with final metrics."""
     logger.info(f"✅ Completed experiment: {experiment_name}")
     logger.log_metrics(metrics)
 
 
-def create_experiment_logger(experiment_name: str, output_dir: Union[str, Path]) -> OCRLogger:
+def create_experiment_logger(experiment_name: str, output_dir: str | Path) -> OCRLogger:
     """Create a logger for a specific experiment."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = Path(output_dir) / "logs" / f"{experiment_name}_{timestamp}.log"

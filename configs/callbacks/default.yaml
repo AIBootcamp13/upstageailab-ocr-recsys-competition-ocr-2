@@ -1,0 +1,8 @@
+
+# Callbacks config
+early_stopping:
+  enabled: true
+  patience: 5
+checkpoint:
+  enabled: true
+  filename: "epoch-{epoch}-step-{step}"

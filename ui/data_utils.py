@@ -3,7 +3,7 @@ Data processing utilities for OCR evaluation viewer.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -115,7 +115,7 @@ def apply_sorting_filtering(df: pd.DataFrame, sort_by: str, sort_order: str, fil
     return filtered_df
 
 
-def calculate_model_metrics(df: pd.DataFrame) -> Dict[str, float]:
+def calculate_model_metrics(df: pd.DataFrame) -> dict[str, float]:
     """Calculate key metrics for a model's predictions."""
     df = calculate_prediction_metrics(df)
 
@@ -127,9 +127,9 @@ def calculate_model_metrics(df: pd.DataFrame) -> Dict[str, float]:
     }
 
 
-def find_common_images(df_a: pd.DataFrame, df_b: pd.DataFrame) -> List[str]:
+def find_common_images(df_a: pd.DataFrame, df_b: pd.DataFrame) -> list[str]:
     """Find images that exist in both dataframes."""
-    return sorted(list(set(df_a["filename"]).intersection(set(df_b["filename"]))))
+    return sorted(set(df_a["filename"]).intersection(set(df_b["filename"])))
 
 
 def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.DataFrame:
@@ -179,7 +179,7 @@ def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.Da
     return diff_df
 
 
-def get_dataset_statistics(df: pd.DataFrame) -> Dict[str, Any]:
+def get_dataset_statistics(df: pd.DataFrame) -> dict[str, Any]:
     """Calculate comprehensive dataset statistics."""
     df = calculate_prediction_metrics(df)
 
@@ -195,7 +195,7 @@ def get_dataset_statistics(df: pd.DataFrame) -> Dict[str, Any]:
     }
 
 
-def prepare_export_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def prepare_export_data(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Prepare data for export."""
     df = calculate_prediction_metrics(df)
 

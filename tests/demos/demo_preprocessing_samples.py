@@ -9,14 +9,13 @@ to demonstrate the Microsoft Lens-style preprocessing effects.
 import argparse
 import json
 from pathlib import Path
-from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
 
-def load_sample_data(sample_dir: Path, sample_idx: int) -> Dict:
+def load_sample_data(sample_dir: Path, sample_idx: int) -> dict:
     """Load sample data for a given index."""
     # Find the sample files
     original_files = list((sample_dir / "original").glob(f"sample_{sample_idx:03d}_*_original.jpg"))
@@ -31,7 +30,7 @@ def load_sample_data(sample_dir: Path, sample_idx: int) -> Dict:
     processed_img = Image.open(processed_files[0])
 
     # Load metadata
-    with open(metadata_files[0], "r") as f:
+    with open(metadata_files[0]) as f:
         metadata = json.load(f)
 
     return {
@@ -42,7 +41,7 @@ def load_sample_data(sample_dir: Path, sample_idx: int) -> Dict:
     }
 
 
-def display_sample_comparison(sample_data: Dict, figsize: tuple = (16, 8)):
+def display_sample_comparison(sample_data: dict, figsize: tuple = (16, 8)):
     """Display a before/after comparison of a sample."""
     fig, axes = plt.subplots(1, 3, figsize=figsize)
 
@@ -65,13 +64,13 @@ def display_sample_comparison(sample_data: Dict, figsize: tuple = (16, 8)):
         ".1f"
         f"""
 Processing Applied:
-{chr(10).join('• ' + step.replace('_', ' ').title() for step in metadata.get('processing_steps', []))}
+{chr(10).join("• " + step.replace("_", " ").title() for step in metadata.get("processing_steps", []))}
 
 Enhancements:
-{chr(10).join('• ' + enh.replace('_', ' ').title() for enh in metadata.get('enhancement_applied', []))}
+{chr(10).join("• " + enh.replace("_", " ").title() for enh in metadata.get("enhancement_applied", []))}
 
-Original Shape: {metadata.get('original_shape', 'N/A')}
-Final Shape: {metadata.get('final_shape', 'N/A')}
+Original Shape: {metadata.get("original_shape", "N/A")}
+Final Shape: {metadata.get("final_shape", "N/A")}
 """
     )
 
@@ -83,7 +82,7 @@ Final Shape: {metadata.get('final_shape', 'N/A')}
         fontsize=11,
         verticalalignment="top",
         fontfamily="monospace",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8),
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "lightgray", "alpha": 0.8},
     )
 
     plt.suptitle(f"Sample: {sample_data['sample_name']}", fontsize=16, fontweight="bold", y=0.98)
@@ -152,7 +151,7 @@ def display_generation_stats(sample_dir: Path):
         print("❌ Generation report not found. Run sample generation first.")
         return
 
-    with open(report_path, "r") as f:
+    with open(report_path) as f:
         report = json.load(f)
 
     print("\n" + "=" * 60)

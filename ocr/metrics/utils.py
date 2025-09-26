@@ -25,7 +25,7 @@ def load_zip_file(file):
     """
     archive = zipfile.ZipFile(file, mode="r", allowZip64=True)
 
-    pairs = dict()
+    pairs = {}
     for name in archive.namelist():
         key_name = name.replace("gt_", "").replace("res_", "").replace(".txt", "").replace(".json", "").replace(".jpg", "")
         pairs[key_name] = archive.read(name)
@@ -51,7 +51,7 @@ def dump_json(json_file_path, json_data):
 
 
 def read_json(json_file_path):
-    with open(json_file_path, "r", encoding="utf-8") as f:
+    with open(json_file_path, encoding="utf-8") as f:
         json_data = json.load(f)
     return json_data
 
@@ -78,7 +78,7 @@ def ltrb_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. " "Should be: xmin,ymin,xmax,ymax,confidence,transcription")
+            raise ValueError("Format incorrect. Should be: xmin,ymin,xmax,ymax,confidence,transcription")
     elif with_confidence:
         m = re.match(
             r"^\s*(-?[0-9]+)\s*," r"\s*(-?[0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-9]+)\s*," r"\s*([0-1].?[0-9]*)\s*$",
@@ -118,7 +118,7 @@ def quad_regex_match(line, with_transcription, with_confidence):
             line,
         )
         if m is None:
-            raise ValueError("Format incorrect. " "Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence,transcription")
+            raise ValueError("Format incorrect. Should be: x1,y1,x2,y2,x3,y3,x4,y4,confidence,transcription")
     elif with_confidence:
         m = re.match(
             r"^\s*(-?[0-9]+)\s*,"

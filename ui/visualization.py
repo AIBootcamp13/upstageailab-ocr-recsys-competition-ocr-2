@@ -3,7 +3,6 @@ Visualization components for OCR evaluation viewer.
 """
 
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -205,7 +204,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
                         if points:
                             draw.text(
                                 (points[0][0], points[0][1] - 10),
-                                f"T{i+1}",
+                                f"T{i + 1}",
                                 fill=(255, 0, 0, 255),
                             )
 
@@ -585,7 +584,7 @@ def display_side_by_side_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, imag
         st.error(f"Error creating comparison: {str(e)}")
 
 
-def draw_predictions_on_image(image: Image.Image, polygons_str: str, color: Tuple[int, int, int]) -> Image.Image:
+def draw_predictions_on_image(image: Image.Image, polygons_str: str, color: tuple[int, int, int]) -> Image.Image:
     """Draw predictions on an image with specified color."""
     if not polygons_str.strip():
         return image

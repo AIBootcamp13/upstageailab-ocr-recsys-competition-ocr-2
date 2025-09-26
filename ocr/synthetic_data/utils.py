@@ -3,7 +3,7 @@
 Utility functions and augmentation setup for synthetic data generation.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from omegaconf import DictConfig
 
@@ -23,8 +23,8 @@ from .dataset import SyntheticDatasetGenerator
 def create_synthetic_dataset(
     num_images: int = 1000,
     output_dir: str = "data/synthetic",
-    config: Optional[DictConfig] = None,
-) -> List[Dict[str, Any]]:
+    config: DictConfig | None = None,
+) -> list[dict[str, Any]]:
     """Convenience function to create synthetic dataset.
 
     Args:
@@ -43,8 +43,8 @@ def augment_existing_dataset(
     source_dir: str,
     output_dir: str,
     augmentation_factor: int = 5,
-    config: Optional[DictConfig] = None,
-) -> List[Dict[str, Any]]:
+    config: DictConfig | None = None,
+) -> list[dict[str, Any]]:
     """Convenience function to augment existing dataset.
 
     Args:
@@ -63,7 +63,7 @@ def augment_existing_dataset(
     return generator.generate_augmented_dataset(source_entries, output_dir, augmentation_factor)
 
 
-def setup_augmentation_pipeline(config: Optional[DictConfig] = None) -> Optional[Any]:
+def setup_augmentation_pipeline(config: DictConfig | None = None) -> Any | None:
     """Setup augmentation pipeline for synthetic data.
 
     Args:

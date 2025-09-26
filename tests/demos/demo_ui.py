@@ -6,7 +6,6 @@ This script demonstrates how the command builder generates CLI commands
 from configuration dictionaries.
 """
 
-
 # Setup project paths automatically
 from ocr.utils.path_utils import setup_paths
 

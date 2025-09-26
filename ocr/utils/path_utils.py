@@ -18,7 +18,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 
 @dataclass
@@ -42,11 +42,11 @@ class OCRPathConfig:
     submissions_dir: Path
 
     # Model and config paths
-    models_dir: Optional[Path] = None
-    pretrained_models_dir: Optional[Path] = None
+    models_dir: Path | None = None
+    pretrained_models_dir: Path | None = None
 
     @classmethod
-    def from_dict(cls, config: Dict[str, Any]) -> "OCRPathConfig":
+    def from_dict(cls, config: dict[str, Any]) -> "OCRPathConfig":
         """Create OCRPathConfig from dictionary configuration."""
         return cls(
             project_root=Path(config.get("project_root", ".")),
@@ -65,7 +65,7 @@ class OCRPathConfig:
             ),
         )
 
-    def resolve_path(self, path: Union[str, Path], base: Optional[Path] = None) -> Path:
+    def resolve_path(self, path: str | Path, base: Path | None = None) -> Path:
         """Resolve a path relative to a base directory or project root."""
         path = Path(path)
 
@@ -103,7 +103,7 @@ class OCRPathConfig:
 class OCRPathResolver:
     """Central path resolution manager for OCR project."""
 
-    def __init__(self, config: Optional[OCRPathConfig] = None):
+    def __init__(self, config: OCRPathConfig | None = None):
         self.config = config or self._create_default_config()
 
     def _create_default_config(self) -> OCRPathConfig:
@@ -153,7 +153,7 @@ class OCRPathResolver:
         """Get path to experiment submissions."""
         return self.config.submissions_dir / experiment_name
 
-    def resolve_relative_path(self, path: Union[str, Path], base: Optional[str] = None) -> Path:
+    def resolve_relative_path(self, path: str | Path, base: str | None = None) -> Path:
         """Resolve a path that might be relative to different bases."""
         path = Path(path)
 
@@ -369,7 +369,7 @@ def get_path_resolver() -> OCRPathResolver:
     return _ocr_path_resolver
 
 
-def setup_project_paths(config: Optional[Dict[str, Any]] = None) -> OCRPathResolver:
+def setup_project_paths(config: dict[str, Any] | None = None) -> OCRPathResolver:
     """Setup project paths and return resolver.
 
     Args:

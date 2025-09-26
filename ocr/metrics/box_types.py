@@ -426,7 +426,7 @@ class POLY(Box):
             point_x = self.points[::2]
             point_y = self.points[1::2]
 
-            distance_from_center = [point_distance((center_x, center_y), (px, py)) for px, py in zip(point_x, point_y)]
+            distance_from_center = [point_distance((center_x, center_y), (px, py)) for px, py in zip(point_x, point_y, strict=False)]
             distance_idx_max_order = np.argsort(distance_from_center)[::-1]
             self._distance_idx_max_order = distance_idx_max_order[:4]
         return self._distance_idx_max_order

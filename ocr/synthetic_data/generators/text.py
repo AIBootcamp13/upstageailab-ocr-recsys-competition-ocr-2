@@ -4,7 +4,7 @@ Text content generation for synthetic data.
 """
 
 import random
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from omegaconf import DictConfig
 
@@ -12,17 +12,17 @@ from omegaconf import DictConfig
 class TextGenerator:
     """Generator for synthetic text content."""
 
-    def __init__(self, config: Optional[DictConfig] = None):
+    def __init__(self, config: DictConfig | None = None):
         """Initialize text generator.
 
         Args:
             config: Configuration for text generation
         """
-        self.config: Union[DictConfig, Dict[str, "Any"]] = config or {}
+        self.config: DictConfig | dict[str, Any] = config or {}
         self.words = self._load_word_list()
         self.fonts = self._load_fonts()
 
-    def _load_word_list(self) -> List[str]:
+    def _load_word_list(self) -> list[str]:
         """Load list of words for text generation."""
         # Default word list - can be extended with custom dictionaries
         default_words = [
@@ -55,7 +55,7 @@ class TextGenerator:
         ]
         return default_words
 
-    def _load_fonts(self) -> List[str]:
+    def _load_fonts(self) -> list[str]:
         """Load available fonts for text rendering."""
         # Default fonts - can be extended with custom font paths
         default_fonts = [
@@ -79,7 +79,7 @@ class TextGenerator:
         words = random.choices(self.words, k=num_words)
         return " ".join(words).title()
 
-    def generate_paragraph(self, num_lines: int = 3) -> List[str]:
+    def generate_paragraph(self, num_lines: int = 3) -> list[str]:
         """Generate a paragraph of text.
 
         Args:

@@ -1,5 +1,6 @@
 title: "OCR Training Command Builder"
 
+# UI schema for Streamlit command builder. Only for UI input validation and command building.
 constant_overrides: []
 
 ui_elements:
@@ -17,7 +18,7 @@ ui_elements:
     type: checkbox
     label: "Use Weights & Biases"
     default: false
-    hydra_override: "wandb"
+    hydra_override: "logger.wandb.enabled"
 
   - key: resume_training
     type: checkbox
@@ -30,7 +31,7 @@ ui_elements:
     options_source: "checkpoints"
     default: ""
     visible_if: "resume_training == true"
-    hydra_override: "resume"
+    hydra_override: "trainer.ckpt_path"
     validation:
       required_if: "resume_training == true"
 
@@ -40,8 +41,8 @@ ui_elements:
     options_source: "models.backbones"
     default: "resnet18"
     help: "Backbone encoder architecture."
-    hydra_override: "models.encoder.model_name"
     visible_if: "resume_training == false"
+    hydra_override: "model.encoder.model_name"
 
   - key: learning_rate
     type: slider
@@ -51,7 +52,7 @@ ui_elements:
     default: 1.0e-3
     step: 1.0e-5
     format: "%.1e"
-    hydra_override: "models.optimizer.lr"
+    hydra_override: "model.optimizer.lr"
     validation:
       required: true
       range: [1.0e-5, 1.0e-2]
@@ -63,7 +64,9 @@ ui_elements:
     max_value: 64
     default: 4
     step: 1
-    hydra_override: "data.batch_size"
+    hydra_override:
+      - "dataloaders.train_dataloader.batch_size"
+      - "dataloaders.val_dataloader.batch_size"
     validation:
       required: true
       min: 1

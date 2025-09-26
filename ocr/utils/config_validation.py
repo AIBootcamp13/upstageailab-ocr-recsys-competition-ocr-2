@@ -6,16 +6,16 @@
 Lightweight warnings to catch common misconfigurations early without aborting training.
 Extendable: add new check_* functions that append to the warnings list.
 """
+
 from __future__ import annotations
 
 import json
 import os
 from glob import glob
-from typing import List
 
 
-def validate_runtime(cfg) -> List[str]:
-    warns: List[str] = []
+def validate_runtime(cfg) -> list[str]:
+    warns: list[str] = []
     # Data directories
     train_dir = getattr(cfg.data, "train_dir", None)
     val_dir = getattr(cfg.validation, "data_dir", None)
@@ -74,7 +74,7 @@ def _read_annotation_count(data_dir: str, json_name: str) -> int:
     if not os.path.exists(path):
         return -1
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return len(data.get("images", {}))
     except Exception:
@@ -120,7 +120,7 @@ def validate_config_paths(cfg, mode: str):
         if data_dir and val_dir:
             if "tiny" in data_dir and "tiny" not in val_dir:
                 errors.append(
-                    "Tiny training dataset paired with non-tiny validation directory. " "Set validation=tiny or update validation.data_dir."
+                    "Tiny training dataset paired with non-tiny validation directory. Set validation=tiny or update validation.data_dir."
                 )
         if data_dir and val_dir and os.path.isdir(os.path.join(data_dir, "ufo")) and os.path.isdir(os.path.join(val_dir, "ufo")):
             train_n = _read_annotation_count(data_dir, "train_split.json")

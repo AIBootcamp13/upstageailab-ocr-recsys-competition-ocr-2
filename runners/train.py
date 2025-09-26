@@ -4,8 +4,10 @@ import sys
 
 import hydra
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import LearningRateMonitor  # noqa
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import (
+    LearningRateMonitor,  # noqa
+    ModelCheckpoint,
+)
 
 # Setup project paths automatically
 from ocr.utils.path_utils import setup_paths
@@ -77,15 +79,15 @@ def train(config):
 
     # Ensure key output directories exist before creating callbacks
     try:
-        os.makedirs(config.log_dir, exist_ok=True)
-        os.makedirs(config.checkpoint_dir, exist_ok=True)
+        os.makedirs(config.paths.log_dir, exist_ok=True)
+        os.makedirs(config.paths.checkpoint_dir, exist_ok=True)
         # Some workflows also expect a submission dir
-        if hasattr(config, "submission_dir"):
-            os.makedirs(config.submission_dir, exist_ok=True)
+        if hasattr(config.paths, "submission_dir"):
+            os.makedirs(config.paths.submission_dir, exist_ok=True)
     except Exception as e:
         print(f"Warning: failed to ensure output directories exist: {e}")
 
-    if config.get("wandb"):
+    if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
 
         from ocr.utils.wandb_utils import generate_run_name, load_env_variables  # noqa: E402
@@ -96,28 +98,34 @@ def train(config):
         run_name = generate_run_name(config)
         logger = Logger(
             run_name,
-            project=config.project_name,
+            project=config.logger.project_name,
             config=dict(config),
         )
     else:
         from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 
         logger = TensorBoardLogger(
-            save_dir=config.log_dir,
+            save_dir=config.paths.log_dir,
             name=config.exp_name,
-            version=config.exp_version,
+            version=config.logger.exp_version,
             default_hp_metric=False,
         )
 
-    checkpoint_path = config.checkpoint_dir
+    checkpoint_path = config.paths.checkpoint_dir
 
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
-        ModelCheckpoint(dirpath=checkpoint_path, save_top_k=1, monitor="val/loss", mode="min"),
+        ModelCheckpoint(
+            dirpath=checkpoint_path,
+            save_top_k=1,
+            monitor="val/loss",
+            mode="min",
+            filename=f"{config.model.encoder.model_name}_bs{config.dataloaders.train_dataloader.batch_size}_epoch_{{epoch}}_step_{{step}}",
+        ),
     ]
 
     # Add wandb image logging callback if wandb is enabled
-    if config.get("wandb"):
+    if config.logger.wandb:
         from ocr.lightning_modules.callbacks.wandb_image_logging import WandbImageLoggingCallback  # noqa: E402
 
         callbacks.append(WandbImageLoggingCallback(log_every_n_epochs=5))  # Log every 5 epochs
@@ -135,7 +143,7 @@ def train(config):
     )
 
     # Finalize wandb run if wandb was used
-    if config.get("wandb"):
+    if config.logger.wandb:
         from ocr.utils.wandb_utils import finalize_run  # noqa: E402
 
         # Get final validation loss as a simple metric for finalization

@@ -1,3 +1,18 @@
+hydra:
+  run:
+    dir: 'outputs/${exp_name}'
+
+defaults:
+  - data: default
+  - dataloaders: default
+  - model: default
+  - paths: default
+  - logger: default
+  - trainer: default
+  - callbacks: default
+  - debug: default
+
+# Model and component paths
 dataset_path: ocr.datasets
 model_path: ocr.models
 encoder_path: ocr.models.encoder
@@ -6,14 +21,6 @@ head_path: ocr.models.head
 loss_path: ocr.models.loss
 lightning_path: ocr.lightning_modules
 
-hydra:
-  run:
-    dir: 'outputs/${exp_name}'
-
-log_dir: 'outputs/${exp_name}/logs'
-checkpoint_dir: 'outputs/${exp_name}/checkpoints'
-submission_dir: 'outputs/${exp_name}/submissions'
-
 # Global training data defaults
 data:
-  batch_size: 4
+  batch_size: 12

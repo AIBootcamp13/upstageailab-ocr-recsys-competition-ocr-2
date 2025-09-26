@@ -37,16 +37,15 @@ test-cov:
 
 # Code Quality
 lint:
-	uv run flake8 .
+	uv run ruff check .
 
 format:
-	uv run black .
-	uv run isort .
+	uv run ruff format .
 
 quality-check: lint
 	uv run mypy ocr/
-	uv run black --check .
-	uv run isort --check-only .
+	uv run ruff check .
+	uv run ruff format --check .
 
 quality-fix:
 	./scripts/code-quality.sh

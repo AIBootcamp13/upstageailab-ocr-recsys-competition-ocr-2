@@ -5,12 +5,12 @@ OCR Inference UI - Streamlit Application
 A Streamlit application for real-time OCR inference with uploaded images.
 Users can upload images, select trained models, and see OCR predictions instantly.
 """
+
 import logging
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -61,7 +61,7 @@ def display_image_with_ocr_predictions(image: np.ndarray, predictions: dict, tit
                         min_x = min(p[0] for p in points)
                         min_y = min(p[1] for p in points)
 
-                        text = texts[i] if i < len(texts) else f"Det_{i+1}"
+                        text = texts[i] if i < len(texts) else f"Det_{i + 1}"
                         conf = confidences[i] if i < len(confidences) else 0
                         label = f"{text} ({conf:.1%})"
 
@@ -236,7 +236,7 @@ def render_results_display():
 
     # --- Display Individual Image Results ---
     for i, result in enumerate(st.session_state.inference_results):
-        expander_title = f"Image {i+1}: {result.get('filename', '')}"
+        expander_title = f"Image {i + 1}: {result.get('filename', '')}"
         with st.expander(expander_title, expanded=(i == 0)):
             display_single_result(result)
 
@@ -273,7 +273,7 @@ def display_single_result(result: dict):
             st.json(result["predictions"])
 
 
-def get_available_models() -> List[str]:
+def get_available_models() -> list[str]:
     """Get a list of available trained models."""
     if INFERENCE_ENGINE_AVAILABLE:
         try:
@@ -287,7 +287,7 @@ def get_available_models() -> List[str]:
     return ["No trained models found - using Demo Mode"]
 
 
-def run_inference(uploaded_files: List, model_path: str):
+def run_inference(uploaded_files: list, model_path: str):
     """Run inference on selected uploaded files, skipping already processed images."""
     total_files = len(uploaded_files)
     new_results = []
@@ -302,11 +302,11 @@ def run_inference(uploaded_files: List, model_path: str):
             st.info(f"⏭️ Skipping {filename} - already processed")
             progress_bar.progress(
                 (i + 1) / total_files,
-                text=f"Skipped {filename} (already processed)... ({i+1}/{total_files})",
+                text=f"Skipped {filename} (already processed)... ({i + 1}/{total_files})",
             )
             continue
 
-        progress_bar.progress((i) / total_files, text=f"Processing {filename}... ({i+1}/{total_files})")
+        progress_bar.progress((i) / total_files, text=f"Processing {filename}... ({i + 1}/{total_files})")
 
         # Save uploaded file to a temporary path to be read by OpenCV
         with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.name).suffix) as tmp_file:
@@ -365,7 +365,7 @@ def perform_inference(image_path: str, model_path: str, filename: str) -> dict:
         return {"filename": filename, "success": False, "error": str(e)}
 
 
-def generate_mock_predictions(image_shape: Tuple) -> dict:
+def generate_mock_predictions(image_shape: tuple) -> dict:
     """Generate mock predictions for demonstration purposes."""
     height, width, _ = image_shape
     # Create dynamic mock boxes based on image size

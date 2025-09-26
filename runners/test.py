@@ -25,17 +25,17 @@ def test(config):
 
     model_module, data_module = get_pl_modules_by_cfg(config)
 
-    if config.get("wandb"):
+    if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
 
-        logger = Logger(config.exp_name, project=config.project_name, config=dict(config))
+        logger = Logger(config.exp_name, project=config.logger.project_name, config=dict(config))
     else:
         from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 
         logger = TensorBoardLogger(
-            save_dir=config.log_dir,
+            save_dir=config.paths.log_dir,
             name=config.exp_name,
-            version=config.exp_version,
+            version=config.logger.exp_version,
             default_hp_metric=False,
         )
 

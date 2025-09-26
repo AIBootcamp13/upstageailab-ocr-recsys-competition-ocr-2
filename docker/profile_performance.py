@@ -38,7 +38,7 @@ def gpu_profiler(device=0, log_interval=10):
 
         print("-" * 60)
         print(f"Total training time: {total_time:.2f}s")
-        print(f"Final GPU Memory: {used_mem / 1024**2:.0f}MB / {total_mem / 1024**2:.0f}MB " f"({used_mem / total_mem * 100:.1f}%)")
+        print(f"Final GPU Memory: {used_mem / 1024**2:.0f}MB / {total_mem / 1024**2:.0f}MB ({used_mem / total_mem * 100:.1f}%)")
 
 
 def profile_system():
@@ -49,7 +49,7 @@ def profile_system():
     print(f"Available RAM: {psutil.virtual_memory().available / 1024**3:.1f}GB")
 
     if torch.cuda.is_available():
-        print(f"CUDA Available: Yes")
+        print("CUDA Available: Yes")
         print(f"GPU Count: {torch.cuda.device_count()}")
         for i in range(torch.cuda.device_count()):
             print(f"GPU {i}: {torch.cuda.get_device_name(i)}")

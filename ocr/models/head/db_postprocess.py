@@ -38,12 +38,12 @@ class DBPostProcessor:
         pred:
             prob_maps: text region segmentation map, with shape (N, 1, H, W)
         """
-        assert "images" in batch is not None, "images is required in batch"
+        assert "images" in batch, "images is required in batch"
         images = batch["images"]
 
         # Use prob_maps if pred is a dict
         if isinstance(_pred, dict):
-            assert "prob_maps" in _pred is not None, "prob_maps is required in _pred"
+            assert "prob_maps" in _pred, "prob_maps is required in _pred"
             pred = _pred["prob_maps"]
         else:
             pred = _pred
@@ -105,7 +105,7 @@ class DBPostProcessor:
 
         assert _bitmap.size(0) == 1
         bitmap = _bitmap.cpu().numpy()[0]  # The first channel
-        pred = pred.cpu().detach().numpy()[0]
+        pred = pred.detach().float().cpu().numpy()[0]
 
         boxes = []
         scores = []
@@ -166,7 +166,7 @@ class DBPostProcessor:
 
         assert _bitmap.size(0) == 1
         bitmap = _bitmap.cpu().numpy()[0]  # The first channel
-        pred = pred.cpu().detach().numpy()[0]
+        pred = pred.detach().float().cpu().numpy()[0]
 
         boxes = []
         scores = []
@@ -238,7 +238,7 @@ class DBPostProcessor:
         # Get the bounding box
         # https://docs.opencv.org/4.9.0/de/d62/tutorial_bounding_rotated_ellipses.html
         bounding_box = cv2.minAreaRect(contour)
-        points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
+        points = sorted(cv2.boxPoints(bounding_box), key=lambda x: x[0])
 
         index_1, index_2, index_3, index_4 = 0, 1, 2, 3
         if points[1][1] > points[0][1]:

@@ -17,7 +17,7 @@ import torch.nn as nn
 
 class MaskL1Loss(nn.Module):
     def __init__(self):
-        super(MaskL1Loss, self).__init__()
+        super().__init__()
 
     def forward(self, pred: torch.Tensor, gt, mask=None):
         if mask is None:

@@ -10,7 +10,6 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +28,7 @@ class OfflineSampleGenerator:
         source_dir: str = "data/datasets/images",
         output_dir: str = "outputs/samples",
         num_samples: int = 10,
-        preprocessing_config: Optional[Dict] = None,
+        preprocessing_config: dict | None = None,
     ):
         """
         Initialize the sample generator.
@@ -66,7 +65,7 @@ class OfflineSampleGenerator:
         logger.info(f"Source: {source_dir}")
         logger.info(f"Output: {output_dir}")
 
-    def collect_sample_images(self) -> List[Path]:
+    def collect_sample_images(self) -> list[Path]:
         """Collect sample images from the dataset."""
         image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
 
@@ -88,7 +87,7 @@ class OfflineSampleGenerator:
         logger.info(f"Selected {len(selected_images)} images out of {len(all_images)} available")
         return selected_images
 
-    def process_sample(self, image_path: Path) -> Dict:
+    def process_sample(self, image_path: Path) -> dict:
         """
         Process a single sample image.
 
@@ -118,7 +117,7 @@ class OfflineSampleGenerator:
             logger.error(f"Failed to process {image_path}: {e}")
             return {"image_path": image_path, "error": str(e), "success": False}
 
-    def save_sample(self, sample_data: Dict, sample_idx: int):
+    def save_sample(self, sample_data: dict, sample_idx: int):
         """Save a processed sample to disk."""
         if not sample_data["success"]:
             logger.warning(f"Skipping failed sample {sample_idx}")
@@ -151,7 +150,7 @@ class OfflineSampleGenerator:
         self,
         original: np.ndarray,
         processed: np.ndarray,
-        metadata: Dict,
+        metadata: dict,
         output_path: Path,
     ):
         """Create a side-by-side comparison visualization."""
@@ -197,7 +196,7 @@ class OfflineSampleGenerator:
 
         logger.info(f"Generated {len(processed_samples)} samples in {self.output_dir}")
 
-    def _generate_summary_report(self, samples: List[Dict]):
+    def _generate_summary_report(self, samples: list[dict]):
         """Generate a summary report of the sample generation."""
         successful_samples = [s for s in samples if s["success"]]
         failed_samples = [s for s in samples if not s["success"]]

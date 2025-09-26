@@ -5,7 +5,7 @@ Main orchestrator for synthetic OCR dataset generation.
 
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 from omegaconf import DictConfig
@@ -28,13 +28,13 @@ from .models import SyntheticImage
 class SyntheticDatasetGenerator:
     """Main generator for synthetic OCR datasets."""
 
-    def __init__(self, config: Optional[DictConfig] = None):
+    def __init__(self, config: DictConfig | None = None):
         """Initialize synthetic dataset generator.
 
         Args:
             config: Configuration for dataset generation
         """
-        self.config: Union[DictConfig, Dict[str, Any]] = config or {}
+        self.config: DictConfig | dict[str, Any] = config or {}
         self.text_generator = TextGenerator(config)
         self.background_generator = BackgroundGenerator(config)
         self.text_renderer = TextRenderer(config)
@@ -58,7 +58,7 @@ class SyntheticDatasetGenerator:
 
     def generate_single_image(
         self,
-        size: Tuple[int, int] = (512, 512),
+        size: tuple[int, int] = (512, 512),
         num_text_regions: int = 3,
         background_type: str = "plain",
     ) -> SyntheticImage:
@@ -131,10 +131,10 @@ class SyntheticDatasetGenerator:
     def generate_dataset(
         self,
         num_images: int,
-        output_dir: Union[str, Path],
-        image_size: Tuple[int, int] = (512, 512),
+        output_dir: str | Path,
+        image_size: tuple[int, int] = (512, 512),
         **kwargs,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate a complete synthetic dataset.
 
         Args:
@@ -190,7 +190,7 @@ class SyntheticDatasetGenerator:
         logger.info(f"Dataset generation complete! Saved to {output_dir}")
         return dataset_entries
 
-    def _create_annotation(self, synthetic_image: SyntheticImage, image_filename: str) -> Dict[str, Any]:
+    def _create_annotation(self, synthetic_image: SyntheticImage, image_filename: str) -> dict[str, Any]:
         """Create annotation dictionary for synthetic image.
 
         Args:
@@ -221,10 +221,10 @@ class SyntheticDatasetGenerator:
 
     def generate_augmented_dataset(
         self,
-        source_dataset: List[Dict[str, Any]],
-        output_dir: Union[str, Path],
+        source_dataset: list[dict[str, Any]],
+        output_dir: str | Path,
         augmentation_factor: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Generate augmented versions of existing dataset.
 
         Args:

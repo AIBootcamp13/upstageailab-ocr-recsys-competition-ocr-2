@@ -7,7 +7,7 @@ defaults:
 # Test different backbone architectures
 model:
   backbone:
-    name: ["resnet18", "resnet34", "resnet50", "mobilenet_v3_small", "efficientnet_b0"]
+    name: ["resnet18", "resnet34", "resnet50", "mobilenetv3_small_050", "efficientnet_b0"]
 
 # Keep training settings consistent
 training:

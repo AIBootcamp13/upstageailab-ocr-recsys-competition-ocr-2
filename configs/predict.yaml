@@ -1,7 +1,6 @@
 defaults:
   - _self_
   - base
-  - preset/datasets/db
   - preset/models/model_example
   - preset/lightning_modules/base
   - override hydra/hydra_logging: disabled
@@ -9,6 +8,5 @@ defaults:
 
 seed: 42
 exp_name: "ocr_training"
-
 checkpoint_path: "outputs/ocr_training/checkpoints/epoch-0-step-205.ckpt"
 minified_json: False

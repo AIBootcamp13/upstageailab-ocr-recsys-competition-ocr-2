@@ -10,7 +10,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import pandas as pd
 import psutil
@@ -23,7 +22,7 @@ sys.path.append(str(project_root))
 from scripts.process_monitor import get_training_processes, get_worker_processes, terminate_processes
 
 
-def get_system_resources() -> Dict[str, float]:
+def get_system_resources() -> dict[str, float]:
     """Get current system resource usage."""
     try:
         # CPU usage
@@ -50,7 +49,7 @@ def get_system_resources() -> Dict[str, float]:
         return {}
 
 
-def get_gpu_info() -> Dict[str, float]:
+def get_gpu_info() -> dict[str, float]:
     """Get GPU information using nvidia-smi."""
     with contextlib.suppress(subprocess.TimeoutExpired, FileNotFoundError, ValueError):
         result = subprocess.run(
@@ -93,7 +92,7 @@ def get_gpu_info() -> Dict[str, float]:
     }
 
 
-def create_resource_charts(resources: Dict[str, float]):
+def create_resource_charts(resources: dict[str, float]):
     """Create resource usage charts."""
     col1, col2 = st.columns(2)
 
@@ -140,7 +139,7 @@ def create_resource_charts(resources: Dict[str, float]):
             st.info("No GPU detected or nvidia-smi not available")
 
 
-def display_process_table(processes: List[Tuple[int, str, str]], title: str):
+def display_process_table(processes: list[tuple[int, str, str]], title: str):
     """Display a table of processes with management options."""
     if not processes:
         st.info(f"No {title.lower()} found.")

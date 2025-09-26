@@ -1,0 +1,5 @@
+# Logger config
+wandb:
+  enabled: True
+project_name: "receipt-text-recognition-ocr-project"
+exp_version: "v1.0"

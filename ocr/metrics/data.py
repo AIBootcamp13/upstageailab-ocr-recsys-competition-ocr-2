@@ -10,7 +10,6 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Union
 
 from .utils import harmonic_mean
 
@@ -39,8 +38,8 @@ class CoreStats:
 
 @dataclass
 class MatchResult:
-    gt_ids: List[int]
-    det_ids: List[int]
+    gt_ids: list[int]
+    det_ids: list[int]
     match_relation: str  # from MatchRelation
 
     det: CoreStats = field(default_factory=CoreStats)
@@ -56,9 +55,9 @@ class Point:
 @dataclass
 class GTBoxResult:
     id: int
-    points: List[Point]
-    pccs: List[Point]
-    orientation: Union[None, str]
+    points: list[Point]
+    pccs: list[Point]
+    orientation: None | str
     letters: str
     is_dc: bool
 
@@ -66,8 +65,8 @@ class GTBoxResult:
 @dataclass
 class DetBoxResult:
     id: int
-    points: List[Point]
-    orientation: Union[None, str]
+    points: list[Point]
+    orientation: None | str
     letters: str
 
 
@@ -89,19 +88,19 @@ class Stats:
 
 @dataclass
 class SampleResult:
-    matches: List[MatchResult]
-    gts: List[GTBoxResult]
-    preds: List[DetBoxResult]
+    matches: list[MatchResult]
+    gts: list[GTBoxResult]
+    preds: list[DetBoxResult]
     stats: Stats = field(default_factory=Stats)
-    image_id: Union[int, None] = None
+    image_id: int | None = None
 
 
 @dataclass
 class GlobalResult:
     """Object that holds each record of all samples."""
 
-    dataset_inform: Dict = field(default_factory=dict)
-    sample_results: List[SampleResult] = field(default_factory=list)
+    dataset_inform: dict = field(default_factory=dict)
+    sample_results: list[SampleResult] = field(default_factory=list)
     stats: Stats = field(default_factory=Stats)
 
 

@@ -193,12 +193,12 @@ def main():
         ".1f"
         f"""
 Office Lens Scanner:
-- Detected: {'Yes' if not np.array_equal(office_lens_vertices, np.array([[0, 0], [648, 0], [648, 1280], [0, 1280]])) else 'No'}
+- Detected: {"Yes" if not np.array_equal(office_lens_vertices, np.array([[0, 0], [648, 0], [648, 1280], [0, 1280]])) else "No"}
 - Output size: {office_lens_img.shape}
 
 Our Preprocessor:
-- Steps: {', '.join(our_metadata['processing_steps'])}
-- Detected: {'Yes' if our_metadata['document_corners'] is not None else 'No'}
+- Steps: {", ".join(our_metadata["processing_steps"])}
+- Detected: {"Yes" if our_metadata["document_corners"] is not None else "No"}
 - Output size: {our_img.shape}
 """
     )

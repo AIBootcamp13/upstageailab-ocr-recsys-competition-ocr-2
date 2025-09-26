@@ -11,25 +11,42 @@
 *****************************************************************************************
 """
 
-from collections import OrderedDict
+import torch
 
-import torch.nn as nn
-
+from ..core import BaseLoss
 from .bce_loss import BCELoss
 from .dice_loss import DiceLoss
 from .l1_loss import MaskL1Loss
 
 
-class DBLoss(nn.Module):
+class DBLoss(BaseLoss):
+    """DBNet loss function combining BCE, Dice, and L1 losses.
+
+    Implements the differentiable binarization loss from DBNet paper,
+    combining multiple loss terms for robust text detection training.
+    """
+
     def __init__(
         self,
-        negative_ratio=3.0,
-        eps=1e-6,
-        prob_map_loss_weight=5.0,
-        thresh_map_loss_weight=10.0,
-        binary_map_loss_weight=1.0,
+        negative_ratio: float = 3.0,
+        eps: float = 1e-6,
+        prob_map_loss_weight: float = 5.0,
+        thresh_map_loss_weight: float = 10.0,
+        binary_map_loss_weight: float = 1.0,
+        **kwargs,
     ):
-        super(DBLoss, self).__init__()
+        """Initialize the DB loss.
+
+        Args:
+            negative_ratio: Ratio of negative to positive samples for BCE loss
+            eps: Small epsilon for numerical stability
+            prob_map_loss_weight: Weight for probability map BCE loss
+            thresh_map_loss_weight: Weight for threshold map L1 loss
+            binary_map_loss_weight: Weight for binary map Dice loss
+            **kwargs: Additional arguments
+        """
+        super().__init__(**kwargs)
+
         self.negative_ratio = negative_ratio
         self.eps = eps
         self.prob_map_loss_weight = prob_map_loss_weight
@@ -40,28 +57,45 @@ class DBLoss(nn.Module):
         self.bce_loss = BCELoss(self.negative_ratio, self.eps)
         self.l1_loss = MaskL1Loss()
 
-    def forward(self, pred, **kwargs):
-        pred_prob = pred["prob_maps"]
-        pred_thresh = pred.get("thresh_maps", None)
-        pred_binary = pred.get("binary_maps", None)
+    def forward(
+        self, pred: dict[str, torch.Tensor], gt_binary: torch.Tensor, gt_thresh: torch.Tensor, **kwargs
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Compute loss from predictions and ground truth.
 
-        gt_prob_maps = kwargs.get("prob_maps", None)
-        gt_thresh_maps = kwargs.get("thresh_maps", None)
+        Args:
+            pred: Dictionary of predictions from head
+            gt_binary: Ground truth binary map of shape (B, 1, H, W)
+            gt_thresh: Ground truth threshold map of shape (B, 1, H, W)
+            **kwargs: Additional loss-specific parameters
+
+        Returns:
+            Tuple of (total_loss, loss_dict) where:
+            - total_loss: Scalar tensor for optimization
+            - loss_dict: Dictionary of individual loss components for logging
+        """
+        pred_prob_logits = pred.get("binary_logits")
+        if pred_prob_logits is None:
+            binary_map = pred["binary_map"].clamp(self.eps, 1 - self.eps)
+            pred_prob_logits = torch.logit(binary_map)
+        pred_thresh = pred.get("thresh_map")
+        pred_binary = pred.get("thresh_binary_map")
+
         gt_prob_mask = kwargs.get("prob_mask", None)
         gt_thresh_mask = kwargs.get("thresh_mask", None)
 
-        loss_prob = self.bce_loss(pred_prob, gt_prob_maps, gt_prob_mask)
-        loss_dict = OrderedDict(loss_prob=loss_prob)
-        if pred_thresh is not None:
-            loss_thresh = self.l1_loss(pred_thresh, gt_thresh_maps, gt_thresh_mask)
-            loss_binary = self.dice_loss(pred_binary, gt_prob_maps, gt_prob_mask)
+        loss_prob = self.bce_loss(pred_prob_logits, gt_binary, gt_prob_mask)
+        loss_dict = {"loss_prob": loss_prob}
+
+        if pred_thresh is not None and pred_binary is not None:
+            loss_thresh = self.l1_loss(pred_thresh, gt_thresh, gt_thresh_mask)
+            loss_binary = self.dice_loss(pred_binary, gt_binary, gt_prob_mask)
 
             loss = (
                 self.prob_map_loss_weight * loss_prob
                 + self.thresh_map_loss_weight * loss_thresh
                 + self.binary_map_loss_weight * loss_binary
             )
-            loss_dict.update(loss_thresh=loss_thresh, loss_binary=loss_binary)
+            loss_dict.update({"loss_thresh": loss_thresh, "loss_binary": loss_binary})
         else:
             loss = loss_prob
 

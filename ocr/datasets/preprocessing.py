@@ -6,7 +6,7 @@ focusing on perspective correction and image enhancement for optimal OCR perform
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import cv2
 import numpy as np
@@ -38,7 +38,7 @@ class DocumentPreprocessor:
         enable_enhancement: bool = True,
         enable_text_enhancement: bool = False,  # Disabled by default as it can be destructive
         enhancement_method: str = "conservative",  # "conservative" or "office_lens"
-        target_size: Tuple[int, int] = (640, 640),
+        target_size: tuple[int, int] = (640, 640),
     ):
         """
         Initialize the document preprocessor.
@@ -65,7 +65,7 @@ class DocumentPreprocessor:
         # Configure logging
         self.logger = logging.getLogger(__name__)
 
-    def __call__(self, image: np.ndarray) -> Dict[str, Union[np.ndarray, dict]]:
+    def __call__(self, image: np.ndarray) -> dict[str, np.ndarray | dict]:
         """
         Process an image through the preprocessing pipeline.
 
@@ -92,7 +92,7 @@ class DocumentPreprocessor:
             }
 
         original_image = image.copy()
-        metadata: Dict[str, Any] = {
+        metadata: dict[str, Any] = {
             "original_shape": image.shape,
             "processing_steps": [],
             "document_corners": None,
@@ -145,7 +145,7 @@ class DocumentPreprocessor:
 
         return {"image": image, "metadata": metadata}
 
-    def _detect_document_boundaries(self, image: np.ndarray) -> Optional[np.ndarray]:
+    def _detect_document_boundaries(self, image: np.ndarray) -> np.ndarray | None:
         """
         Detect document boundaries using edge detection and contour analysis.
 
@@ -242,7 +242,7 @@ class DocumentPreprocessor:
 
         return ordered_corners
 
-    def _correct_perspective(self, image: np.ndarray, corners: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _correct_perspective(self, image: np.ndarray, corners: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Correct perspective distortion based on the detected corners' aspect ratio.
         Preserves the document's natural dimensions instead of stretching to fill the frame.
@@ -287,7 +287,7 @@ class DocumentPreprocessor:
 
         return corrected, perspective_matrix
 
-    def _enhance_image(self, image: np.ndarray) -> Tuple[np.ndarray, List[str]]:
+    def _enhance_image(self, image: np.ndarray) -> tuple[np.ndarray, list[str]]:
         """
         Apply conservative image enhancement techniques.
         Uses milder parameters to avoid over-enhancement.
@@ -319,7 +319,7 @@ class DocumentPreprocessor:
 
         return enhanced, applied_enhancements
 
-    def _enhance_image_office_lens(self, image: np.ndarray) -> Tuple[np.ndarray, List[str]]:
+    def _enhance_image_office_lens(self, image: np.ndarray) -> tuple[np.ndarray, list[str]]:
         """
         Apply sophisticated image enhancement techniques inspired by Office Lens.
         Includes gamma correction, CLAHE, saturation boost, sharpening, and noise reduction.

@@ -9,6 +9,7 @@ inside README.md and replaces the enclosed block with a newly sampled set of ima
 
 Intended for local use; commit the README after running if you want to freeze a new sample.
 """
+
 from __future__ import annotations
 
 import argparse

@@ -65,7 +65,6 @@ class TestOCRModel:
             patch("ocr.models.architecture.get_head_by_cfg") as mock_head,
             patch("ocr.models.architecture.get_loss_by_cfg") as mock_loss_func,
         ):
-
             # Setup component mocks
             mock_encoder = Mock()
             mock_decoder = Mock()
@@ -108,7 +107,6 @@ class TestOCRModel:
             patch("ocr.models.architecture.get_head_by_cfg") as mock_head,
             patch("ocr.models.architecture.get_loss_by_cfg") as mock_loss_func,
         ):
-
             # Setup component mocks
             mock_encoder = Mock()
             mock_decoder = Mock()
@@ -146,7 +144,6 @@ class TestOCRModel:
             patch("ocr.models.architecture.get_head_by_cfg"),
             patch("ocr.models.architecture.get_loss_by_cfg"),
         ):
-
             mock_optimizer = Mock()
             mock_instantiate.return_value = mock_optimizer
 
@@ -171,7 +168,6 @@ class TestOCRModel:
             patch("ocr.models.architecture.get_head_by_cfg"),
             patch("ocr.models.architecture.get_loss_by_cfg"),
         ):
-
             mock_optimizer = Mock()
             mock_scheduler = Mock()
             mock_instantiate.side_effect = [mock_optimizer, mock_scheduler]
@@ -198,7 +194,6 @@ class TestOCRModel:
             patch("ocr.models.architecture.get_head_by_cfg") as mock_head,
             patch("ocr.models.architecture.get_loss_by_cfg"),
         ):
-
             mock_head_comp = Mock()
             mock_head.return_value = mock_head_comp
 

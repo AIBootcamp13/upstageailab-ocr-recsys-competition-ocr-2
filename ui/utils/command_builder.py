@@ -10,14 +10,15 @@ import shlex
 import signal
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class CommandBuilder:
     """Builder for generating CLI commands from UI selections."""
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(self, project_root: str | None = None):
         """Initialize the command builder.
 
         Args:
@@ -34,8 +35,8 @@ class CommandBuilder:
     def build_command_from_overrides(
         self,
         script: str,
-        overrides: List[str],
-        constant_overrides: Optional[List[str]] = None,
+        overrides: list[str],
+        constant_overrides: list[str] | None = None,
     ) -> str:
         """Generic command builder for a given runner script using overrides.
 
@@ -52,7 +53,7 @@ class CommandBuilder:
         self._add_config_overrides(cmd_parts, all_overrides)
         return " ".join(cmd_parts)
 
-    def _add_config_overrides(self, cmd_parts: List[str], overrides: List[str]) -> None:
+    def _add_config_overrides(self, cmd_parts: list[str], overrides: list[str]) -> None:
         """Add config path and overrides to command parts.
 
         Args:
@@ -68,18 +69,18 @@ class CommandBuilder:
         """Quote override values that contain special characters like '=' or spaces.
 
         Hydra treats '=' as the separator between key and value; if the value also contains
-        '=', it must be quoted. We use single quotes and rely on shlex-aware splitting.
+        '=', it must be quoted. We use double quotes and escape them for shell safety.
         """
         if "=" not in ov:
             return ov
         key, value = ov.split("=", 1)
         # Characters that warrant quoting
-        if any(ch in value for ch in ["=", " ", "\t", '"']):
-            # Basic single-quote wrapping; assume no single quotes in paths
-            return f"{key}='{value}'"
+        if any(ch in value for ch in ["=", " ", "\t", "'"]):
+            # Use double quotes and escape them for shell
+            return f'{key}="{value}"'
         return ov
 
-    def build_train_command(self, config: Dict[str, Any]) -> str:
+    def build_train_command(self, config: dict[str, Any]) -> str:
         """Build a training command from configuration.
 
         Args:
@@ -96,7 +97,7 @@ class CommandBuilder:
 
         return " ".join(cmd_parts)
 
-    def build_test_command(self, config: Dict[str, Any]) -> str:
+    def build_test_command(self, config: dict[str, Any]) -> str:
         """Build a testing command from configuration.
 
         Args:
@@ -113,7 +114,7 @@ class CommandBuilder:
 
         return " ".join(cmd_parts)
 
-    def build_predict_command(self, config: Dict[str, Any]) -> str:
+    def build_predict_command(self, config: dict[str, Any]) -> str:
         """Build a prediction command from configuration.
 
         Args:
@@ -130,7 +131,7 @@ class CommandBuilder:
 
         return " ".join(cmd_parts)
 
-    def _build_overrides(self, config: Dict[str, Any]) -> List[str]:
+    def _build_overrides(self, config: dict[str, Any]) -> list[str]:
         """Build Hydra overrides from config dictionary.
 
         Args:
@@ -144,11 +145,11 @@ class CommandBuilder:
 
         # Model configuration
         if "encoder" in config:
-            overrides.append(f"models.encoder.model_name={config['encoder']}")
+            overrides.append(f"model.encoder.model_name={config['encoder']}")
 
         # Training parameters
         if "learning_rate" in config:
-            overrides.append(f"models.optimizer.lr={config['learning_rate']}")
+            overrides.append(f"model.optimizer.lr={config['learning_rate']}")
 
         if "batch_size" in config:
             overrides.append(f"data.batch_size={config['batch_size']}")
@@ -164,14 +165,14 @@ class CommandBuilder:
             overrides.append(f"exp_name={config['exp_name']}")
 
         if "wandb" in config:
-            overrides.append(f"wandb={str(config['wandb']).lower()}")
+            overrides.append(f"logger.wandb.enabled={str(config['wandb']).lower()}")
 
         if "resume" in config and config["resume"]:
             overrides.append(f"resume={config['resume']}")
 
         return overrides
 
-    def _build_test_overrides(self, config: Dict[str, Any]) -> List[str]:
+    def _build_test_overrides(self, config: dict[str, Any]) -> list[str]:
         """Build overrides for test command.
 
         Args:
@@ -182,7 +183,7 @@ class CommandBuilder:
         """
         return self._extracted_from__build_predict_overrides_10(config)
 
-    def _build_predict_overrides(self, config: Dict[str, Any]) -> List[str]:
+    def _build_predict_overrides(self, config: dict[str, Any]) -> list[str]:
         """Build overrides for predict command.
 
         Args:
@@ -198,15 +199,15 @@ class CommandBuilder:
         return overrides
 
     # TODO Rename this here and in `_build_test_overrides` and `_build_predict_overrides`
-    def _extracted_from__build_predict_overrides_10(self, config):
-        result = ["models.encoder.model_name=resnet18", "models.optimizer.lr=0.001"]
+    def _extracted_from__build_predict_overrides_10(self, config) -> list[str]:
+        result = ["model.encoder.model_name=resnet18", "model.optimizer.lr=0.001"]
         if "checkpoint_path" in config and config["checkpoint_path"]:
             result.append(f"checkpoint_path={config['checkpoint_path']}")
         if "exp_name" in config and config["exp_name"]:
             result.append(f"exp_name={config['exp_name']}")
         return result
 
-    def validate_command(self, command: str) -> Tuple[bool, str]:
+    def validate_command(self, command: str) -> tuple[bool, str]:
         """Validate that a command can be executed.
 
         Args:
@@ -235,9 +236,9 @@ class CommandBuilder:
     def execute_command_streaming(
         self,
         command: str,
-        cwd: Optional[str] = None,
-        progress_callback: Optional[Callable[[str], None]] = None,
-    ) -> Tuple[int, str, str]:
+        cwd: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> tuple[int, str, str]:
         """Execute a command with streaming output and process group management.
 
         Args:

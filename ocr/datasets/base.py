@@ -26,7 +26,7 @@ class OCRDataset(Dataset):
             return
 
         try:
-            with open(annotation_path, "r") as f:
+            with open(annotation_path) as f:
                 annotations = json.load(f)
         except FileNotFoundError:
             print(f"Annotation file not found: {annotation_path}")

@@ -9,7 +9,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
@@ -70,7 +70,7 @@ class InferenceEngine:
 
         logging.info(f"Using device: {self.device}")
 
-    def load_model(self, checkpoint_path: str, config_path: Optional[str] = None) -> bool:
+    def load_model(self, checkpoint_path: str, config_path: str | None = None) -> bool:
         """
         Load a trained OCR model from checkpoint.
 
@@ -105,7 +105,7 @@ class InferenceEngine:
         logging.info(f"Using config file: {config_path}")
 
         # Load config
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config_dict = yaml.safe_load(f) if config_path.endswith((".yaml", ".yml")) else json.load(f)
         self.config = DictConfig(config_dict) if OCR_MODULES_AVAILABLE else config_dict
         # Extract preprocessing parameters from config
@@ -131,7 +131,7 @@ class InferenceEngine:
         missing_keys = set(model_state_dict.keys()) - set(state_dict.keys())
 
         if dropped_keys:
-            logging.warning(f"The following keys from the loaded state_dict were dropped and not loaded " f"into the model: {dropped_keys}")
+            logging.warning(f"The following keys from the loaded state_dict were dropped and not loaded into the model: {dropped_keys}")
         if missing_keys:
             logging.warning(f"The following keys expected by the model are missing from the loaded state_dict: {missing_keys}")
 
@@ -184,8 +184,8 @@ class InferenceEngine:
                             break
 
             # Extract postprocessing parameters from head config
-            if hasattr(self.config, "models") and hasattr(self.config.models, "head"):
-                head_config = self.config.models.head
+            if hasattr(self.config, "model") and hasattr(self.config.model, "head"):
+                head_config = self.config.model.head
                 if hasattr(head_config, "postprocess"):
                     postprocess = head_config.postprocess
                     if hasattr(postprocess, "thresh"):
@@ -203,7 +203,7 @@ class InferenceEngine:
         except Exception as e:
             logging.warning(f"Could not extract config parameters, using defaults: {e}")
 
-    def predict_image(self, image_path: str) -> Optional[Dict[str, Any]]:
+    def predict_image(self, image_path: str) -> dict[str, Any] | None:
         """
         Run inference on a single image.
 
@@ -255,7 +255,7 @@ class InferenceEngine:
         )
         return transform(image_rgb).unsqueeze(0)
 
-    def _postprocess_predictions(self, predictions: Any, original_shape: Tuple[int, int, int]) -> Dict[str, Any]:
+    def _postprocess_predictions(self, predictions: Any, original_shape: tuple[int, int, int]) -> dict[str, Any]:
         """
         Post-process model predictions, scaling them to the original image size.
         """
@@ -318,7 +318,7 @@ class InferenceEngine:
                 polygons.append(",".join(map(str, polygon_coords)))
 
                 # TODO: Replace with actual text recognition logic
-                texts.append(f"Text_{i+1}")
+                texts.append(f"Text_{i + 1}")
                 # Calculate confidence from the relevant area of the probability map
                 prob_slice = prob_map[y : y + h, x : x + w]
                 if prob_slice.size > 0:
@@ -335,7 +335,7 @@ class InferenceEngine:
             logging.error(f"Error in post-processing: {e}", exc_info=True)
             return self._get_mock_predictions()  # Fallback to mock data on error
 
-    def _get_mock_predictions(self) -> Dict[str, Any]:
+    def _get_mock_predictions(self) -> dict[str, Any]:
         """Generate mock predictions for demonstration or fallback."""
         logging.info("Generating mock predictions.")
         return {
@@ -344,7 +344,7 @@ class InferenceEngine:
             "confidences": [0.98, 0.95],
         }
 
-    def _find_config_for_checkpoint(self, checkpoint_path: str) -> Optional[str]:
+    def _find_config_for_checkpoint(self, checkpoint_path: str) -> str | None:
         """
         Attempt to find a configuration file associated with a model checkpoint.
         """
@@ -369,7 +369,7 @@ class InferenceEngine:
         return None
 
 
-def run_inference_on_image(image_path: str, checkpoint_path: str) -> Optional[Dict[str, Any]]:
+def run_inference_on_image(image_path: str, checkpoint_path: str) -> dict[str, Any] | None:
     """
     Convenience function to initialize the engine and run inference on a single image.
 
@@ -387,7 +387,7 @@ def run_inference_on_image(image_path: str, checkpoint_path: str) -> Optional[Di
     return engine.predict_image(image_path)
 
 
-def get_available_checkpoints() -> List[str]:
+def get_available_checkpoints() -> list[str]:
     """
     Scans the project 'outputs' directory for available .ckpt files.
     """

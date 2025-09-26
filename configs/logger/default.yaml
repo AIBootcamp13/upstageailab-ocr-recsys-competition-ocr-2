@@ -1,0 +1,5 @@
+# Logger config
+
+defaults:
+  - wandb
+  - _self_

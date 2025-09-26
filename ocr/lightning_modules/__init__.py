@@ -5,7 +5,7 @@ from .ocr_pl import OCRDataPLModule, OCRPLModule
 
 
 def get_pl_modules_by_cfg(config):
-    model = get_model_by_cfg(config.models)
+    model = get_model_by_cfg(config.model)
     dataset = get_datasets_by_cfg(config.datasets)
     modules = OCRPLModule(model=model, dataset=dataset, config=config)
     data_modules = OCRDataPLModule(dataset=dataset, config=config)

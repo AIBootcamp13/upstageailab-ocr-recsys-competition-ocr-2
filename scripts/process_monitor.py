@@ -12,10 +12,9 @@ import os
 import signal
 import subprocess
 import sys
-from typing import List, Tuple
 
 
-def get_training_processes() -> List[Tuple[int, str, str]]:
+def get_training_processes() -> list[tuple[int, str, str]]:
     """Get all processes related to OCR training.
 
     Returns:
@@ -87,7 +86,7 @@ def get_training_processes() -> List[Tuple[int, str, str]]:
             return []
 
 
-def get_worker_processes(parent_pids: List[int]) -> List[Tuple[int, str, str]]:
+def get_worker_processes(parent_pids: list[int]) -> list[tuple[int, str, str]]:
     """Get worker processes spawned by training processes.
 
     Args:
@@ -144,7 +143,7 @@ def get_worker_processes(parent_pids: List[int]) -> List[Tuple[int, str, str]]:
     return workers
 
 
-def terminate_processes(processes: List[Tuple[int, str, str]], force: bool = False) -> int:
+def terminate_processes(processes: list[tuple[int, str, str]], force: bool = False) -> int:
     """Terminate the given processes.
 
     Args:

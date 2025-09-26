@@ -6,7 +6,6 @@ This script demonstrates the evaluation viewer functionality
 by loading and analyzing prediction data.
 """
 
-
 import pandas as pd
 
 # Setup project paths automatically
@@ -78,10 +77,10 @@ def main():
             areas.append(area)
             aspect_ratios.append(aspect_ratio)
 
-        print(f"   Average Bounding Box Area: {sum(areas)/len(areas):.0f} pixels²")
-        print(f"   Median Bounding Box Area: {sorted(areas)[len(areas)//2]:.0f} pixels²")
-        print(f"   Average Aspect Ratio: {sum(aspect_ratios)/len(aspect_ratios):.2f}")
-        print(f"   Median Aspect Ratio: {sorted(aspect_ratios)[len(aspect_ratios)//2]:.2f}")
+        print(f"   Average Bounding Box Area: {sum(areas) / len(areas):.0f} pixels²")
+        print(f"   Median Bounding Box Area: {sorted(areas)[len(areas) // 2]:.0f} pixels²")
+        print(f"   Average Aspect Ratio: {sum(aspect_ratios) / len(aspect_ratios):.2f}")
+        print(f"   Median Aspect Ratio: {sorted(aspect_ratios)[len(aspect_ratios) // 2]:.2f}")
     else:
         print("   No valid polygons found")
 
