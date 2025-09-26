@@ -5,11 +5,12 @@ A comprehensive monitoring interface for system resources, training processes,
 and GPU utilization during OCR model training.
 """
 
+import contextlib
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 import psutil
@@ -42,7 +43,7 @@ def get_system_resources() -> Dict[str, float]:
             "memory_percent": memory_percent,
             "memory_used_gb": memory_used_gb,
             "memory_total_gb": memory_total_gb,
-            **gpu_info
+            **gpu_info,
         }
     except Exception as e:
         st.error(f"Error getting system resources: {e}")
@@ -51,36 +52,36 @@ def get_system_resources() -> Dict[str, float]:
 
 def get_gpu_info() -> Dict[str, float]:
     """Get GPU information using nvidia-smi."""
-    try:
+    with contextlib.suppress(subprocess.TimeoutExpired, FileNotFoundError, ValueError):
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.used,memory.total,memory.free,utilization.gpu",
-             "--format=csv,noheader,nounits"],
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.used,memory.total,memory.free,utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')
+            lines = result.stdout.strip().split("\n")
             if lines:
                 # Take first GPU if multiple
-                parts = [x.strip() for x in lines[0].split(',')]
+                parts = [x.strip() for x in lines[0].split(",")]
                 if len(parts) >= 4:
                     memory_used = float(parts[0])
                     memory_total = float(parts[1])
-                    memory_free = float(parts[2])
                     gpu_util = float(parts[3])
 
+                    memory_free = float(parts[2])
                     return {
                         "gpu_memory_used_mb": memory_used,
                         "gpu_memory_total_mb": memory_total,
                         "gpu_memory_free_mb": memory_free,
                         "gpu_utilization_percent": gpu_util,
-                        "gpu_memory_percent": (memory_used / memory_total) * 100 if memory_total > 0 else 0
+                        "gpu_memory_percent": ((memory_used / memory_total) * 100 if memory_total > 0 else 0),
                     }
-
-    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
-        pass
 
     # Return empty dict if GPU info not available
     return {
@@ -88,7 +89,7 @@ def get_gpu_info() -> Dict[str, float]:
         "gpu_memory_total_mb": 0,
         "gpu_memory_free_mb": 0,
         "gpu_utilization_percent": 0,
-        "gpu_memory_percent": 0
+        "gpu_memory_percent": 0,
     }
 
 
@@ -110,8 +111,10 @@ def create_resource_charts(resources: Dict[str, float]):
         memory_used = resources.get("memory_used_gb", 0)
         memory_total = resources.get("memory_total_gb", 0)
         st.metric("Memory Usage", f"{memory_percent:.1f}%")
-        st.progress(min(memory_percent / 100, 1.0),
-                   text=f"RAM: {memory_used:.1f}/{memory_total:.1f} GB")
+        st.progress(
+            min(memory_percent / 100, 1.0),
+            text=f"RAM: {memory_used:.1f}/{memory_total:.1f} GB",
+        )
 
     with col2:
         # GPU Usage (if available)
@@ -125,8 +128,10 @@ def create_resource_charts(resources: Dict[str, float]):
             gpu_mem_used = resources.get("gpu_memory_used_mb", 0)
             gpu_mem_total = resources.get("gpu_memory_total_mb", 0)
             st.metric("GPU Memory", f"{gpu_memory_percent:.1f}%")
-            st.progress(min(gpu_memory_percent / 100, 1.0),
-                       text=f"VRAM: {gpu_mem_used:.0f}/{gpu_mem_total:.0f} MB")
+            st.progress(
+                min(gpu_memory_percent / 100, 1.0),
+                text=f"VRAM: {gpu_mem_used:.0f}/{gpu_mem_total:.0f} MB",
+            )
 
             # GPU Utilization
             st.metric("GPU Utilization", f"{gpu_util:.1f}%")
@@ -146,11 +151,13 @@ def display_process_table(processes: List[Tuple[int, str, str]], title: str):
     # Convert to DataFrame for better display
     df_data = []
     for pid, cmd, user in processes:
-        df_data.append({
-            "PID": pid,
-            "Command": cmd[:50] + "..." if len(cmd) > 50 else cmd,
-            "User": user
-        })
+        df_data.append(
+            {
+                "PID": pid,
+                "Command": cmd[:50] + "..." if len(cmd) > 50 else cmd,
+                "User": user,
+            }
+        )
 
     df = pd.DataFrame(df_data)
 
@@ -165,8 +172,11 @@ def display_process_table(processes: List[Tuple[int, str, str]], title: str):
             st.rerun()
 
     with col2:
-        if st.button(f"⚠️ Terminate All {title}", key=f"terminate_{title.lower().replace(' ', '_')}",
-                    type="secondary"):
+        if st.button(
+            f"⚠️ Terminate All {title}",
+            key=f"terminate_{title.lower().replace(' ', '_')}",
+            type="secondary",
+        ):
             if st.session_state.get(f"confirm_terminate_{title.lower().replace(' ', '_')}", False):
                 terminated = terminate_processes(processes, force=False)
                 if terminated > 0:
@@ -181,8 +191,11 @@ def display_process_table(processes: List[Tuple[int, str, str]], title: str):
                 st.warning(f"Click again to confirm termination of {len(processes)} {title.lower()}")
 
     with col3:
-        if st.button(f"💀 Force Kill All {title}", key=f"force_kill_{title.lower().replace(' ', '_')}",
-                    type="secondary"):
+        if st.button(
+            f"💀 Force Kill All {title}",
+            key=f"force_kill_{title.lower().replace(' ', '_')}",
+            type="secondary",
+        ):
             if st.session_state.get(f"confirm_force_kill_{title.lower().replace(' ', '_')}", False):
                 terminated = terminate_processes(processes, force=True)
                 if terminated > 0:
@@ -199,16 +212,10 @@ def display_process_table(processes: List[Tuple[int, str, str]], title: str):
 
 def main():
     """Main Streamlit application."""
-    st.set_page_config(
-        page_title="OCR Resource Monitor",
-        page_icon="📊",
-        layout="wide"
-    )
+    st.set_page_config(page_title="OCR Resource Monitor", page_icon="📊", layout="wide")
 
     st.title("📊 OCR Training Resource Monitor")
-    st.markdown(
-        "Monitor system resources, training processes, and GPU utilization in real-time"
-    )
+    st.markdown("Monitor system resources, training processes, and GPU utilization in real-time")
 
     # Auto-refresh toggle
     col1, col2 = st.columns([3, 1])

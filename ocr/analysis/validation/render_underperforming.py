@@ -33,9 +33,7 @@ def build_html_block(img_rel_paths, width=180):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--readme", default="README.md")
-    ap.add_argument(
-        "--folder", default="docs/assets/images/under_performing_predictions"
-    )
+    ap.add_argument("--folder", default="docs/assets/images/under_performing_predictions")
     ap.add_argument("--k", type=int, default=4, help="Number of images to sample")
     ap.add_argument("--width", type=int, default=180, help="Image display width")
     ap.add_argument("--seed", type=int, default=None)
@@ -57,9 +55,7 @@ def main():
     text = readme_path.read_text(encoding="utf-8")
 
     if BEGIN_MARK not in text or END_MARK not in text:
-        raise RuntimeError(
-            "Markers not found in README; ensure they exist before running."
-        )
+        raise RuntimeError("Markers not found in README; ensure they exist before running.")
 
     prefix, rest = text.split(BEGIN_MARK, 1)
     _old_block, suffix = rest.split(END_MARK, 1)

@@ -5,27 +5,34 @@ A Streamlit application for building and executing OCR training, testing,
 and prediction commands through an intuitive UI.
 """
 
+import logging
+import shlex
 import sys
+import traceback
+from contextlib import suppress
 from pathlib import Path
-
-import streamlit as st
+from typing import Any, Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
+import streamlit as st
+
 from ui.utils.command_builder import CommandBuilder
 from ui.utils.config_parser import ConfigParser
+from ui.utils.ui_generator import generate_ui_from_schema
+from ui.utils.ui_validator import validate_inputs
 
 
 def main():
     """Main Streamlit application."""
+    # Basic logging for UI-side diagnostics
+    logging.basicConfig(level=logging.ERROR)
     st.set_page_config(page_title="OCR Command Builder", page_icon="🔍", layout="wide")
 
     st.title("🔍 OCR Training Command Builder")
-    st.markdown(
-        "Build and execute training, testing, and prediction commands with ease"
-    )
+    st.markdown("Build and execute training, testing, and prediction commands with ease")
 
     # Initialize utilities
     config_parser = ConfigParser()
@@ -48,296 +55,216 @@ def main():
         render_predict_interface(config_parser, command_builder)
 
 
-def render_train_interface(
-    config_parser: ConfigParser, command_builder: CommandBuilder
-):
-    """Render the training command interface."""
+def render_train_interface(config_parser: ConfigParser, command_builder: CommandBuilder):
+    """Render the training command interface using declarative schema."""
     st.header("🚀 Training Configuration")
 
-    col1, col2 = st.columns(2)
+    schema_path = Path(__file__).parent / "schemas" / "command_builder_train.yaml"
 
-    with col1:
-        st.subheader("Model Architecture")
+    # 1) Generate UI from schema
+    gen = generate_ui_from_schema(str(schema_path))
 
-        # Get available models
-        models = config_parser.get_available_models()
+    # 2) Validate inputs
+    errors = validate_inputs(gen.values, str(schema_path))
 
-        # Encoder selection
-        encoder = st.selectbox(
-            "Encoder",
-            models.get("backbones", ["resnet18"]),
-            index=0,
-            help="Choose the backbone encoder architecture",
+    # Option to avoid name collisions across models
+    append_model_to_name = st.checkbox(
+        "Append encoder to experiment name",
+        value=True,
+        help="Helps segregate outputs per model (e.g., ocr_training-resnet18)",
+        key="train_append_model_suffix",
+    )
+    if gen.values.get("resume_training") and append_model_to_name:
+        st.warning(
+            "Resuming training disables experiment name suffixing to keep directories "
+            "consistent with the original run. If multiple models share the same exp_name, "
+            "outputs may collide. Consider adjusting exp_name manually."
         )
 
-        # Decoder selection
-        decoder = st.selectbox(
-            "Decoder",
-            models.get("decoders", ["unet"]),
-            index=0,
-            help="Choose the decoder architecture",
-        )
+    if "train_generated_cmd" not in st.session_state:
+        st.session_state["train_generated_cmd"] = ""
 
-        # Head selection
-        head = st.selectbox(
-            "Head",
-            models.get("heads", ["db_head"]),
-            index=0,
-            help="Choose the detection head",
-        )
+    if "train_command_input" not in st.session_state:
+        st.session_state["train_command_input"] = ""
 
-        # Loss selection
-        loss = st.selectbox(
-            "Loss Function",
-            models.get("losses", ["db_loss"]),
-            index=0,
-            help="Choose the loss function",
-        )
-
-    with col2:
-        st.subheader("Training Parameters")
-
-        # Get training parameters
-        train_params = config_parser.get_training_parameters()
-
-        # Learning rate
-        lr_param = train_params.get("learning_rate", {})
-        learning_rate = st.slider(
-            "Learning Rate",
-            min_value=lr_param.get("min", 1e-6),
-            max_value=lr_param.get("max", 1e-2),
-            value=lr_param.get("default", 0.001),
-            step=1e-5,
-            format="%.1e",
-            help="Learning rate for training",
-        )
-
-        # Batch size
-        batch_param = train_params.get("batch_size", {})
-        batch_size = st.slider(
-            "Batch Size",
-            min_value=batch_param.get("min", 1),
-            max_value=batch_param.get("max", 64),
-            value=batch_param.get("default", 4),
-            step=1,
-            help="Batch size for training",
-        )
-
-        # Max epochs
-        epochs_param = train_params.get("max_epochs", {})
-        max_epochs = st.slider(
-            "Max Epochs",
-            min_value=epochs_param.get("min", 1),
-            max_value=epochs_param.get("max", 100),
-            value=epochs_param.get("default", 10),
-            step=1,
-            help="Maximum number of training epochs",
-        )
-
-        # Random seed
-        seed_param = train_params.get("seed", {})
-        seed = st.number_input(
-            "Random Seed",
-            value=seed_param.get("default", 42),
-            min_value=0,
-            help="Random seed for reproducibility",
-        )
-
-    st.subheader("Experiment Settings")
-
-    col3, col4 = st.columns(2)
-
-    with col3:
-        exp_name = st.text_input(
-            "Experiment Name",
-            value="ocr_training",
-            help="Name for this training experiment",
-        )
-
-        use_wandb = st.checkbox(
-            "Use Weights & Biases",
-            value=False,
-            help="Enable W&B logging for experiment tracking",
-        )
-
-    with col4:
-        resume_training = st.checkbox(
-            "Resume Training", value=False, help="Resume from a checkpoint"
-        )
-
-        checkpoint_path = ""
-        if resume_training:
-            available_checkpoints = config_parser.get_available_checkpoints()
-            if available_checkpoints:
-                checkpoint_path = st.selectbox(
-                    "Checkpoint Path",
-                    available_checkpoints,
-                    help="Select a checkpoint file to resume from",
-                )
-            else:
-                st.warning("No checkpoint files found in outputs directory")
-                checkpoint_path = st.text_input(
-                    "Checkpoint Path",
-                    value="",
-                    help="Path to checkpoint file to resume from",
-                )
-
-    # Build the config dictionary directly from the current state of all widgets
-    config = {
-        "encoder": encoder,
-        "decoder": decoder,
-        "head": head,
-        "loss": loss,
-        "learning_rate": learning_rate,
-        "batch_size": batch_size,
-        "max_epochs": max_epochs,
-        "seed": seed,
-        "exp_name": exp_name,
-        "wandb": use_wandb,  # The value from the checkbox is now correctly used every time
-    }
-
-    if resume_training and checkpoint_path:
-        config["resume"] = checkpoint_path
-
-    # Generate the command from the up-to-date config
-    command = command_builder.build_train_command(config)
+    col_g1, col_g2 = st.columns([1, 3])
+    with col_g1:
+        if st.button("Generate", help="Generate a command from current settings"):
+            overrides = maybe_suffix_exp_name(list(gen.overrides), gen.values, append_model_to_name)
+            st.session_state["train_generated_cmd"] = command_builder.build_command_from_overrides(
+                script="train.py",
+                overrides=overrides,
+                constant_overrides=gen.constant_overrides,
+            )
+            st.session_state["train_overrides"] = overrides
+            st.session_state["train_constant_overrides"] = list(gen.constant_overrides)
+            # Update the editable text area state so the UI reflects immediately
+            st.session_state["train_command_input"] = st.session_state["train_generated_cmd"]
 
     st.subheader("Generated Command")
-
-    # The text area now directly displays the command generated on this script run.
-    # Manual edits are temporary; changing any widget will regenerate the command.
     edited_command = st.text_area(
         "Command (editable)",
-        value=command,
         height=150,
-        help="The command updates automatically when you change settings above.",
-        key="train_command_input"
+        help="Click Generate to update based on settings. You can still edit it before executing.",
+        key="train_command_input",
     )
 
-    # Validate the command shown in the text area
-    is_valid, error_msg = command_builder.validate_command(edited_command)
-    if not is_valid:
+    with st.expander("🔧 Overrides Preview"):
+        const_ov = st.session_state.get("train_constant_overrides", gen.constant_overrides)
+        ovr = st.session_state.get("train_overrides", gen.overrides)
+        st.text("Constant overrides:\n" + "\n".join(const_ov or []))
+        st.text("\nOverrides:\n" + "\n".join(ovr or []))
+        if st.session_state.get("train_generated_cmd"):
+            st.code(
+                pretty_format_command(st.session_state["train_generated_cmd"]),
+                language="bash",
+            )
+
+    if errors:
+        for err in errors:
+            st.error(err)
+
+    # Guard against None from text_area (shouldn't happen, but be safe)
+    edited_command = edited_command or st.session_state.get("train_generated_cmd", "")
+    is_valid_cmd, error_msg = command_builder.validate_command(edited_command)
+    if not is_valid_cmd:
         st.error(f"Command validation failed: {error_msg}")
-    else:
+    elif not errors:
         st.success("Command is valid")
         if st.button("🚀 Execute Training", type="primary"):
             execute_command(command_builder, edited_command)
 
+
+def maybe_suffix_exp_name(overrides: List[str], values: Dict[str, Any], append_suffix: bool) -> List[str]:
+    """Optionally append encoder name to exp_name in overrides to avoid collisions.
+
+    Only applies when append_suffix is True, encoder is set, and not resuming.
+    """
+    if not append_suffix or not values.get("encoder") or values.get("resume_training"):
+        return overrides
+    encoder = values["encoder"]
+    for i, ov in enumerate(overrides):
+        if ov.startswith("exp_name="):
+            base_name = ov.split("=", 1)[1]
+            overrides[i] = f"exp_name={base_name}-{encoder}"
+            break
+    return overrides
+
+
 def render_test_interface(config_parser: ConfigParser, command_builder: CommandBuilder):
-    """Render the testing command interface."""
+    """Render the testing command interface (schema-driven)."""
     st.header("🧪 Testing Configuration")
 
-    col1, col2 = st.columns(2)
+    schema_path = Path(__file__).parent / "schemas" / "command_builder_test.yaml"
+    gen = generate_ui_from_schema(str(schema_path))
+    errors = validate_inputs(gen.values, str(schema_path))
 
-    with col1:
-        st.subheader("Model Settings")
+    if "test_generated_cmd" not in st.session_state:
+        st.session_state["test_generated_cmd"] = ""
 
-        checkpoint_path = st.text_input(
-            "Checkpoint Path",
-            value="outputs/ocr_training/checkpoints/epoch-0-step-205.ckpt",
-            help="Path to the trained model checkpoint",
-        )
+    if "test_command" not in st.session_state:
+        st.session_state["test_command"] = ""
 
-    with col2:
-        st.subheader("Experiment Settings")
-
-        exp_name = st.text_input(
-            "Experiment Name",
-            value="ocr_testing",
-            help="Name for this testing experiment",
-        )
-
-    # Build configuration
-    config = {
-        "checkpoint_path": checkpoint_path,
-        "exp_name": exp_name,
-    }
-
-    # Generate command
-    command = command_builder.build_test_command(config)
+    col_g1, col_g2 = st.columns([1, 3])
+    with col_g1:
+        if st.button("Generate", key="test_generate"):
+            st.session_state["test_generated_cmd"] = command_builder.build_command_from_overrides(
+                script="test.py",
+                overrides=gen.overrides,
+                constant_overrides=gen.constant_overrides,
+            )
+            st.session_state["test_command"] = st.session_state["test_generated_cmd"]
+            st.session_state["test_overrides"] = list(gen.overrides)
+            st.session_state["test_constant_overrides"] = list(gen.constant_overrides)
 
     st.subheader("Generated Command")
-
-    # Make command editable
     edited_command = st.text_area(
         "Command (editable)",
-        value=command,
         height=150,
-        help="You can edit the command before executing",
-        key="test_command"
+        help="Click Generate to update based on settings.",
+        key="test_command",
     )
 
-    # Show command validation
+    with st.expander("🔧 Overrides Preview"):
+        const_ov = st.session_state.get("test_constant_overrides", gen.constant_overrides)
+        ovr = st.session_state.get("test_overrides", gen.overrides)
+        st.text("Constant overrides:\n" + "\n".join(const_ov or []))
+        st.text("\nOverrides:\n" + "\n".join(ovr or []))
+        if st.session_state.get("test_generated_cmd"):
+            st.code(
+                pretty_format_command(st.session_state["test_generated_cmd"]),
+                language="bash",
+            )
+
+    edited_command = edited_command or st.session_state.get("test_generated_cmd", "")
+    if errors:
+        for err in errors:
+            st.error(err)
+
     is_valid, error_msg = command_builder.validate_command(edited_command)
     if not is_valid:
         st.error(f"Command validation failed: {error_msg}")
-    else:
+    elif not errors:
         st.success("Command is valid")
-
-        # Execute button
         if st.button("🧪 Execute Testing", type="primary"):
             execute_command(command_builder, edited_command)
 
 
-def render_predict_interface(
-    config_parser: ConfigParser, command_builder: CommandBuilder
-):
-    """Render the prediction command interface."""
+def render_predict_interface(config_parser: ConfigParser, command_builder: CommandBuilder):
+    """Render the prediction command interface (schema-driven)."""
     st.header("🔮 Prediction Configuration")
 
-    col1, col2 = st.columns(2)
+    schema_path = Path(__file__).parent / "schemas" / "command_builder_predict.yaml"
+    gen = generate_ui_from_schema(str(schema_path))
+    errors = validate_inputs(gen.values, str(schema_path))
 
-    with col1:
-        st.subheader("Model Settings")
+    if "predict_generated_cmd" not in st.session_state:
+        st.session_state["predict_generated_cmd"] = ""
 
-        checkpoint_path = st.text_input(
-            "Checkpoint Path",
-            value="outputs/ocr_training/checkpoints/epoch-0-step-205.ckpt",
-            help="Path to the trained model checkpoint",
-        )
+    if "predict_command" not in st.session_state:
+        st.session_state["predict_command"] = ""
 
-    with col2:
-        st.subheader("Output Settings")
-
-        exp_name = st.text_input(
-            "Experiment Name",
-            value="ocr_prediction",
-            help="Name for this prediction experiment",
-        )
-
-        minified_json = st.checkbox(
-            "Minified JSON", value=False, help="Output minified JSON format"
-        )
-
-    # Build configuration
-    config = {
-        "checkpoint_path": checkpoint_path,
-        "exp_name": exp_name,
-        "minified_json": minified_json,
-    }
-
-    # Generate command
-    command = command_builder.build_predict_command(config)
+    col_g1, col_g2 = st.columns([1, 3])
+    with col_g1:
+        if st.button("Generate", key="predict_generate"):
+            st.session_state["predict_generated_cmd"] = command_builder.build_command_from_overrides(
+                script="predict.py",
+                overrides=gen.overrides,
+                constant_overrides=gen.constant_overrides,
+            )
+            st.session_state["predict_command"] = st.session_state["predict_generated_cmd"]
+            st.session_state["predict_overrides"] = list(gen.overrides)
+            st.session_state["predict_constant_overrides"] = list(gen.constant_overrides)
 
     st.subheader("Generated Command")
-
-    # Make command editable
     edited_command = st.text_area(
         "Command (editable)",
-        value=command,
         height=150,
-        help="You can edit the command before executing",
-        key="predict_command"
+        help="Click Generate to update based on settings.",
+        key="predict_command",
     )
 
-    # Show command validation
+    with st.expander("🔧 Overrides Preview"):
+        const_ov = st.session_state.get("predict_constant_overrides", gen.constant_overrides)
+        ovr = st.session_state.get("predict_overrides", gen.overrides)
+        st.text("Constant overrides:\n" + "\n".join(const_ov or []))
+        st.text("\nOverrides:\n" + "\n".join(ovr or []))
+        if st.session_state.get("predict_generated_cmd"):
+            st.code(
+                pretty_format_command(st.session_state["predict_generated_cmd"]),
+                language="bash",
+            )
+
+    edited_command = edited_command or st.session_state.get("predict_generated_cmd", "")
+    if errors:
+        for err in errors:
+            st.error(err)
+
     is_valid, error_msg = command_builder.validate_command(edited_command)
     if not is_valid:
         st.error(f"Command validation failed: {error_msg}")
-    else:
+    elif not errors:
         st.success("Command is valid")
-
-        # Execute button
         if st.button("🔮 Execute Prediction", type="primary"):
             execute_command(command_builder, edited_command)
 
@@ -368,23 +295,24 @@ def execute_command(command_builder: CommandBuilder, command: str):
         try:
             output_lines.append(line)
             # Update display with recent output
-            recent_output = '\n'.join(list(output_lines)[-25:])  # Show last 25 lines
+            recent_output = "\n".join(list(output_lines)[-25:])  # Show last 25 lines
             formatted_output = format_command_output(recent_output)
             output_display.code(f"🖥️ Live Output (Last 25 lines):\n{formatted_output}", language="text")
 
             # Check for common error patterns and warn user
-            if any(error_word in line.lower() for error_word in ['error', 'exception', 'failed', 'traceback']):
+            if any(error_word in line.lower() for error_word in ["error", "exception", "failed", "traceback"]):
                 error_display.warning(f"⚠️ Potential issue detected: {line[:100]}...")
 
-        except Exception as e:
-            # If callback fails, log it but don't crash the execution
+        except (ValueError, TypeError) as e:
+            logging.error(f"Output display error: {e}\n{traceback.format_exc()}")
             error_display.error(f"⚠️ Output display error: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error in progress_callback: {e}\n{traceback.format_exc()}")
+            error_display.error(f"⚠️ Unexpected error in output display: {e}")
 
     try:
         # Use streaming execution with timeout safety
-        return_code, stdout, stderr = command_builder.execute_command_streaming(
-            command, progress_callback=progress_callback
-        )
+        return_code, stdout, stderr = command_builder.execute_command_streaming(command, progress_callback=progress_callback)
 
         execution_time = time.time() - start_time
 
@@ -413,6 +341,7 @@ def execute_command(command_builder: CommandBuilder, command: str):
     except Exception as e:
         execution_time = time.time() - start_time
         status_placeholder.error(f"💥 Execution error after {execution_time:.1f}s: {e}")
+        logging.error(f"Execution error: {e}\n{traceback.format_exc()}")
         error_display.error(f"Full error: {str(e)}")
         execution_failed = True
 
@@ -422,8 +351,8 @@ def execute_command(command_builder: CommandBuilder, command: str):
             if not execution_failed:
                 output_display.empty()
                 error_display.empty()
-        except:
-            pass
+        except Exception as cleanup_exception:
+            st.error(f"⚠️ Cleanup error: {cleanup_exception}")
 
         # Ensure we always show some indication of completion
         if execution_failed:
@@ -431,31 +360,72 @@ def execute_command(command_builder: CommandBuilder, command: str):
         else:
             st.success("✅ Command execution completed. Check outputs above for results.")
 
+
 def format_command_output(output: str) -> str:
     """Format command output for better readability."""
     if not output.strip():
         return output
 
-    lines = output.split('\n')
+    lines = output.split("\n")
     formatted_lines = []
 
     for line in lines:
         # Add visual indicators for common patterns
-        if 'epoch' in line.lower() and 'loss' in line.lower():
+        if "epoch" in line.lower() and "loss" in line.lower():
             formatted_lines.append(f"📊 {line}")
-        elif 'error' in line.lower() or 'exception' in line.lower():
+        elif "error" in line.lower() or "exception" in line.lower():
             formatted_lines.append(f"❌ {line}")
-        elif 'warning' in line.lower():
+        elif "warning" in line.lower():
             formatted_lines.append(f"⚠️ {line}")
-        elif 'success' in line.lower() or 'completed' in line.lower():
+        elif "success" in line.lower() or "completed" in line.lower():
             formatted_lines.append(f"✅ {line}")
-        elif line.strip().startswith('[') and ']' in line:
+        elif line.strip().startswith("[") and "]" in line:
             # Progress bars or bracketed output
             formatted_lines.append(f"🔄 {line}")
         else:
             formatted_lines.append(line)
 
-    return '\n'.join(formatted_lines)
+    return "\n".join(formatted_lines)
+
+
+def pretty_format_command(cmd: str) -> str:
+    """Pretty-format a long uv/python command into multiple lines with trailing backslashes.
+
+    This is for display only; copy-paste back to a shell should still work.
+    """
+    if not cmd:
+        return cmd
+    fallback_note = None
+    try:
+        parts = shlex.split(cmd)
+    except Exception as e:
+        # Fallback: naive split
+        parts = cmd.split()
+        fallback_note = f"# Note: best-effort formatting due to quoting error: {e}"
+
+    # Identify main script boundary and config path
+    first_break_idx = min(4, len(parts))
+    with suppress(ValueError):
+        cfg_idx = parts.index("--config-path")
+        # include the path value as part of the first group
+        first_break_idx = max(first_break_idx, cfg_idx + 2)
+
+    head = parts[:first_break_idx]
+    tail = parts[first_break_idx:]
+
+    lines = []
+    if head:
+        head_line = " ".join(head)
+        lines.append(head_line + (" \\\\" if tail else ""))
+    if tail:
+        # Put each remaining token on its own line for readability
+        for i, tok in enumerate(tail):
+            is_last = i == len(tail) - 1
+            cont = "" if is_last else " \\\\"
+            lines.append(f"  {tok}{cont}")
+    if fallback_note:
+        lines.insert(0, fallback_note)
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

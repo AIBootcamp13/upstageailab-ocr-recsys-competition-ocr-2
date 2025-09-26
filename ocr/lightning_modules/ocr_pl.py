@@ -75,9 +75,7 @@ class OCRPLModule(pl.LightningModule):
                 continue
 
             pred = self.validation_step_outputs[gt_filename]
-            det_quads = [
-                [point for coord in polygons for point in coord] for polygons in pred
-            ]
+            det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
             eval_tasks.append((det_quads, gt_quads))
 
@@ -85,9 +83,7 @@ class OCRPLModule(pl.LightningModule):
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [
-                    executor.submit(evaluate_single_sample, task) for task in eval_tasks
-                ]
+                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
                 for future in tqdm(
                     as_completed(futures),
                     total=len(futures),
@@ -123,9 +119,7 @@ class OCRPLModule(pl.LightningModule):
         eval_tasks = []
         for gt_filename, gt_words in self.dataset["test"].anns.items():
             pred = self.test_step_outputs[gt_filename]
-            det_quads = [
-                [point for coord in polygons for point in coord] for polygons in pred
-            ]
+            det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
             eval_tasks.append((det_quads, gt_quads))
 
@@ -133,9 +127,7 @@ class OCRPLModule(pl.LightningModule):
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [
-                    executor.submit(evaluate_single_sample, task) for task in eval_tasks
-                ]
+                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
                 for future in tqdm(
                     as_completed(futures),
                     total=len(futures),
@@ -202,27 +194,19 @@ class OCRDataPLModule(pl.LightningDataModule):
     def train_dataloader(self):
         train_loader_config = self.config.dataloaders.train_dataloader
         self.collate_fn.inference_mode = False
-        return DataLoader(
-            self.dataset["train"], collate_fn=self.collate_fn, **train_loader_config
-        )
+        return DataLoader(self.dataset["train"], collate_fn=self.collate_fn, **train_loader_config)
 
     def val_dataloader(self):
         val_loader_config = self.config.dataloaders.val_dataloader
         self.collate_fn.inference_mode = False
-        return DataLoader(
-            self.dataset["val"], collate_fn=self.collate_fn, **val_loader_config
-        )
+        return DataLoader(self.dataset["val"], collate_fn=self.collate_fn, **val_loader_config)
 
     def test_dataloader(self):
         test_loader_config = self.config.dataloaders.test_dataloader
         self.collate_fn.inference_mode = False
-        return DataLoader(
-            self.dataset["test"], collate_fn=self.collate_fn, **test_loader_config
-        )
+        return DataLoader(self.dataset["test"], collate_fn=self.collate_fn, **test_loader_config)
 
     def predict_dataloader(self):
         predict_loader_config = self.config.dataloaders.predict_dataloader
         self.collate_fn.inference_mode = True
-        return DataLoader(
-            self.dataset["predict"], collate_fn=self.collate_fn, **predict_loader_config
-        )
+        return DataLoader(self.dataset["predict"], collate_fn=self.collate_fn, **predict_loader_config)

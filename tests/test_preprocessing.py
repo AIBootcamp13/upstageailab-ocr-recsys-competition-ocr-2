@@ -2,10 +2,8 @@
 Tests for Microsoft Lens-style document preprocessing.
 """
 
-import pytest
 import numpy as np
-import cv2
-from pathlib import Path
+import pytest
 
 from ocr.datasets.preprocessing import DocumentPreprocessor, LensStylePreprocessorAlbumentations
 
@@ -26,7 +24,7 @@ class TestDocumentPreprocessor:
             enable_perspective_correction=True,
             enable_enhancement=True,
             enable_text_enhancement=False,  # Updated default
-            target_size=(640, 640)
+            target_size=(640, 640),
         )
 
     def test_initialization(self, preprocessor):
@@ -42,18 +40,18 @@ class TestDocumentPreprocessor:
         result = preprocessor(sample_image)
 
         # Check that result contains expected keys
-        assert 'image' in result
-        assert 'metadata' in result
+        assert "image" in result
+        assert "metadata" in result
 
         # Check that processed image has correct shape
-        processed_image = result['image']
+        processed_image = result["image"]
         assert processed_image.shape == (640, 640, 3)
 
         # Check metadata structure
-        metadata = result['metadata']
-        assert 'original_shape' in metadata
-        assert 'processing_steps' in metadata
-        assert 'final_shape' in metadata
+        metadata = result["metadata"]
+        assert "original_shape" in metadata
+        assert "processing_steps" in metadata
+        assert "final_shape" in metadata
 
     def test_document_detection(self, preprocessor, sample_image):
         """Test document boundary detection."""
@@ -89,12 +87,14 @@ class TestDocumentPreprocessor:
     def test_order_corners(self, preprocessor):
         """Test corner ordering functionality."""
         # Create test corners
-        corners = np.array([
-            [100, 100],  # top-left
-            [200, 100],  # top-right
-            [200, 200],  # bottom-right
-            [100, 200]   # bottom-left
-        ])
+        corners = np.array(
+            [
+                [100, 100],  # top-left
+                [200, 100],  # top-right
+                [200, 200],  # bottom-right
+                [100, 200],  # bottom-left
+            ]
+        )
 
         ordered = preprocessor._order_corners(corners)
 
@@ -140,7 +140,7 @@ class TestPreprocessingIntegration:
             enable_perspective_correction=True,
             enable_enhancement=True,
             enable_text_enhancement=False,  # Updated default
-            target_size=(640, 640)
+            target_size=(640, 640),
         )
 
     def test_preprocessing_with_real_image(self):
@@ -150,20 +150,20 @@ class TestPreprocessingIntegration:
 
         # Add some "text" regions (darker areas)
         image[100:150, 100:500] = [100, 100, 100]  # horizontal text line
-        image[200:250, 100:400] = [80, 80, 80]    # another text line
+        image[200:250, 100:400] = [80, 80, 80]  # another text line
 
         preprocessor = DocumentPreprocessor(
             enable_document_detection=False,  # Skip detection for this test
             enable_perspective_correction=False,  # Skip correction for this test
             enable_enhancement=True,
-            enable_text_enhancement=True
+            enable_text_enhancement=True,
         )
 
         result = preprocessor(image)
 
-        assert result['image'].shape == (640, 640, 3)
-        assert 'image_enhancement' in result['metadata']['processing_steps']
-        assert 'text_enhancement' in result['metadata']['processing_steps']
+        assert result["image"].shape == (640, 640, 3)
+        assert "image_enhancement" in result["metadata"]["processing_steps"]
+        assert "text_enhancement" in result["metadata"]["processing_steps"]
 
     def test_error_handling(self, preprocessor):
         """Test error handling in preprocessing pipeline."""
@@ -174,5 +174,5 @@ class TestPreprocessingIntegration:
         result = preprocessor(invalid_image)
 
         # Should still return a valid result structure
-        assert 'image' in result
-        assert 'metadata' in result
+        assert "image" in result
+        assert "metadata" in result

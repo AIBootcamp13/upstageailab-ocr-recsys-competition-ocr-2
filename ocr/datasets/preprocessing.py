@@ -5,20 +5,19 @@ This module implements document preprocessing techniques inspired by Microsoft L
 focusing on perspective correction and image enhancement for optimal OCR performance.
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import cv2
 import numpy as np
-from pathlib import Path
-import logging
 
 try:
     import albumentations as A
+
     ALBUMENTATIONS_AVAILABLE = True
 except ImportError:
     ALBUMENTATIONS_AVAILABLE = False
     A = None
-
-from ocr.utils.logging import logger
 
 
 class DocumentPreprocessor:
@@ -32,13 +31,15 @@ class DocumentPreprocessor:
     4. Text-specific enhancement
     """
 
-    def __init__(self,
-                 enable_document_detection: bool = True,
-                 enable_perspective_correction: bool = True,
-                 enable_enhancement: bool = True,
-                 enable_text_enhancement: bool = False,  # Disabled by default as it can be destructive
-                 enhancement_method: str = "conservative",  # "conservative" or "office_lens"
-                 target_size: Tuple[int, int] = (640, 640)):
+    def __init__(
+        self,
+        enable_document_detection: bool = True,
+        enable_perspective_correction: bool = True,
+        enable_enhancement: bool = True,
+        enable_text_enhancement: bool = False,  # Disabled by default as it can be destructive
+        enhancement_method: str = "conservative",  # "conservative" or "office_lens"
+        target_size: Tuple[int, int] = (640, 640),
+    ):
         """
         Initialize the document preprocessor.
 
@@ -82,21 +83,21 @@ class DocumentPreprocessor:
             # Create a minimal valid image for fallback
             fallback_image = np.full((self.target_size[1], self.target_size[0], 3), 128, dtype=np.uint8)
             return {
-                'image': fallback_image,
-                'metadata': {
-                    'original_shape': getattr(image, 'shape', 'invalid'),
-                    'processing_steps': ['fallback'],
-                    'error': 'Invalid input image'
-                }
+                "image": fallback_image,
+                "metadata": {
+                    "original_shape": getattr(image, "shape", "invalid"),
+                    "processing_steps": ["fallback"],
+                    "error": "Invalid input image",
+                },
             }
 
         original_image = image.copy()
-        metadata = {
-            'original_shape': image.shape,
-            'processing_steps': [],
-            'document_corners': None,
-            'perspective_matrix': None,
-            'enhancement_applied': []
+        metadata: Dict[str, Any] = {
+            "original_shape": image.shape,
+            "processing_steps": [],
+            "document_corners": None,
+            "perspective_matrix": None,
+            "enhancement_applied": [],
         }
 
         try:
@@ -104,17 +105,17 @@ class DocumentPreprocessor:
             if self.enable_document_detection:
                 corners = self._detect_document_boundaries(image)
                 if corners is not None:
-                    metadata['document_corners'] = corners
-                    metadata['processing_steps'].append('document_detection')
+                    metadata["document_corners"] = corners
+                    metadata["processing_steps"].append("document_detection")
                 else:
                     self.logger.warning("Document boundaries not detected, skipping perspective correction")
                     self.enable_perspective_correction = False
 
             # Step 2: Perspective Correction
-            if self.enable_perspective_correction and metadata['document_corners'] is not None:
-                image, perspective_matrix = self._correct_perspective(image, metadata['document_corners'])
-                metadata['perspective_matrix'] = perspective_matrix
-                metadata['processing_steps'].append('perspective_correction')
+            if self.enable_perspective_correction and metadata["document_corners"] is not None:
+                image, perspective_matrix = self._correct_perspective(image, metadata["document_corners"])
+                metadata["perspective_matrix"] = perspective_matrix
+                metadata["processing_steps"].append("perspective_correction")
 
             # Step 3: General Image Enhancement
             if self.enable_enhancement:
@@ -122,30 +123,27 @@ class DocumentPreprocessor:
                     image, enhancements = self._enhance_image_office_lens(image)
                 else:  # conservative
                     image, enhancements = self._enhance_image(image)
-                metadata['enhancement_applied'].extend(enhancements)
-                metadata['processing_steps'].append('image_enhancement')
+                metadata["enhancement_applied"].extend(enhancements)
+                metadata["processing_steps"].append("image_enhancement")
 
             # Step 4: Text-Specific Enhancement
             if self.enable_text_enhancement:
                 image = self._enhance_text_regions(image)
-                metadata['processing_steps'].append('text_enhancement')
+                metadata["processing_steps"].append("text_enhancement")
 
             # Step 5: Resize to target size
             image = self._resize_to_target(image)
 
-            metadata['final_shape'] = image.shape
+            metadata["final_shape"] = image.shape
 
         except Exception as e:
             self.logger.error(f"Preprocessing failed: {e}")
             # Return original image if processing fails
             image = self._resize_to_target(original_image)
-            metadata['error'] = str(e)
-            metadata['processing_steps'] = ['fallback_resize']
+            metadata["error"] = str(e)
+            metadata["processing_steps"] = ["fallback_resize"]
 
-        return {
-            'image': image,
-            'metadata': metadata
-        }
+        return {"image": image, "metadata": metadata}
 
     def _detect_document_boundaries(self, image: np.ndarray) -> Optional[np.ndarray]:
         """
@@ -270,20 +268,22 @@ class DocumentPreprocessor:
         maxHeight = max(int(heightA), int(heightB))
 
         # Define destination points for the calculated document dimensions
-        dst_points = np.array([
-            [0, 0],                    # top-left
-            [maxWidth - 1, 0],         # top-right
-            [maxWidth - 1, maxHeight - 1],  # bottom-right
-            [0, maxHeight - 1]         # bottom-left
-        ], dtype=np.float32)
+        dst_points = np.array(
+            [
+                [0, 0],  # top-left
+                [maxWidth - 1, 0],  # top-right
+                [maxWidth - 1, maxHeight - 1],  # bottom-right
+                [0, maxHeight - 1],  # bottom-left
+            ],
+            dtype=np.float32,
+        )
 
         # Calculate perspective transform matrix
         src_points = corners.astype(np.float32)
         perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
 
         # Apply perspective correction with calculated dimensions
-        corrected = cv2.warpPerspective(image, perspective_matrix, (maxWidth, maxHeight),
-                                      flags=cv2.INTER_LINEAR)
+        corrected = cv2.warpPerspective(image, perspective_matrix, (maxWidth, maxHeight), flags=cv2.INTER_LINEAR)
 
         return corrected, perspective_matrix
 
@@ -299,7 +299,7 @@ class DocumentPreprocessor:
             Tuple of (enhanced_image, list_of_applied_enhancements)
         """
         enhanced = image.copy()
-        applied_enhancements = ['clahe_mild', 'bilateral_filter_mild']
+        applied_enhancements = ["clahe_mild", "bilateral_filter_mild"]
 
         # Convert to LAB color space for better contrast enhancement
         lab = cv2.cvtColor(enhanced, cv2.COLOR_RGB2LAB)
@@ -331,13 +331,18 @@ class DocumentPreprocessor:
             Tuple of (enhanced_image, list_of_applied_enhancements)
         """
         enhanced = image.copy()
-        applied_enhancements = ['gamma_correction', 'clahe_lab', 'saturation_boost', 'sharpening', 'noise_reduction']
+        applied_enhancements = [
+            "gamma_correction",
+            "clahe_lab",
+            "saturation_boost",
+            "sharpening",
+            "noise_reduction",
+        ]
 
         # Step 1: Mild gamma correction for color correction
         gamma = 1.1
         inv_gamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** inv_gamma) * 255
-                        for i in np.arange(0, 256)]).astype("uint8")
+        table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         enhanced = cv2.LUT(enhanced, table)
 
         # Step 2: LAB Color Space with CLAHE
@@ -346,10 +351,10 @@ class DocumentPreprocessor:
 
         # Gentle CLAHE with larger tile size for more natural results
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(12, 12))
-        l = clahe.apply(l)
+        l_channel = clahe.apply(l)
 
         # Merge channels
-        lab = cv2.merge([l, a, b])
+        lab = cv2.merge([l_channel, a, b])
         enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
         # Step 3: Smart saturation boost using HSV color space
@@ -391,9 +396,7 @@ class DocumentPreprocessor:
         morphed = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
 
         # Adaptive thresholding for text binarization
-        thresh = cv2.adaptiveThreshold(
-            morphed, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
+        thresh = cv2.adaptiveThreshold(morphed, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
         # Combine with original image for enhanced contrast
         # Convert original image to grayscale to avoid color artifacts
@@ -436,9 +439,12 @@ class DocumentPreprocessor:
 
         return cv2.copyMakeBorder(
             resized,
-            pad_top, pad_bottom, pad_left, pad_right,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
             cv2.BORDER_CONSTANT,
-            value=[0, 0, 0]
+            value=[0, 0, 0],
         )
 
 
@@ -455,7 +461,7 @@ class LensStylePreprocessorAlbumentations:
         result = self.preprocessor(image)
 
         # Return processed image (Albumentations expects just the image)
-        return result['image']
+        return result["image"]
 
     def get_transform_init_args_names(self):
         return []

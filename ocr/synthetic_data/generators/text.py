@@ -8,8 +8,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from omegaconf import DictConfig
 
-from ocr.utils.logging import logger
-
 
 class TextGenerator:
     """Generator for synthetic text content."""

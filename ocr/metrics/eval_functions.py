@@ -16,14 +16,7 @@ import numpy as np
 from numba import njit
 from numpy.typing import NDArray
 
-from .data import (
-    DetBoxResult,
-    GTBoxResult,
-    MatchReleation,
-    MatchResult,
-    Point,
-    SampleResult,
-)
+from .data import DetBoxResult, GTBoxResult, MatchReleation, MatchResult, Point, SampleResult
 from .utils import harmonic_mean, lcs
 
 
@@ -59,9 +52,7 @@ def evaluation(args, gt_boxes, det_boxes, scale_range=(0.0, 1.0)):
          - fp: false positive
          - tran: transcription
     """
-    gt_dc_indices, gt_pcc_points = prepare_gt(
-        gt_boxes, args.CASE_SENSITIVE, args.VERTICAL_ASPECT_RATIO_THRESH, scale_range
-    )
+    gt_dc_indices, gt_pcc_points = prepare_gt(gt_boxes, args.CASE_SENSITIVE, args.VERTICAL_ASPECT_RATIO_THRESH, scale_range)
     prepare_det(det_boxes, args.CASE_SENSITIVE)
     len_gt = len(gt_boxes)
     len_det = len(det_boxes)
@@ -74,9 +65,7 @@ def evaluation(args, gt_boxes, det_boxes, scale_range=(0.0, 1.0)):
     pcc_mat_list, pcc_mat_sum = calc_pcc_inclusion(det_boxes, gt_pcc_points)
 
     # prepare valid indices
-    det_dc_indices = get_det_dc_indices(
-        gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det
-    )
+    det_dc_indices = get_det_dc_indices(gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det)
     gt_valid_indices = set(range(len_gt)) - gt_dc_indices
     det_valid_indices = set(range(len_det)) - det_dc_indices
 
@@ -189,9 +178,7 @@ def calc_pcc_inclusion(det_boxes, gt_pcc_points):
     return pcc_mat_list, pcc_mat_sum
 
 
-def get_det_dc_indices(
-    gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det
-):
+def get_det_dc_indices(gt_dc_indices, pcc_mat_sum, ap_mat, ap_mat_binary, ap_constraint, len_det):
     """Filter detection Don't care boxes"""
     det_dc_indices = set()
     if len(gt_dc_indices) > 0:
@@ -217,9 +204,7 @@ def calc_match_matrix(eval_material):
     # one-to-one match
     for gt_idx in em.gt_valid_indices:
         for det_idx in em.det_valid_indices:
-            is_matched = one_to_one_match(
-                em.pcc_mat_sum, gt_idx, det_idx, em.ap_mat_binary, em.len_gt, em.len_det
-            )
+            is_matched = one_to_one_match(em.pcc_mat_sum, gt_idx, det_idx, em.ap_mat_binary, em.len_gt, em.len_det)
             if is_matched:
                 match_result = MatchResult(
                     gt_ids=[gt_idx],
@@ -231,9 +216,7 @@ def calc_match_matrix(eval_material):
     # one-to-many match
     for gt_idx in em.gt_valid_indices:
         det_valid_indices_np = np.array(list(em.det_valid_indices), dtype=np.int16)
-        is_matched, matched_det_indices = one_to_many_match(
-            em.pcc_mat_sum, gt_idx, em.ap_mat_binary, det_valid_indices_np
-        )
+        is_matched, matched_det_indices = one_to_many_match(em.pcc_mat_sum, gt_idx, em.ap_mat_binary, det_valid_indices_np)
         if is_matched:
             match_result = MatchResult(
                 gt_ids=[gt_idx],
@@ -245,9 +228,7 @@ def calc_match_matrix(eval_material):
     # many-to-one match
     for det_idx in em.det_valid_indices:
         gt_valid_indices_np = np.array(list(em.gt_valid_indices), dtype=np.int16)
-        is_matched, matched_gt_indices = many_to_one_match(
-            em.pcc_mat_sum, det_idx, em.ap_mat, em.ap_constraint, gt_valid_indices_np
-        )
+        is_matched, matched_gt_indices = many_to_one_match(em.pcc_mat_sum, det_idx, em.ap_mat, em.ap_constraint, gt_valid_indices_np)
         if is_matched:
             match_result = MatchResult(
                 gt_ids=matched_gt_indices,
@@ -265,9 +246,7 @@ def calc_match_matrix(eval_material):
             if match_mat[gt_idx, det_idx]:
                 continue
             for pcc_idx in range(len(em.gt_pcc_points[gt_idx])):
-                em.pcc_mat_sum[gt_idx, det_idx] -= em.pcc_mat_list[gt_idx][
-                    det_idx, pcc_idx
-                ]
+                em.pcc_mat_sum[gt_idx, det_idx] -= em.pcc_mat_list[gt_idx][det_idx, pcc_idx]
                 em.pcc_mat_list[gt_idx][det_idx, pcc_idx] = 0
     return match_mat, match_results
 
@@ -409,9 +388,7 @@ def eval_det(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
         res_mat[gt_idx, -2] = found_gt_chars
 
     # Calculate precision / recall
-    num_char_gt, num_char_det = get_num_total_char(
-        gt_boxes, em.pcc_mat_sum, em.gt_valid_indices, em.det_valid_indices
-    )
+    num_char_gt, num_char_det = get_num_total_char(gt_boxes, em.pcc_mat_sum, em.gt_valid_indices, em.det_valid_indices)
     num_char_fp = get_num_fp_char(det_boxes, em.det_valid_indices, match_mat_gts_sum)
     num_char_det += num_char_fp
     extract_stats(sample_res.stats.det, num_char_fp, num_char_gt, num_char_det, res_mat)
@@ -421,14 +398,10 @@ def eval_det(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
         for match_res in sample_res.matches:
             gt_ids = match_res.gt_ids
             det_ids = match_res.det_ids
-            num_char_gt, num_char_det = get_num_total_char(
-                gt_boxes, em.pcc_mat_sum, gt_ids, det_ids
-            )
+            num_char_gt, num_char_det = get_num_total_char(gt_boxes, em.pcc_mat_sum, gt_ids, det_ids)
             num_char_fp = get_num_fp_char(det_boxes, det_ids, match_mat_gts_sum)
             num_char_det += num_char_fp
-            extract_stats(
-                match_res.det, num_char_fp, num_char_gt, num_char_det, res_mat
-            )
+            extract_stats(match_res.det, num_char_fp, num_char_gt, num_char_det, res_mat)
 
 
 def get_num_total_char(gt_boxes, pcc_mat_sum, gt_valid_indices, det_valid_indices):
@@ -448,9 +421,7 @@ def get_num_fp_char(det_boxes, det_valid_indices, match_mat_gts_sum):
     for det_idx in det_valid_indices:
         # no match with any GTs && not matched with don't care
         if match_mat_gts_sum[det_idx] == 0:
-            fp_char_count = round(
-                0.5 + 1 / (np.finfo(np.float32).eps + det_boxes[det_idx].aspect_ratio())
-            )
+            fp_char_count = round(0.5 + 1 / (np.finfo(np.float32).eps + det_boxes[det_idx].aspect_ratio()))
             fp_char_counts += min(fp_char_count, 100)
     return fp_char_counts
 
@@ -474,9 +445,7 @@ def eval_e2e(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
     for gt_idx in em.gt_valid_indices:
         if match_mat_dets_sum[gt_idx] > 0:
             matched_det_indices = np.where(match_mat[gt_idx])[0]
-            sorted_det_indices = sort_detbox_order_by_pcc(
-                gt_idx, matched_det_indices, em.gt_pcc_points, em.pcc_mat_list
-            )
+            sorted_det_indices = sort_detbox_order_by_pcc(gt_idx, matched_det_indices, em.gt_pcc_points, em.pcc_mat_list)
             corrected_num_chars = lcs_elimination(
                 gt_trans,
                 gt_trans_not_found,
@@ -494,9 +463,7 @@ def eval_e2e(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
             matched_gt_indices = np.where(match_mat[:, det_idx])[0]
             gran_weight = args.PRECISION_GRANULARITY_PENALTY_WEIGHT
             res_mat[-1, det_idx] = get_gran_score(len(matched_gt_indices), gran_weight)
-        res_mat[-2, det_idx] = len(det_trans[det_idx]) - len(
-            det_trans_not_found[det_idx]
-        )
+        res_mat[-2, det_idx] = len(det_trans[det_idx]) - len(det_trans_not_found[det_idx])
 
     num_char_det = sum([len(det_trans[i]) for i in em.det_valid_indices])
     num_char_fp = num_char_det - np.sum(res_mat[-2])
@@ -508,9 +475,7 @@ def eval_e2e(args, sample_res, gt_boxes, det_boxes, eval_material, match_mat):
             num_char_det = sum([len(det_trans[i]) for i in det_ids])
             num_char_fp = num_char_det - np.sum(res_mat[-2][det_ids])
             num_char_gt = match_res.det.num_char_gt
-            extract_stats(
-                match_res.e2e, num_char_fp, num_char_gt, num_char_det, res_mat
-            )
+            extract_stats(match_res.e2e, num_char_fp, num_char_gt, num_char_det, res_mat)
 
 
 def sort_detbox_order_by_pcc(gt_idx, matched_det_indices, gt_pcc_points, pcc_mat_list):
@@ -533,9 +498,7 @@ def sort_detbox_order_by_pcc(gt_idx, matched_det_indices, gt_pcc_points, pcc_mat
     return ordered_indices
 
 
-def lcs_elimination(
-    gt_trans, gt_trans_not_found, det_trans_not_found, gt_idx, sorted_det_indices
-):
+def lcs_elimination(gt_trans, gt_trans_not_found, det_trans_not_found, gt_idx, sorted_det_indices):
     """longest common sequence elimination by sorted detection boxes"""
     target_string = "".join(det_trans_not_found[i] for i in sorted_det_indices)
     lcs_length, lcs_string = lcs(gt_trans[gt_idx], target_string)

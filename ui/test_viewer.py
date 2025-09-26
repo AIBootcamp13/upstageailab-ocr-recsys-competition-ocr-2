@@ -8,7 +8,6 @@ visualization and comparison capabilities.
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import streamlit as st
@@ -22,13 +21,7 @@ if str(project_root) not in sys.path:
 # --- Modular Imports ---
 # Import the modular components for data processing and visualization
 try:
-    from ui.data_utils import (
-        apply_sorting_filtering,
-        calculate_image_differences,
-        calculate_prediction_metrics,
-        load_predictions_file,
-        prepare_export_data,
-    )
+    from ui.data_utils import apply_sorting_filtering, calculate_image_differences, calculate_prediction_metrics, prepare_export_data
     from ui.utils.config_parser import ConfigParser
     from ui.visualization import (
         display_dataset_overview,
@@ -67,9 +60,7 @@ def render_single_run_analysis():
         if outputs_dir.exists():
             prediction_files = list(outputs_dir.rglob("**/predictions/submission.csv"))
             if prediction_files:
-                file_options = [
-                    str(f.relative_to(outputs_dir)) for f in prediction_files
-                ]
+                file_options = [str(f.relative_to(outputs_dir)) for f in prediction_files]
                 selected_file = st.selectbox(
                     "Select prediction file",
                     [""] + file_options,
@@ -95,9 +86,7 @@ def render_single_run_analysis():
                     df = pd.read_csv(predictions_file)
 
                 # Add advanced analysis tabs
-                tab1, tab2, tab3, tab4 = st.tabs(
-                    ["📊 Overview", "🔍 Analysis", "🖼️ Images", "📈 Advanced"]
-                )
+                tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🔍 Analysis", "🖼️ Images", "📈 Advanced"])
 
                 with tab1:
                     display_dataset_overview(df)
@@ -201,9 +190,7 @@ def render_model_comparison():
         st.subheader("Model A")
 
         # File selection for Model A
-        model_a_file = st.file_uploader(
-            "Upload Model A Predictions", type=["csv"], key="model_a"
-        )
+        model_a_file = st.file_uploader("Upload Model A Predictions", type=["csv"], key="model_a")
 
         # Or select from outputs
         st.markdown("**Or select from outputs:**")
@@ -211,12 +198,8 @@ def render_model_comparison():
         if outputs_dir.exists():
             prediction_files = list(outputs_dir.rglob("**/predictions/submission.csv"))
             if prediction_files:
-                file_options = [
-                    str(f.relative_to(outputs_dir)) for f in prediction_files
-                ]
-                selected_a = st.selectbox(
-                    "Select Model A file", [""] + file_options, key="select_a"
-                )
+                file_options = [str(f.relative_to(outputs_dir)) for f in prediction_files]
+                selected_a = st.selectbox("Select Model A file", [""] + file_options, key="select_a")
                 if selected_a:
                     model_a_file = outputs_dir / selected_a
 
@@ -224,21 +207,15 @@ def render_model_comparison():
         st.subheader("Model B")
 
         # File selection for Model B
-        model_b_file = st.file_uploader(
-            "Upload Model B Predictions", type=["csv"], key="model_b"
-        )
+        model_b_file = st.file_uploader("Upload Model B Predictions", type=["csv"], key="model_b")
 
         # Or select from outputs
         st.markdown("**Or select from outputs:**")
         if outputs_dir.exists():
             prediction_files = list(outputs_dir.rglob("**/predictions/submission.csv"))
             if prediction_files:
-                file_options = [
-                    str(f.relative_to(outputs_dir)) for f in prediction_files
-                ]
-                selected_b = st.selectbox(
-                    "Select Model B file", [""] + file_options, key="select_b"
-                )
+                file_options = [str(f.relative_to(outputs_dir)) for f in prediction_files]
+                selected_b = st.selectbox("Select Model B file", [""] + file_options, key="select_b")
                 if selected_b:
                     model_b_file = outputs_dir / selected_b
 
@@ -264,9 +241,7 @@ def render_model_comparison():
                 df_b = pd.read_csv(model_b_file)
 
             # Comparison tabs
-            tab1, tab2, tab3 = st.tabs(
-                ["📊 Statistics", "🔍 Differences", "🖼️ Visual Comparison"]
-            )
+            tab1, tab2, tab3 = st.tabs(["📊 Statistics", "🔍 Differences", "🖼️ Visual Comparison"])
 
             with tab1:
                 display_model_comparison_stats(df_a, df_b)
@@ -338,18 +313,16 @@ def render_image_gallery():
 
 def main():
     """Main Streamlit application."""
-    st.set_page_config(
-        page_title="OCR Evaluation Viewer", page_icon="📊", layout="wide"
-    )
+    st.set_page_config(page_title="OCR Evaluation Viewer", page_icon="📊", layout="wide")
 
     st.title("📊 OCR Evaluation Results Viewer")
     st.markdown("Analyze predictions, view metrics, and compare model performance")
 
     # Initialize utilities
     try:
-        config_parser = ConfigParser()
-    except:
-        config_parser = None
+        ConfigParser()
+    except Exception as e:
+        print(f"Warning: Failed to initialize config parser: {e}")
 
     # Sidebar for navigation
     st.sidebar.header("Navigation")

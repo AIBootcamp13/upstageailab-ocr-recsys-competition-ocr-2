@@ -19,9 +19,7 @@ def calculate_prediction_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Prediction count
-    df["prediction_count"] = df["polygons"].apply(
-        lambda x: len(x.split("|")) if pd.notna(x) and x.strip() else 0
-    )
+    df["prediction_count"] = df["polygons"].apply(lambda x: len(x.split("|")) if pd.notna(x) and x.strip() else 0)
 
     # Total area
     df["total_area"] = df["polygons"].apply(calculate_total_area)
@@ -92,9 +90,7 @@ def calculate_total_area(polygons_str: str) -> float:
     return total_area
 
 
-def apply_sorting_filtering(
-    df: pd.DataFrame, sort_by: str, sort_order: str, filter_metric: str
-) -> pd.DataFrame:
+def apply_sorting_filtering(df: pd.DataFrame, sort_by: str, sort_order: str, filter_metric: str) -> pd.DataFrame:
     """Apply sorting and filtering to the dataframe."""
     # Ensure metrics are calculated
     df = calculate_prediction_metrics(df)
@@ -148,19 +144,11 @@ def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.Da
         row_a = df_a[df_a["filename"] == image].iloc[0]
         row_b = df_b[df_b["filename"] == image].iloc[0]
 
-        pred_count_a = (
-            len(row_a["polygons"].split("|")) if pd.notna(row_a["polygons"]) else 0
-        )
-        pred_count_b = (
-            len(row_b["polygons"].split("|")) if pd.notna(row_b["polygons"]) else 0
-        )
+        pred_count_a = len(row_a["polygons"].split("|")) if pd.notna(row_a["polygons"]) else 0
+        pred_count_b = len(row_b["polygons"].split("|")) if pd.notna(row_b["polygons"]) else 0
 
-        area_a = calculate_total_area(
-            row_a["polygons"] if pd.notna(row_a["polygons"]) else ""
-        )
-        area_b = calculate_total_area(
-            row_b["polygons"] if pd.notna(row_b["polygons"]) else ""
-        )
+        area_a = calculate_total_area(row_a["polygons"] if pd.notna(row_a["polygons"]) else "")
+        area_b = calculate_total_area(row_b["polygons"] if pd.notna(row_b["polygons"]) else "")
 
         # Calculate confidence differences (using placeholder values for now)
         conf_a = row_a.get("avg_confidence", 0.8)

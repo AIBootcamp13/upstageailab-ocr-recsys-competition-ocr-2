@@ -2,19 +2,21 @@
 
 import os
 import sys
+from pathlib import Path
 
-import cv2
+# Add the project root to the path
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
 import numpy as np
 import torch
 from hydra import compose, initialize
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from tqdm import tqdm
 
-# Add the project root to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../"))
-
-from ocr.datasets import OCRDataset
-from ocr.datasets.transforms import DBTransforms
+from ...datasets import OCRDataset
+from ...datasets.transforms import DBTransforms
 
 
 def calculate_normalization_stats(cfg: DictConfig):

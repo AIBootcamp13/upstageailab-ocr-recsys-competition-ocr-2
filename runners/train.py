@@ -1,52 +1,50 @@
 import os
-import sys
 import signal
+import sys
 
 import hydra
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor  # noqa
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-sys.path.append(os.getcwd())
+# Setup project paths automatically
+from ocr.utils.path_utils import setup_paths
+
+setup_paths()
+
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
 
-# Global variables for cleanup
+_shutdown_in_progress = False
 trainer = None
 data_module = None
 
+
 def signal_handler(signum, frame):
-    """Handle interrupt signals to ensure graceful shutdown."""
+    """Handle interrupt signals to ensure graceful shutdown without recursion."""
+    global _shutdown_in_progress
+    if _shutdown_in_progress:
+        return
+    _shutdown_in_progress = True
+
     print(f"\nReceived signal {signum}. Shutting down gracefully...")
 
     try:
         if trainer is not None:
             print("Stopping trainer...")
-            # Lightning handles SIGINT automatically for graceful shutdown
+            # Lightning handles SIGINT/SIGTERM for graceful shutdown
     except Exception as e:
         print(f"Error during trainer shutdown: {e}")
 
     try:
         if data_module is not None:
             print("Cleaning up data module...")
-            # DataLoader workers will be cleaned up by process group termination
+            # DataLoader workers will be cleaned up by process shutdown
     except Exception as e:
         print(f"Error during data module cleanup: {e}")
 
-    # Force terminate any remaining child processes
-    try:
-        os.killpg(os.getpgrp(), signal.SIGTERM)
-    except Exception as e:
-        print(f"Error terminating process group: {e}")
-
-    print("Shutdown complete.")
-    sys.exit(1)
-    try:
-        os.killpg(os.getpgrp(), signal.SIGTERM)
-    except Exception as e:
-        print(f"Error terminating process group: {e}")
-
+    # Do not send SIGTERM to our own process group to avoid recursive signals
     print("Shutdown complete.")
     sys.exit(1)
 
@@ -55,8 +53,7 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# Set process group so we can kill all child processes
-os.setpgrp()
+# Avoid creating a new process group here; the caller (UI) manages process groups
 
 
 @hydra.main(config_path=CONFIG_DIR, config_name="train", version_base="1.2")
@@ -78,10 +75,23 @@ def train(config):
 
     model_module, data_module = get_pl_modules_by_cfg(config)
 
+    # Ensure key output directories exist before creating callbacks
+    try:
+        os.makedirs(config.log_dir, exist_ok=True)
+        os.makedirs(config.checkpoint_dir, exist_ok=True)
+        # Some workflows also expect a submission dir
+        if hasattr(config, "submission_dir"):
+            os.makedirs(config.submission_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Warning: failed to ensure output directories exist: {e}")
+
     if config.get("wandb"):
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
 
-        from ocr.utils.wandb_utils import generate_run_name  # noqa: E402
+        from ocr.utils.wandb_utils import generate_run_name, load_env_variables  # noqa: E402
+
+        # Load environment variables from .env file
+        load_env_variables()
 
         run_name = generate_run_name(config)
         logger = Logger(
@@ -90,9 +100,7 @@ def train(config):
             config=dict(config),
         )
     else:
-        from lightning.pytorch.loggers.tensorboard import (  # noqa: E402
-            TensorBoardLogger,
-        )
+        from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 
         logger = TensorBoardLogger(
             save_dir=config.log_dir,
@@ -105,20 +113,14 @@ def train(config):
 
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
-        ModelCheckpoint(
-            dirpath=checkpoint_path, save_top_k=3, monitor="val/loss", mode="min"
-        ),
+        ModelCheckpoint(dirpath=checkpoint_path, save_top_k=1, monitor="val/loss", mode="min"),
     ]
 
     # Add wandb image logging callback if wandb is enabled
     if config.get("wandb"):
-        from ocr.lightning_modules.callbacks.wandb_image_logging import (  # noqa: E402
-            WandbImageLoggingCallback,
-        )
+        from ocr.lightning_modules.callbacks.wandb_image_logging import WandbImageLoggingCallback  # noqa: E402
 
-        callbacks.append(
-            WandbImageLoggingCallback(log_every_n_epochs=5)
-        )  # Log every 5 epochs
+        callbacks.append(WandbImageLoggingCallback(log_every_n_epochs=5))  # Log every 5 epochs
 
     trainer = pl.Trainer(**config.trainer, logger=logger, callbacks=callbacks)
 
@@ -140,11 +142,13 @@ def train(config):
         final_loss = trainer.callback_metrics.get("val/loss", 0.0)
         try:
             # Handle both tensor and scalar values safely
-            if hasattr(final_loss, "item") and callable(getattr(final_loss, "item")):
-                final_loss = float(final_loss.item())
+            item_attr = getattr(final_loss, "item", None)
+            if callable(item_attr):
+                item_val = item_attr()
+                final_loss = float(item_val) if isinstance(item_val, (int, float)) else float(final_loss)
             else:
                 final_loss = float(final_loss)
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError):
             final_loss = 0.0
         finalize_run(final_loss)
 

@@ -1,0 +1,85 @@
+title: "OCR Training Command Builder"
+
+constant_overrides: []
+
+ui_elements:
+  - key: exp_name
+    type: text_input
+    label: "Experiment Name"
+    default: "ocr_training"
+    help: "A unique name for this experiment."
+    hydra_override: "exp_name"
+    validation:
+      required: true
+      min_length: 3
+
+  - key: wandb
+    type: checkbox
+    label: "Use Weights & Biases"
+    default: false
+    hydra_override: "wandb"
+
+  - key: resume_training
+    type: checkbox
+    label: "Resume Training"
+    default: false
+
+  - key: checkpoint_path
+    type: selectbox
+    label: "Checkpoint Path"
+    options_source: "checkpoints"
+    default: ""
+    visible_if: "resume_training == true"
+    hydra_override: "resume"
+    validation:
+      required_if: "resume_training == true"
+
+  - key: encoder
+    type: selectbox
+    label: "Encoder"
+    options_source: "models.backbones"
+    default: "resnet18"
+    help: "Backbone encoder architecture."
+    hydra_override: "models.encoder.model_name"
+    visible_if: "resume_training == false"
+
+  - key: learning_rate
+    type: slider
+    label: "Learning Rate"
+    min_value: 1.0e-5
+    max_value: 1.0e-2
+    default: 1.0e-3
+    step: 1.0e-5
+    format: "%.1e"
+    hydra_override: "models.optimizer.lr"
+    validation:
+      required: true
+      range: [1.0e-5, 1.0e-2]
+
+  - key: batch_size
+    type: slider
+    label: "Batch Size"
+    min_value: 1
+    max_value: 64
+    default: 4
+    step: 1
+    hydra_override: "data.batch_size"
+    validation:
+      required: true
+      min: 1
+
+  - key: max_epochs
+    type: slider
+    label: "Max Epochs"
+    min_value: 1
+    max_value: 200
+    default: 10
+    step: 1
+    hydra_override: "trainer.max_epochs"
+
+  - key: seed
+    type: number_input
+    label: "Random Seed"
+    default: 42
+    min_value: 0
+    hydra_override: "seed"

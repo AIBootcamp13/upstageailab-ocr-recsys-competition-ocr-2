@@ -16,7 +16,6 @@ Usage:
 """
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -126,12 +125,8 @@ def create_ablation_table(
     if baseline and metric in df.columns:
         baseline_value = df[df[config_col] == baseline][metric].mean()
         if not np.isnan(baseline_value):
-            table_df["Improvement"] = (
-                (table_df[metric] - baseline_value) / baseline_value * 100
-            ).round(2)
-            table_df["Improvement"] = table_df["Improvement"].apply(
-                lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%"
-            )
+            table_df["Improvement"] = ((table_df[metric] - baseline_value) / baseline_value * 100).round(2)
+            table_df["Improvement"] = table_df["Improvement"].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
 
     # Sort by primary metric (descending)
     if metric in table_df.columns:
@@ -149,13 +144,9 @@ def save_table_markdown(table_df: pd.DataFrame, output_path: str):
     print(f"Markdown table saved to {output_path}")
 
 
-def save_table_latex(
-    table_df: pd.DataFrame, output_path: str, caption: str = "Ablation Study Results"
-):
+def save_table_latex(table_df: pd.DataFrame, output_path: str, caption: str = "Ablation Study Results"):
     """Save table as LaTeX format."""
-    latex_table = table_df.to_latex(
-        index=False, float_format="%.4f", caption=caption, label="tab:ablation"
-    )
+    latex_table = table_df.to_latex(index=False, float_format="%.4f", caption=caption, label="tab:ablation")
     with open(output_path, "w") as f:
         f.write(latex_table)
     print(f"LaTeX table saved to {output_path}")
@@ -180,17 +171,11 @@ def main():
         help="Type of ablation study",
     )
     parser.add_argument("--metric", required=True, help="Primary metric to compare")
-    parser.add_argument(
-        "--baseline", help="Baseline configuration for relative comparison"
-    )
-    parser.add_argument(
-        "--columns", nargs="+", help="Specific columns to include (for custom ablation)"
-    )
+    parser.add_argument("--baseline", help="Baseline configuration for relative comparison")
+    parser.add_argument("--columns", nargs="+", help="Specific columns to include (for custom ablation)")
     parser.add_argument("--output-md", help="Output markdown file")
     parser.add_argument("--output-latex", help="Output LaTeX file")
-    parser.add_argument(
-        "--caption", default="Ablation Study Results", help="LaTeX table caption"
-    )
+    parser.add_argument("--caption", default="Ablation Study Results", help="LaTeX table caption")
 
     args = parser.parse_args()
 
@@ -199,9 +184,7 @@ def main():
     print(f"Loaded {len(df)} experiments from {args.input}")
 
     # Create ablation table
-    table_df = create_ablation_table(
-        df, args.ablation_type, args.metric, args.baseline, args.columns
-    )
+    table_df = create_ablation_table(df, args.ablation_type, args.metric, args.baseline, args.columns)
 
     # Print to console
     print_table(table_df)

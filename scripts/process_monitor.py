@@ -12,7 +12,6 @@ import os
 import signal
 import subprocess
 import sys
-from pathlib import Path
 from typing import List, Tuple
 
 
@@ -28,13 +27,13 @@ def get_training_processes() -> List[Tuple[int, str, str]]:
             ["pgrep", "-f", "runners/train.py"],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         if result.returncode not in (0, 1):  # 1 means no matches found
             return []
 
-        pids = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        pids = result.stdout.strip().split("\n") if result.stdout.strip() else []
 
         processes = []
         for pid in pids:
@@ -47,18 +46,18 @@ def get_training_processes() -> List[Tuple[int, str, str]]:
                     ["ps", "-p", pid.strip(), "-o", "pid,ppid,cmd,user"],
                     capture_output=True,
                     text=True,
-                    timeout=5
+                    timeout=5,
                 )
 
                 if ps_result.returncode == 0:
-                    lines = ps_result.stdout.strip().split('\n')
+                    lines = ps_result.stdout.strip().split("\n")
                     if len(lines) >= 2:  # Header + data
                         parts = lines[1].split()
                         if len(parts) >= 4:
                             pid_num = int(parts[0])
-                            ppid = parts[1]
+                            parts[1]
                             user = parts[-1]
-                            cmd = ' '.join(parts[2:-1])
+                            cmd = " ".join(parts[2:-1])
                             processes.append((pid_num, cmd, user))
 
             except (ValueError, subprocess.TimeoutExpired):
@@ -69,21 +68,16 @@ def get_training_processes() -> List[Tuple[int, str, str]]:
     except (subprocess.TimeoutExpired, FileNotFoundError):
         # Fallback method using ps
         try:
-            result = subprocess.run(
-                ["ps", "aux"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=10)
 
             processes = []
-            for line in result.stdout.split('\n'):
-                if 'runners/train.py' in line:
+            for line in result.stdout.split("\n"):
+                if "runners/train.py" in line:
                     parts = line.split()
                     if len(parts) >= 11:  # Standard ps aux format
                         user = parts[0]
                         pid = int(parts[1])
-                        cmd = ' '.join(parts[10:])
+                        cmd = " ".join(parts[10:])
                         processes.append((pid, cmd, user))
 
             return processes
@@ -113,11 +107,11 @@ def get_worker_processes(parent_pids: List[int]) -> List[Tuple[int, str, str]]:
                 ["pgrep", "-P", str(parent_pid)],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode in (0, 1):
-                child_pids = result.stdout.strip().split('\n') if result.stdout.strip() else []
+                child_pids = result.stdout.strip().split("\n") if result.stdout.strip() else []
 
                 for pid in child_pids:
                     if not pid.strip():
@@ -128,17 +122,17 @@ def get_worker_processes(parent_pids: List[int]) -> List[Tuple[int, str, str]]:
                             ["ps", "-p", pid.strip(), "-o", "pid,cmd,user"],
                             capture_output=True,
                             text=True,
-                            timeout=5
+                            timeout=5,
                         )
 
                         if ps_result.returncode == 0:
-                            lines = ps_result.stdout.strip().split('\n')
+                            lines = ps_result.stdout.strip().split("\n")
                             if len(lines) >= 2:
                                 parts = lines[1].split()
                                 if len(parts) >= 3:
                                     pid_num = int(parts[0])
                                     user = parts[-1]
-                                    cmd = ' '.join(parts[1:-1])
+                                    cmd = " ".join(parts[1:-1])
                                     workers.append((pid_num, cmd, user))
 
                     except (ValueError, subprocess.TimeoutExpired):
@@ -182,28 +176,30 @@ def terminate_processes(processes: List[Tuple[int, str, str]], force: bool = Fal
 
 def main():
     """Main function."""
-    parser = argparse.ArgumentParser(
-        description="Monitor and cleanup orphaned OCR training processes"
+    parser = argparse.ArgumentParser(description="Monitor and cleanup orphaned OCR training processes")
+    parser.add_argument(
+        "--list",
+        "-l",
+        action="store_true",
+        help="List all training processes and their workers",
     )
     parser.add_argument(
-        "--list", "-l",
+        "--cleanup",
+        "-c",
         action="store_true",
-        help="List all training processes and their workers"
+        help="Terminate all orphaned training processes and workers",
     )
     parser.add_argument(
-        "--cleanup", "-c",
+        "--force",
+        "-f",
         action="store_true",
-        help="Terminate all orphaned training processes and workers"
+        help="Use SIGKILL instead of SIGTERM for forceful termination",
     )
     parser.add_argument(
-        "--force", "-f",
+        "--dry-run",
+        "-d",
         action="store_true",
-        help="Use SIGKILL instead of SIGTERM for forceful termination"
-    )
-    parser.add_argument(
-        "--dry-run", "-d",
-        action="store_true",
-        help="Show what would be done without actually doing it"
+        help="Show what would be done without actually doing it",
     )
 
     args = parser.parse_args()
@@ -253,6 +249,7 @@ def main():
 
                 # Wait a moment and check if any are still running
                 import time
+
                 time.sleep(1)
 
                 remaining = get_training_processes()

@@ -5,12 +5,10 @@ This module provides utilities to parse Hydra configurations and extract
 available options for the Streamlit UI components.
 """
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from omegaconf import OmegaConf
 
 
 class ConfigParser:
@@ -56,13 +54,11 @@ class ConfigParser:
                     models[component_type].append(yaml_file.stem)
 
         # Also check timm backbones for encoders
-        encoder_config = (
-            self.config_dir / "preset" / "models" / "encoder" / "timm_backbone.yaml"
-        )
+        encoder_config = self.config_dir / "preset" / "models" / "encoder" / "timm_backbone.yaml"
         if encoder_config.exists():
             try:
                 with open(encoder_config, "r") as f:
-                    config = yaml.safe_load(f)
+                    yaml.safe_load(f)
                 # Extract common backbone names (this would be expanded based on timm)
                 models["backbones"] = [
                     "resnet18",
@@ -165,11 +161,7 @@ class ConfigParser:
         preset_dir = self.config_dir / "preset"
 
         if preset_dir.exists():
-            presets = [
-                yaml_file.stem
-                for yaml_file in preset_dir.glob("*.yaml")
-                if not yaml_file.name.startswith("_")
-            ]
+            presets = [yaml_file.stem for yaml_file in preset_dir.glob("*.yaml") if not yaml_file.name.startswith("_")]
 
         self._cache["presets"] = presets
         return presets
@@ -215,10 +207,9 @@ class ConfigParser:
                 if exp_dir.is_dir():
                     checkpoint_dir = exp_dir / "checkpoints"
                     if checkpoint_dir.exists():
-                        checkpoints.extend([
-                            str(ckpt_file.relative_to(self.config_dir.parent))
-                            for ckpt_file in checkpoint_dir.glob("*.ckpt")
-                        ])
+                        checkpoints.extend(
+                            [str(ckpt_file.relative_to(self.config_dir.parent)) for ckpt_file in checkpoint_dir.glob("*.ckpt")]
+                        )
 
         self._cache["checkpoints"] = checkpoints
         return checkpoints

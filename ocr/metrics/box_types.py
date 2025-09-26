@@ -16,7 +16,6 @@ from collections import namedtuple
 import numpy as np
 import Polygon as polygon3
 from scipy.spatial import ConvexHull
-from shapely.geometry import Point
 
 MAX_FIDUCIAL_POINTS = 50
 
@@ -80,9 +79,9 @@ def bounding_area(index, hull):
 def to_xy_coordinates(unit_vector_angle, point):
     # returns converted unit vector coordinates in x, y coordinates
     angle_orthogonal = unit_vector_angle + math.pi / 2
-    return point[0] * math.cos(unit_vector_angle) + point[1] * math.cos(
-        angle_orthogonal
-    ), point[0] * math.sin(unit_vector_angle) + point[1] * math.sin(angle_orthogonal)
+    return point[0] * math.cos(unit_vector_angle) + point[1] * math.cos(angle_orthogonal), point[0] * math.sin(unit_vector_angle) + point[
+        1
+    ] * math.sin(angle_orthogonal)
 
 
 def rotate_points(center_of_rotation, angle, points):
@@ -93,10 +92,10 @@ def rotate_points(center_of_rotation, angle, points):
     rot_points = []
     ang = []
     for pt in points:
-        diff = tuple([pt[d] - center_of_rotation[d] for d in range(2)])
+        diff = tuple(pt[d] - center_of_rotation[d] for d in range(2))
         diff_angle = math.atan2(diff[1], diff[0]) + angle
         ang.append(diff_angle)
-        diff_length = math.sqrt(sum([d**2 for d in diff]))
+        diff_length = math.sqrt(sum(d**2 for d in diff))
         rot_points.append(
             (
                 center_of_rotation[0] + diff_length * math.cos(diff_angle),
@@ -112,19 +111,14 @@ def rectangle_corners(rectangle):
     # Effects: returns the corner locations of the bounding rectangle
     corner_points = []
     for i1 in (0.5, -0.5):
-        for i2 in (i1, -1 * i1):
-            corner_points.append(
-                (
-                    rectangle["rectangle_center"][0]
-                    + i1 * rectangle["length_parallel"],
-                    rectangle["rectangle_center"][1]
-                    + i2 * rectangle["length_orthogonal"],
-                )
+        corner_points.extend(
+            (
+                rectangle["rectangle_center"][0] + i1 * rectangle["length_parallel"],
+                rectangle["rectangle_center"][1] + i2 * rectangle["length_orthogonal"],
             )
-
-    return rotate_points(
-        rectangle["rectangle_center"], rectangle["unit_vector_angle"], corner_points
-    )
+            for i2 in (i1, -1 * i1)
+        )
+    return rotate_points(rectangle["rectangle_center"], rectangle["unit_vector_angle"], corner_points)
 
 
 # use this function to find the listed properties of the minimum bounding box of a point cloud
@@ -146,8 +140,8 @@ def custom_MinAreaRect(points):
 
     try:
         hull_ordered = [points[index] for index in ConvexHull(points).vertices]
-    except:
-        print(f"[WARN] ConvexHull failed. points: {points}")
+    except Exception as e:
+        print(f"[WARN] ConvexHull failed: {e}. points: {points}")
         return (0, 0), (0, 0), 0
 
     hull_ordered.append(hull_ordered[0])
@@ -159,12 +153,8 @@ def custom_MinAreaRect(points):
         if rectangle["area"] < min_rectangle["area"]:
             min_rectangle = rectangle
 
-    min_rectangle["unit_vector_angle"] = math.atan2(
-        min_rectangle["unit_vector"][1], min_rectangle["unit_vector"][0]
-    )
-    min_rectangle["rectangle_center"] = to_xy_coordinates(
-        min_rectangle["unit_vector_angle"], min_rectangle["rectangle_center"]
-    )
+    min_rectangle["unit_vector_angle"] = math.atan2(min_rectangle["unit_vector"][1], min_rectangle["unit_vector"][0])
+    min_rectangle["rectangle_center"] = to_xy_coordinates(min_rectangle["unit_vector_angle"], min_rectangle["rectangle_center"])
 
     return (
         set(rectangle_corners(min_rectangle)),
@@ -191,12 +181,10 @@ class Box(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __and__(self, other) -> float:
         """Returns intersection between two objects"""
-        pass
 
     @abc.abstractmethod
     def subtract(self, other):
         """polygon subtraction"""
-        pass
 
     @abc.abstractmethod
     def center(self):
@@ -209,23 +197,19 @@ class Box(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def diagonal_length(self) -> float:
         """Returns diagonal length for box-level"""
-        pass
 
     @abc.abstractmethod
     def is_inside(self, x, y) -> bool:
         """Returns point (x, y) is inside polygon."""
-        pass
 
     @abc.abstractmethod
     def make_polygon_obj(self):
         # TODO: docstring 좀 더 자세히 적기
         """Make polygon object to calculate for future"""
-        pass
 
     @abc.abstractmethod
     def pseudo_character_center(self, *args) -> list:
         """get character level boxes for TedEval pseudo center"""
-        pass
 
 
 class QUAD(Box):
@@ -245,6 +229,8 @@ class QUAD(Box):
         self.scale = scale
         if self.is_dc:
             self.transcription = "#" * self.pseudo_transcription_length()
+        if not self.transcription:
+            self.transcription = "#" * self.pseudo_transcription_length()
         if self.transcription is None:
             self.transcription = "#" * self.pseudo_transcription_length()
 
@@ -256,9 +242,7 @@ class QUAD(Box):
     def __and__(self, other) -> float:
         """Get intersection between two area"""
         poly_intersect = self.polygon & other.polygon
-        if len(poly_intersect) == 0:
-            return 0.0
-        return poly_intersect.area()
+        return 0.0 if len(poly_intersect) == 0 else poly_intersect.area()
 
     def subtract(self, other):
         self.polygon = self.polygon - other.polygon
@@ -293,24 +277,14 @@ class QUAD(Box):
 
     def aspect_ratio(self):
         if self._aspect_ratio is None:
-            top_side = point_distance(
-                (self.points[0], self.points[1]), (self.points[2], self.points[3])
-            )
-            right_side = point_distance(
-                (self.points[2], self.points[3]), (self.points[4], self.points[5])
-            )
-            bottom_side = point_distance(
-                (self.points[4], self.points[5]), (self.points[6], self.points[7])
-            )
-            left_side = point_distance(
-                (self.points[6], self.points[7]), (self.points[0], self.points[1])
-            )
+            top_side = point_distance((self.points[0], self.points[1]), (self.points[2], self.points[3]))
+            right_side = point_distance((self.points[2], self.points[3]), (self.points[4], self.points[5]))
+            bottom_side = point_distance((self.points[4], self.points[5]), (self.points[6], self.points[7]))
+            left_side = point_distance((self.points[6], self.points[7]), (self.points[0], self.points[1]))
             avg_hor = (top_side + bottom_side) / 2
             avg_ver = (right_side + left_side) / 2
 
-            self._aspect_ratio = min(
-                100.0, avg_hor / (avg_ver + np.finfo(np.float32).eps)
-            )
+            self._aspect_ratio = min(100.0, avg_hor / (avg_ver + np.finfo(np.float32).eps))
 
         return self._aspect_ratio
 
@@ -329,7 +303,7 @@ class QUAD(Box):
         )
 
     def pseudo_character_center(self, vertical_aspect_ratio_threshold):
-        chars = list()
+        chars = []
         length = len(self.transcription)
         aspect_ratio = self.aspect_ratio()
 
@@ -377,9 +351,7 @@ class QUAD(Box):
 class POLY(Box):
     """Points should be x1,y1,...,xn,yn (2*n points) format"""
 
-    def __init__(
-        self, points, confidence=0.0, transcription="", orientation=None, is_dc=None
-    ):
+    def __init__(self, points, confidence=0.0, transcription="", orientation=None, is_dc=None):
         super().__init__(points, confidence, transcription, orientation, is_dc)
         self.num_points = len(self.points) // 2
         self.polygon = self.make_polygon_obj()
@@ -397,9 +369,7 @@ class POLY(Box):
     def __and__(self, other) -> float:
         """Get intersection between two area"""
         poly_intersect = self.polygon & other.polygon
-        if len(poly_intersect) == 0:
-            return 0.0
-        return poly_intersect.area()
+        return 0.0 if len(poly_intersect) == 0 else poly_intersect.area()
 
     def subtract(self, other):
         """get substraction"""
@@ -453,25 +423,17 @@ class POLY(Box):
     def get_four_max_distance_from_center(self):
         if self._distance_idx_max_order is None:
             center_x, center_y = self.center()
-            distance_from_center = list()
-            point_x = self.points[0::2]
+            point_x = self.points[::2]
             point_y = self.points[1::2]
 
-            for px, py in zip(point_x, point_y):
-                distance_from_center.append(
-                    point_distance((center_x, center_y), (px, py))
-                )
-
+            distance_from_center = [point_distance((center_x, center_y), (px, py)) for px, py in zip(point_x, point_y)]
             distance_idx_max_order = np.argsort(distance_from_center)[::-1]
             self._distance_idx_max_order = distance_idx_max_order[:4]
         return self._distance_idx_max_order
 
     def make_polygon_obj(self):
         point_matrix = np.array(
-            [
-                [self.points[i], self.points[i + 1]]
-                for i in range(0, len(self.points), 2)
-            ],
+            [[self.points[i], self.points[i + 1]] for i in range(0, len(self.points), 2)],
             dtype=np.int32,
         )
         return polygon3.Polygon(point_matrix)
@@ -495,9 +457,7 @@ class POLY(Box):
 
     def make_aspect_ratio(self):
         np.array(np.reshape(self.points, [-1, 2]))
-        rect = custom_MinAreaRect(
-            np.array(np.reshape(self.points, [-1, 2]), dtype=np.float32)
-        )
+        rect = custom_MinAreaRect(np.array(np.reshape(self.points, [-1, 2]), dtype=np.float32))
         width = rect[1][0]
         height = rect[1][1]
 
@@ -505,11 +465,11 @@ class POLY(Box):
 
     def pseudo_character_center(self, vertical_aspect_ratio_threshold):
         if self._pseudo_character_center is None:
-            chars = list()
+            chars = []
             length = len(self.transcription)
 
             # Prepare polygon line estimation with interpolation
-            point_x = self.points[0::2]
+            point_x = self.points[::2]
             point_y = self.points[1::2]
             points_x_top = point_x[: self.num_points // 2]
             points_x_bottom = point_x[self.num_points // 2 :]
@@ -523,8 +483,8 @@ class POLY(Box):
             num_interpolation_section = (self.num_points // 2) - 1
             num_points_to_interpolate = length
 
-            new_point_x_top, new_point_x_bottom = list(), list()
-            new_point_y_top, new_point_y_bottom = list(), list()
+            new_point_x_top, new_point_x_bottom = [], []
+            new_point_y_top, new_point_y_bottom = [], []
 
             for sec_idx in range(num_interpolation_section):
                 start_x_top, end_x_top = (
@@ -546,12 +506,8 @@ class POLY(Box):
 
                 diff_x_top = (end_x_top - start_x_top) / num_points_to_interpolate
                 diff_y_top = (end_y_top - start_y_top) / num_points_to_interpolate
-                diff_x_bottom = (
-                    end_x_bottom - start_x_bottom
-                ) / num_points_to_interpolate
-                diff_y_bottom = (
-                    end_y_bottom - start_y_bottom
-                ) / num_points_to_interpolate
+                diff_x_bottom = (end_x_bottom - start_x_bottom) / num_points_to_interpolate
+                diff_y_bottom = (end_y_bottom - start_y_bottom) / num_points_to_interpolate
 
                 new_point_x_top.append(start_x_top)
                 new_point_x_bottom.append(start_x_bottom)
@@ -560,21 +516,15 @@ class POLY(Box):
 
                 for num_pt in range(1, num_points_to_interpolate):
                     new_point_x_top.append(int(start_x_top + diff_x_top * num_pt))
-                    new_point_x_bottom.append(
-                        int(start_x_bottom + diff_x_bottom * num_pt)
-                    )
+                    new_point_x_bottom.append(int(start_x_bottom + diff_x_bottom * num_pt))
                     new_point_y_top.append(int(start_y_top + diff_y_top * num_pt))
-                    new_point_y_bottom.append(
-                        int(start_y_bottom + diff_y_bottom * num_pt)
-                    )
+                    new_point_y_bottom.append(int(start_y_bottom + diff_y_bottom * num_pt))
             new_point_x_top.append(points_x_top[-1])
             new_point_y_top.append(points_y_top[-1])
             new_point_x_bottom.append(points_x_bottom[-1])
             new_point_y_bottom.append(points_y_bottom[-1])
 
-            len_section_for_single_char = (len(new_point_x_top) - 1) / len(
-                self.transcription
-            )
+            len_section_for_single_char = (len(new_point_x_top) - 1) / len(self.transcription)
 
             for c in range(len(self.transcription)):
                 center_x = (

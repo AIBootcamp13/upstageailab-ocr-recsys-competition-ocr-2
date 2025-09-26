@@ -102,9 +102,7 @@ class SyntheticDatasetGenerator:
             )
 
             # Render text
-            text_region = self.text_renderer.render_text_region(
-                background.copy(), text, (x, y), font_size, color
-            )
+            text_region = self.text_renderer.render_text_region(background.copy(), text, (x, y), font_size, color)
 
             text_regions.append(text_region)
 
@@ -128,9 +126,7 @@ class SyntheticDatasetGenerator:
             "augmented": self.augmentation_pipeline is not None,
         }
 
-        return SyntheticImage(
-            image=background, text_regions=text_regions, metadata=metadata
-        )
+        return SyntheticImage(image=background, text_regions=text_regions, metadata=metadata)
 
     def generate_dataset(
         self,
@@ -194,9 +190,7 @@ class SyntheticDatasetGenerator:
         logger.info(f"Dataset generation complete! Saved to {output_dir}")
         return dataset_entries
 
-    def _create_annotation(
-        self, synthetic_image: SyntheticImage, image_filename: str
-    ) -> Dict[str, Any]:
+    def _create_annotation(self, synthetic_image: SyntheticImage, image_filename: str) -> Dict[str, Any]:
         """Create annotation dictionary for synthetic image.
 
         Args:
@@ -244,9 +238,7 @@ class SyntheticDatasetGenerator:
         output_dir = Path(output_dir)
         augmented_entries = []
 
-        logger.info(
-            f"Generating augmented dataset with factor {augmentation_factor}..."
-        )
+        logger.info(f"Generating augmented dataset with factor {augmentation_factor}...")
 
         for entry in source_dataset:
             image_path = Path(entry["image_path"])
@@ -279,9 +271,7 @@ class SyntheticDatasetGenerator:
 
                 augmented_entries.append(aug_entry)
 
-        logger.info(
-            f"Augmented dataset generation complete! Created {len(augmented_entries)} images"
-        )
+        logger.info(f"Augmented dataset generation complete! Created {len(augmented_entries)} images")
         return augmented_entries
 
 

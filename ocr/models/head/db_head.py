@@ -58,9 +58,7 @@ class DBHead(nn.Module):
             if i == self.upscale - 1:
                 binarize_layers.append(nn.ConvTranspose2d(self.inner_channels, 1, 2, 2))
             else:
-                binarize_layers.append(
-                    nn.ConvTranspose2d(self.inner_channels, self.inner_channels, 2, 2)
-                )
+                binarize_layers.append(nn.ConvTranspose2d(self.inner_channels, self.inner_channels, 2, 2))
                 binarize_layers.append(nn.BatchNorm2d(self.inner_channels))
                 binarize_layers.append(nn.ReLU(inplace=True))
         binarize_layers.append(nn.Sigmoid())
@@ -94,11 +92,7 @@ class DBHead(nn.Module):
         ]
         for i in range(self.upscale):
             if i == self.upscale - 1:
-                thresh_layers.append(
-                    self._init_upsample(
-                        self.inner_channels, out_channels=1, smooth=smooth, bias=bias
-                    )
-                )
+                thresh_layers.append(self._init_upsample(self.inner_channels, out_channels=1, smooth=smooth, bias=bias))
             else:
                 thresh_layers.append(
                     self._init_upsample(
@@ -156,9 +150,7 @@ class DBHead(nn.Module):
 
             # Approximate Binary map
             thresh_binary = self._step_function(binary, thresh)
-            result = OrderedDict(
-                prob_maps=binary, thresh_maps=thresh, binary_maps=thresh_binary
-            )
+            result = OrderedDict(prob_maps=binary, thresh_maps=thresh, binary_maps=thresh_binary)
         else:
             # Probability map only - Inference mode
             result = OrderedDict(prob_maps=binary)

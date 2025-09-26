@@ -6,14 +6,13 @@ This script demonstrates the evaluation viewer functionality
 by loading and analyzing prediction data.
 """
 
-import sys
-from pathlib import Path
 
 import pandas as pd
 
-# Add project root to path
-project_root = Path(__file__).parent
-sys.path.append(str(project_root))
+# Setup project paths automatically
+from ocr.utils.path_utils import get_outputs_path, setup_paths
+
+project_root = setup_paths()
 
 from ui.utils.config_parser import ConfigParser
 
@@ -24,10 +23,10 @@ def main():
     print("=" * 50)
 
     # Initialize config parser
-    config_parser = ConfigParser()
+    ConfigParser()
 
     # Load prediction data
-    predictions_path = project_root / "outputs" / "predictions" / "submission.csv"
+    predictions_path = get_outputs_path() / "predictions" / "submission.csv"
     if not predictions_path.exists():
         print("❌ Prediction file not found. Please run a prediction first.")
         return
@@ -41,22 +40,13 @@ def main():
     print("\n📈 Dataset Overview:")
     print(f"   Total Images: {len(df)}")
 
-    total_polygons = sum(
-        len(str(row["polygons"]).split("|")) if pd.notna(row["polygons"]) else 0
-        for _, row in df.iterrows()
-    )
+    total_polygons = sum(len(str(row["polygons"]).split("|")) if pd.notna(row["polygons"]) else 0 for _, row in df.iterrows())
     print(f"   Total Predictions: {total_polygons}")
 
     avg_polygons = total_polygons / len(df) if len(df) > 0 else 0
     print(f"   Average Predictions/Image: {avg_polygons:.1f}")
 
-    empty_predictions = len(
-        [
-            row
-            for _, row in df.iterrows()
-            if pd.isna(row["polygons"]) or not str(row["polygons"]).strip()
-        ]
-    )
+    empty_predictions = len([row for _, row in df.iterrows() if pd.isna(row["polygons"]) or not str(row["polygons"]).strip()])
     print(f"   Images with No Predictions: {empty_predictions}")
 
     # Prediction analysis
@@ -89,13 +79,9 @@ def main():
             aspect_ratios.append(aspect_ratio)
 
         print(f"   Average Bounding Box Area: {sum(areas)/len(areas):.0f} pixels²")
-        print(
-            f"   Median Bounding Box Area: {sorted(areas)[len(areas)//2]:.0f} pixels²"
-        )
+        print(f"   Median Bounding Box Area: {sorted(areas)[len(areas)//2]:.0f} pixels²")
         print(f"   Average Aspect Ratio: {sum(aspect_ratios)/len(aspect_ratios):.2f}")
-        print(
-            f"   Median Aspect Ratio: {sorted(aspect_ratios)[len(aspect_ratios)//2]:.2f}"
-        )
+        print(f"   Median Aspect Ratio: {sorted(aspect_ratios)[len(aspect_ratios)//2]:.2f}")
     else:
         print("   No valid polygons found")
 
@@ -110,9 +96,7 @@ def main():
         else:
             print(f"   {filename}: No predictions")
 
-    print(
-        "\n✨ Demo completed! Run 'python run_ui.py evaluation_viewer' to launch the interactive UI."
-    )
+    print("\n✨ Demo completed! Run 'python run_ui.py evaluation_viewer' to launch the interactive UI.")
     print("\nThe evaluation viewer provides:")
     print("• 📊 Dataset statistics and distributions")
     print("• 🎯 Prediction analysis and metrics")

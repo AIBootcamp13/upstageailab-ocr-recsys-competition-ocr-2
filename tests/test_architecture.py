@@ -3,7 +3,6 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import torch
-from omegaconf import DictConfig
 
 from ocr.models.architecture import OCRModel
 
@@ -28,17 +27,13 @@ class TestOCRModel:
     @pytest.fixture
     def sample_input(self):
         """Create sample input tensor."""
-        return torch.randn(
-            2, 3, 224, 224
-        )  # batch_size=2, channels=3, height=224, width=224
+        return torch.randn(2, 3, 224, 224)  # batch_size=2, channels=3, height=224, width=224
 
     @patch("ocr.models.architecture.get_encoder_by_cfg")
     @patch("ocr.models.architecture.get_decoder_by_cfg")
     @patch("ocr.models.architecture.get_head_by_cfg")
     @patch("ocr.models.architecture.get_loss_by_cfg")
-    def test_model_initialization(
-        self, mock_loss, mock_head, mock_decoder, mock_encoder, mock_config
-    ):
+    def test_model_initialization(self, mock_loss, mock_head, mock_decoder, mock_encoder, mock_config):
         """Test that OCRModel initializes correctly with mocked components."""
         # Setup mocks
         mock_encoder.return_value = Mock()
@@ -96,9 +91,7 @@ class TestOCRModel:
 
             # Initialize and run model
             model = OCRModel(mock_config)
-            result = model(
-                sample_input, return_loss=True, gt_maps=torch.randn(2, 1, 224, 224)
-            )
+            result = model(sample_input, return_loss=True, gt_maps=torch.randn(2, 1, 224, 224))
 
             # Verify result structure
             assert "maps" in result
@@ -219,6 +212,4 @@ class TestOCRModel:
             result = model.get_polygons_from_maps(gt_maps, pred_maps)
 
             assert result == expected_polygons
-            mock_head_comp.get_polygons_from_maps.assert_called_once_with(
-                gt_maps, pred_maps
-            )
+            mock_head_comp.get_polygons_from_maps.assert_called_once_with(gt_maps, pred_maps)

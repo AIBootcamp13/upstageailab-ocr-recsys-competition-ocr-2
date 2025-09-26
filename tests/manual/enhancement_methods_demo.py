@@ -3,21 +3,22 @@
 Test script to compare conservative vs office-lens enhancement methods on multiple images
 """
 
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-import sys
-import os
 import glob
-from pathlib import Path
+import os
+import sys
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Import our preprocessing module
-sys.path.append('ocr')
+sys.path.append("ocr")
 from ocr.datasets.preprocessing import DocumentPreprocessor
+
 
 def get_sample_images(num_samples=10):
     """Get a list of sample images from the dataset"""
-    image_pattern = 'data/datasets/images/test/*.jpg'
+    image_pattern = "data/datasets/images/test/*.jpg"
     image_paths = glob.glob(image_pattern)
 
     # Shuffle and select the requested number of images
@@ -25,6 +26,7 @@ def get_sample_images(num_samples=10):
     selected_paths = np.random.choice(image_paths, min(num_samples, len(image_paths)), replace=False)
 
     return sorted(selected_paths)
+
 
 def test_enhancement_methods_on_image(image_path):
     """Test both enhancement methods on a single image"""
@@ -41,11 +43,11 @@ def test_enhancement_methods_on_image(image_path):
         enable_enhancement=True,
         enable_text_enhancement=False,
         enhancement_method="conservative",
-        target_size=(640, 640)
+        target_size=(640, 640),
     )
 
     conservative_result = conservative_preprocessor(image)
-    conservative_image = conservative_result['image']
+    conservative_image = conservative_result["image"]
 
     # Test office-lens enhancement
     office_lens_preprocessor = DocumentPreprocessor(
@@ -54,13 +56,14 @@ def test_enhancement_methods_on_image(image_path):
         enable_enhancement=True,
         enable_text_enhancement=False,
         enhancement_method="office_lens",
-        target_size=(640, 640)
+        target_size=(640, 640),
     )
 
     office_lens_result = office_lens_preprocessor(image)
-    office_lens_image = office_lens_result['image']
+    office_lens_image = office_lens_result["image"]
 
     return conservative_image, office_lens_image
+
 
 def create_multi_image_comparison(image_paths, output_dir="enhancement_comparison_samples"):
     """Create comparison visualizations for multiple images"""
@@ -91,31 +94,32 @@ def create_multi_image_comparison(image_paths, output_dir="enhancement_compariso
             continue
 
         # Plot original
-        axes[i, 0].imshow(original_image[:,:,::-1])
-        axes[i, 0].set_title(f'Original\n{os.path.basename(image_path)}')
-        axes[i, 0].axis('off')
+        axes[i, 0].imshow(original_image[:, :, ::-1])
+        axes[i, 0].set_title(f"Original\n{os.path.basename(image_path)}")
+        axes[i, 0].axis("off")
 
         # Plot conservative enhancement
-        axes[i, 1].imshow(conservative_img[:,:,::-1])
-        axes[i, 1].set_title('Conservative\nEnhancement')
-        axes[i, 1].axis('off')
+        axes[i, 1].imshow(conservative_img[:, :, ::-1])
+        axes[i, 1].set_title("Conservative\nEnhancement")
+        axes[i, 1].axis("off")
 
         # Plot office-lens enhancement
-        axes[i, 2].imshow(office_lens_img[:,:,::-1])
-        axes[i, 2].set_title('Office Lens\nEnhancement')
-        axes[i, 2].axis('off')
+        axes[i, 2].imshow(office_lens_img[:, :, ::-1])
+        axes[i, 2].set_title("Office Lens\nEnhancement")
+        axes[i, 2].axis("off")
 
         successful_count += 1
 
     plt.tight_layout()
     comparison_file = f"{output_dir}/enhancement_comparison_{len(image_paths)}_images.png"
-    plt.savefig(comparison_file, dpi=150, bbox_inches='tight')
+    plt.savefig(comparison_file, dpi=150, bbox_inches="tight")
     plt.close()
 
     print(f"\nSuccessfully processed {successful_count}/{len(image_paths)} images")
     print(f"Saved comparison to: {comparison_file}")
 
     return comparison_file
+
 
 def create_individual_comparisons(image_paths, output_dir="enhancement_comparison_samples"):
     """Create individual comparison images for each sample"""
@@ -139,24 +143,25 @@ def create_individual_comparisons(image_paths, output_dir="enhancement_compariso
         # Create individual comparison
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-        axes[0].imshow(original_image[:,:,::-1])
-        axes[0].set_title('Original')
-        axes[0].axis('off')
+        axes[0].imshow(original_image[:, :, ::-1])
+        axes[0].set_title("Original")
+        axes[0].axis("off")
 
-        axes[1].imshow(conservative_img[:,:,::-1])
-        axes[1].set_title('Conservative Enhancement')
-        axes[1].axis('off')
+        axes[1].imshow(conservative_img[:, :, ::-1])
+        axes[1].set_title("Conservative Enhancement")
+        axes[1].axis("off")
 
-        axes[2].imshow(office_lens_img[:,:,::-1])
-        axes[2].set_title('Office Lens Enhancement')
-        axes[2].axis('off')
+        axes[2].imshow(office_lens_img[:, :, ::-1])
+        axes[2].set_title("Office Lens Enhancement")
+        axes[2].axis("off")
 
         plt.tight_layout()
         filename = f"{output_dir}/comparison_{i+1:02d}_{os.path.basename(image_path).replace('.jpg', '.png')}"
-        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.savefig(filename, dpi=150, bbox_inches="tight")
         plt.close()
 
         print(f"  Saved: {filename}")
+
 
 def main():
     num_samples = 10
@@ -183,6 +188,7 @@ def main():
     print("\nEnhancement Methods:")
     print("- Conservative: CLAHE + mild bilateral filter")
     print("- Office Lens: Gamma correction + CLAHE + saturation boost + sharpening + noise reduction")
+
 
 if __name__ == "__main__":
     main()

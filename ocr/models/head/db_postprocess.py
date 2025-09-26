@@ -15,14 +15,11 @@
 import cv2
 import numpy as np
 import pyclipper
-import torch
 from shapely.geometry import Polygon
 
 
 class DBPostProcessor:
-    def __init__(
-        self, thresh=0.3, box_thresh=0.7, max_candidates=1000, use_polygon=False
-    ):
+    def __init__(self, thresh=0.3, box_thresh=0.7, max_candidates=1000, use_polygon=False):
         self.min_size = 3  # minimum size of text region
         self.thresh = thresh  # threshold for binarization
         self.box_thresh = box_thresh  # threshold for text region proposals
@@ -51,9 +48,7 @@ class DBPostProcessor:
         else:
             pred = _pred
 
-        assert (
-            "inverse_matrix" in batch is not None
-        ), "inverse_matrix is required in batch"
+        assert "inverse_matrix" in batch is not None, "inverse_matrix is required in batch"
         inverse_matrix = batch["inverse_matrix"]
 
         # Binarize the prediction
@@ -98,7 +93,7 @@ class DBPostProcessor:
 
     def binarize(self, pred):
         # Binarize the prediction
-        return pred > torch.Tensor([self.thresh]).to(device=pred.device)
+        return pred > self.thresh
 
     def polygons_from_bitmap(self, pred, _bitmap, inverse_matrix=None):
         """
@@ -118,9 +113,7 @@ class DBPostProcessor:
         # Find contours from the binarized map
         # contours: a list of contours
         # https://docs.opencv.org/4.9.0/d4/d73/tutorial_py_contours_begin.html
-        contours, _ = cv2.findContours(
-            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         # Get the top N contours
         for contour in contours[: self.max_candidates]:
@@ -181,9 +174,7 @@ class DBPostProcessor:
         # Find contours from the binarized map
         # contours: a list of contours
         # https://docs.opencv.org/4.9.0/d4/d73/tutorial_py_contours_begin.html
-        contours, _ = cv2.findContours(
-            (bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours((bitmap * 255).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         num_contours = min(len(contours), self.max_candidates)
 
         # Get the top N contours
@@ -234,9 +225,7 @@ class DBPostProcessor:
         distance = poly.area * unclip_ratio / poly.length
         offset = pyclipper.PyclipperOffset()
         offset.AddPath(box, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-        expanded = np.array(offset.Execute(distance)[0])
-
-        return expanded
+        return np.array(offset.Execute(distance)[0])
 
     def get_mini_boxes(self, contour):
         """
@@ -290,6 +279,9 @@ class DBPostProcessor:
         box[:, 0] = box[:, 0] - xmin
         box[:, 1] = box[:, 1] - ymin
 
-        cv2.fillPoly(mask, box.reshape(1, -1, 2).astype(np.int32), 1)
+        # cv2.fillPoly(mask, box.reshape(1, -1, 2).astype(np.int32), (1,))
+
+        # recommended way to pass a single polygon to cv2.fillPoly
+        cv2.fillPoly(mask, [box.reshape(-1, 2).astype(np.int32)], (1,))
 
         return cv2.mean(bitmap[ymin : ymax + 1, xmin : xmax + 1], mask)[0]

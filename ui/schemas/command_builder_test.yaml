@@ -1,0 +1,24 @@
+title: "OCR Testing Command Builder"
+
+constant_overrides:
+  - "models.encoder.model_name=resnet18"
+  - "models.optimizer.lr=0.001"
+
+ui_elements:
+  - key: exp_name
+    type: text_input
+    label: "Experiment Name"
+    default: "ocr_testing"
+    hydra_override: "exp_name"
+    validation:
+      required: true
+      min_length: 3
+
+  - key: checkpoint_path
+    type: selectbox
+    label: "Checkpoint Path"
+    options_source: "checkpoints"
+    default: ""
+    hydra_override: "checkpoint_path"
+    validation:
+      required: true

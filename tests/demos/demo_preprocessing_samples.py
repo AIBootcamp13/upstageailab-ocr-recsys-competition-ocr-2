@@ -9,7 +9,7 @@ to demonstrate the Microsoft Lens-style preprocessing effects.
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,14 +31,14 @@ def load_sample_data(sample_dir: Path, sample_idx: int) -> Dict:
     processed_img = Image.open(processed_files[0])
 
     # Load metadata
-    with open(metadata_files[0], 'r') as f:
+    with open(metadata_files[0], "r") as f:
         metadata = json.load(f)
 
     return {
-        'original': np.array(original_img),
-        'processed': np.array(processed_img),
-        'metadata': metadata,
-        'sample_name': original_files[0].stem.replace('_original', '')
+        "original": np.array(original_img),
+        "processed": np.array(processed_img),
+        "metadata": metadata,
+        "sample_name": original_files[0].stem.replace("_original", ""),
     }
 
 
@@ -47,20 +47,23 @@ def display_sample_comparison(sample_data: Dict, figsize: tuple = (16, 8)):
     fig, axes = plt.subplots(1, 3, figsize=figsize)
 
     # Original image
-    axes[0].imshow(sample_data['original'])
-    axes[0].set_title("Original Image", fontsize=14, fontweight='bold')
-    axes[0].axis('off')
+    axes[0].imshow(sample_data["original"])
+    axes[0].set_title("Original Image", fontsize=14, fontweight="bold")
+    axes[0].axis("off")
 
     # Processed image
-    axes[1].imshow(sample_data['processed'])
-    axes[1].set_title("After Lens-Style Preprocessing", fontsize=14, fontweight='bold')
-    axes[1].axis('off')
+    axes[1].imshow(sample_data["processed"])
+    axes[1].set_title("After Lens-Style Preprocessing", fontsize=14, fontweight="bold")
+    axes[1].axis("off")
 
     # Processing information
-    axes[2].axis('off')
-    metadata = sample_data['metadata']
+    axes[2].axis("off")
+    metadata = sample_data["metadata"]
 
-    info_text = ".1f"".1f"f"""
+    info_text = (
+        ".1f"
+        ".1f"
+        f"""
 Processing Applied:
 {chr(10).join('• ' + step.replace('_', ' ').title() for step in metadata.get('processing_steps', []))}
 
@@ -70,12 +73,20 @@ Enhancements:
 Original Shape: {metadata.get('original_shape', 'N/A')}
 Final Shape: {metadata.get('final_shape', 'N/A')}
 """
+    )
 
-    axes[2].text(0.05, 0.95, info_text, transform=axes[2].transAxes,
-                fontsize=11, verticalalignment='top', fontfamily='monospace',
-                bbox=dict(boxstyle="round,pad=0.5", facecolor='lightgray', alpha=0.8))
+    axes[2].text(
+        0.05,
+        0.95,
+        info_text,
+        transform=axes[2].transAxes,
+        fontsize=11,
+        verticalalignment="top",
+        fontfamily="monospace",
+        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightgray", alpha=0.8),
+    )
 
-    plt.suptitle(f"Sample: {sample_data['sample_name']}", fontsize=16, fontweight='bold', y=0.98)
+    plt.suptitle(f"Sample: {sample_data['sample_name']}", fontsize=16, fontweight="bold", y=0.98)
     plt.tight_layout()
     plt.show()
 
@@ -84,7 +95,7 @@ def display_multiple_samples(sample_dir: Path, num_samples: int = 5, cols: int =
     """Display multiple samples in a grid layout."""
     rows = (num_samples + cols - 1) // cols
 
-    fig, axes = plt.subplots(rows * 2, cols, figsize=(6*cols, 4*rows*2))
+    fig, axes = plt.subplots(rows * 2, cols, figsize=(6 * cols, 4 * rows * 2))
     if rows == 1:
         axes = axes.reshape(2, -1)
 
@@ -92,32 +103,43 @@ def display_multiple_samples(sample_dir: Path, num_samples: int = 5, cols: int =
     for row in range(rows):
         for col in range(cols):
             if sample_idx >= num_samples:
-                axes[row*2, col].axis('off')
-                axes[row*2+1, col].axis('off')
+                axes[row * 2, col].axis("off")
+                axes[row * 2 + 1, col].axis("off")
                 continue
 
             try:
                 sample_data = load_sample_data(sample_dir, sample_idx)
 
                 # Original
-                axes[row*2, col].imshow(sample_data['original'])
-                axes[row*2, col].set_title(f"Sample {sample_idx}\nOriginal", fontsize=10)
-                axes[row*2, col].axis('off')
+                axes[row * 2, col].imshow(sample_data["original"])
+                axes[row * 2, col].set_title(f"Sample {sample_idx}\nOriginal", fontsize=10)
+                axes[row * 2, col].axis("off")
 
                 # Processed
-                axes[row*2+1, col].imshow(sample_data['processed'])
-                axes[row*2+1, col].set_title("Processed", fontsize=10)
-                axes[row*2+1, col].axis('off')
+                axes[row * 2 + 1, col].imshow(sample_data["processed"])
+                axes[row * 2 + 1, col].set_title("Processed", fontsize=10)
+                axes[row * 2 + 1, col].axis("off")
 
             except FileNotFoundError:
-                axes[row*2, col].text(0.5, 0.5, f"Sample {sample_idx}\nNot Found",
-                                     ha='center', va='center', transform=axes[row*2, col].transAxes)
-                axes[row*2, col].axis('off')
-                axes[row*2+1, col].axis('off')
+                axes[row * 2, col].text(
+                    0.5,
+                    0.5,
+                    f"Sample {sample_idx}\nNot Found",
+                    ha="center",
+                    va="center",
+                    transform=axes[row * 2, col].transAxes,
+                )
+                axes[row * 2, col].axis("off")
+                axes[row * 2 + 1, col].axis("off")
 
             sample_idx += 1
 
-    plt.suptitle("Microsoft Lens-Style Preprocessing Samples", fontsize=16, fontweight='bold', y=0.98)
+    plt.suptitle(
+        "Microsoft Lens-Style Preprocessing Samples",
+        fontsize=16,
+        fontweight="bold",
+        y=0.98,
+    )
     plt.tight_layout()
     plt.show()
 
@@ -130,20 +152,20 @@ def display_generation_stats(sample_dir: Path):
         print("❌ Generation report not found. Run sample generation first.")
         return
 
-    with open(report_path, 'r') as f:
+    with open(report_path, "r") as f:
         report = json.load(f)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📊 SAMPLE GENERATION STATISTICS")
-    print("="*60)
+    print("=" * 60)
 
-    summary = report['generation_summary']
+    summary = report["generation_summary"]
     print(f"Total Samples: {summary['total_samples']}")
     print(f"Successful: {summary['successful_samples']}")
     print(f"Failed: {summary['failed_samples']}")
     print(".1f")
 
-    config = report['preprocessing_config']
+    config = report["preprocessing_config"]
     print("\n🔧 Preprocessing Configuration:")
     print(f"   Document Detection: {config['enable_document_detection']}")
     print(f"   Perspective Correction: {config['enable_perspective_correction']}")
@@ -151,28 +173,37 @@ def display_generation_stats(sample_dir: Path):
     print(f"   Text Enhancement: {config['enable_text_enhancement']}")
     print(f"   Target Size: {config['target_size']}")
 
-    if 'processing_steps_stats' in report and report['processing_steps_stats']:
+    if "processing_steps_stats" in report and report["processing_steps_stats"]:
         print("\n📈 Processing Steps Applied:")
-        for step, count in report['processing_steps_stats'].items():
+        for step, count in report["processing_steps_stats"].items():
             print(f"   {step.replace('_', ' ').title()}: {count} samples")
 
     print(f"\n📁 Output Directory: {sample_dir}")
-    print("="*60)
+    print("=" * 60)
 
 
 def main():
     """Main demo function."""
     parser = argparse.ArgumentParser(description="Visualize offline preprocessing samples")
-    parser.add_argument("--sample-dir", default="outputs/samples",
-                       help="Directory containing generated samples")
-    parser.add_argument("--mode", choices=['single', 'grid', 'stats'],
-                       default='grid', help="Display mode")
-    parser.add_argument("--sample-idx", type=int, default=0,
-                       help="Sample index for single mode")
-    parser.add_argument("--num-samples", type=int, default=5,
-                       help="Number of samples to display in grid mode")
-    parser.add_argument("--cols", type=int, default=3,
-                       help="Number of columns in grid mode")
+    parser.add_argument(
+        "--sample-dir",
+        default="outputs/samples",
+        help="Directory containing generated samples",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["single", "grid", "stats"],
+        default="grid",
+        help="Display mode",
+    )
+    parser.add_argument("--sample-idx", type=int, default=0, help="Sample index for single mode")
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=5,
+        help="Number of samples to display in grid mode",
+    )
+    parser.add_argument("--cols", type=int, default=3, help="Number of columns in grid mode")
 
     args = parser.parse_args()
 
@@ -183,15 +214,15 @@ def main():
         print("Run 'python generate_offline_samples.py' first to generate samples.")
         return
 
-    if args.mode == 'stats':
+    if args.mode == "stats":
         display_generation_stats(sample_dir)
-    elif args.mode == 'single':
+    elif args.mode == "single":
         try:
             sample_data = load_sample_data(sample_dir, args.sample_idx)
             display_sample_comparison(sample_data)
         except FileNotFoundError:
             print(f"❌ Sample {args.sample_idx} not found")
-    elif args.mode == 'grid':
+    elif args.mode == "grid":
         display_multiple_samples(sample_dir, args.num_samples, args.cols)
 
 

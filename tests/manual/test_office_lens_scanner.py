@@ -3,11 +3,12 @@
 Test script for the document scanner implementation from documment_scanner_nb.py
 """
 
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-import sys
 import os
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 def imshow(im, title="Image"):
     """Display image using matplotlib"""
@@ -15,36 +16,41 @@ def imshow(im, title="Image"):
     width, height, *channels = im.shape
     if channels:
         # Convert BGR to RGB for matplotlib
-        plt.imshow(im[:,:,::-1])
+        plt.imshow(im[:, :, ::-1])
     else:
-        plt.imshow(im, cmap='gray')
+        plt.imshow(im, cmap="gray")
     plt.title(title)
-    plt.axis('off')
+    plt.axis("off")
     plt.show()
+
 
 def reorder(vertices):
     """Reorder vertices in consistent order: top-left, top-right, bottom-right, bottom-left"""
     reordered = np.zeros_like(vertices, dtype=np.float32)
     add = vertices.sum(1)
-    reordered[0] = vertices[np.argmin(add)]      # top-left
-    reordered[2] = vertices[np.argmax(add)]      # bottom-right
+    reordered[0] = vertices[np.argmin(add)]  # top-left
+    reordered[2] = vertices[np.argmax(add)]  # bottom-right
     diff = np.diff(vertices, axis=1)
-    reordered[1] = vertices[np.argmin(diff)]     # top-right
-    reordered[3] = vertices[np.argmax(diff)]     # bottom-left
+    reordered[1] = vertices[np.argmin(diff)]  # top-right
+    reordered[3] = vertices[np.argmax(diff)]  # bottom-left
     return reordered
+
 
 def to_grayscale(im):
     """Convert image to grayscale"""
     return cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
+
 def blur(im):
     """Apply Gaussian blur"""
     return cv2.GaussianBlur(im, (3, 3), 0)
+
 
 def to_edges(im):
     """Apply Canny edge detection"""
     edges = cv2.Canny(im, 50, 150)
     return edges
+
 
 def find_vertices(im):
     """Find document vertices using contour detection"""
@@ -79,30 +85,26 @@ def find_vertices(im):
     vertices = reorder(vertices)
     return vertices
 
+
 def crop_out(im, vertices):
     """Apply perspective transform to crop out document"""
     width = 600
     height = 850
 
-    target = np.array([
-        [0, 0],
-        [width, 0],
-        [width, height],
-        [0, height]
-    ], dtype=np.float32)
+    target = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
 
     transform = cv2.getPerspectiveTransform(vertices, target)
     cropped = cv2.warpPerspective(im, transform, (width, height))
 
     return cropped
 
+
 def enhance(im):
     """Apply image enhancement"""
     # Mild color correction
     gamma = 1.1
     inv_gamma = 1.0 / gamma
-    table = np.array([((i / 255.0) ** inv_gamma) * 255
-                    for i in np.arange(0, 256)]).astype("uint8")
+    table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
     corrected = cv2.LUT(im, table)
 
     # LAB Color Space
@@ -137,6 +139,7 @@ def enhance(im):
     final = cv2.bilateralFilter(sharpened, 9, 75, 75)
     return final
 
+
 def scan(im):
     """Complete document scanning pipeline"""
     print("Step 1: Converting to grayscale...")
@@ -160,9 +163,10 @@ def scan(im):
 
     return enhanced_img, vertices
 
+
 def main():
     # Test image path
-    image_path = 'data/datasets/images/test/drp.en_ko.in_house.selectstar_000017.jpg'
+    image_path = "data/datasets/images/test/drp.en_ko.in_house.selectstar_000017.jpg"
 
     if not os.path.exists(image_path):
         print(f"Error: Image not found at {image_path}")
@@ -182,7 +186,7 @@ def main():
     scanned, vertices = scan(im)
 
     # Save result
-    output_path = 'scanned_office_lens_test.jpg'
+    output_path = "scanned_office_lens_test.jpg"
     cv2.imwrite(output_path, scanned)
     print(f"\nSaved scanned image to: {output_path}")
 
@@ -192,23 +196,23 @@ def main():
         plt.figure(figsize=(15, 5))
 
         plt.subplot(1, 3, 1)
-        plt.imshow(im[:,:,::-1])
-        plt.title('Original')
-        plt.axis('off')
+        plt.imshow(im[:, :, ::-1])
+        plt.title("Original")
+        plt.axis("off")
 
         plt.subplot(1, 3, 2)
-        plt.imshow(im[:,:,::-1])
-        plt.scatter([x for x, y in vertices], [y for x, y in vertices], c='red', s=50)
-        plt.title('Detected Corners')
-        plt.axis('off')
+        plt.imshow(im[:, :, ::-1])
+        plt.scatter([x for x, y in vertices], [y for x, y in vertices], c="red", s=50)
+        plt.title("Detected Corners")
+        plt.axis("off")
 
         plt.subplot(1, 3, 3)
-        plt.imshow(scanned[:,:,::-1])
-        plt.title('Scanned Result')
-        plt.axis('off')
+        plt.imshow(scanned[:, :, ::-1])
+        plt.title("Scanned Result")
+        plt.axis("off")
 
         plt.tight_layout()
-        plt.savefig('scanning_comparison.png', dpi=150, bbox_inches='tight')
+        plt.savefig("scanning_comparison.png", dpi=150, bbox_inches="tight")
         plt.show()
 
         print("Saved comparison image to: scanning_comparison.png")
@@ -217,6 +221,7 @@ def main():
         print("Matplotlib not available for visualization")
 
     print("\n=== Document Scanning Complete ===")
+
 
 if __name__ == "__main__":
     main()

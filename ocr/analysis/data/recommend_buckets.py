@@ -6,11 +6,13 @@ Input metadata JSON format (produced by scripts/gen_image_metadata.py):
 
 Heuristics:
 - Compute short-side quantiles (q25,q50,q75) and propose thresholds just above them.
-- Each bucket target size chosen so that average short side within bucket scales to ~desired_short_target (default 640) or higher for tiny.
+- Each bucket target size chosen so that average short side within bucket scales to \
+  ~desired_short_target (default 640) or higher for tiny.
 - Optionally clamp max upscale factor.
 
 Usage:
-  python -m scripts.recommend_buckets --metadata data/ICDAR17_full_dataset_tiny_small/metadata.json
+  python -m scripts.recommend_buckets \
+    --metadata data/ICDAR17_full_dataset_tiny_small/metadata.json
 
 Output: YAML snippet printed to stdout you can paste into training config.
 """
@@ -19,9 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import statistics
 import sys
-from pathlib import Path
 
 import numpy as np
 
@@ -58,16 +58,16 @@ def main():
     with open(args.metadata, "r") as f:
         meta = json.load(f)["meta"]
 
-    shorts = np.array(
-        [
-            v["short"]
-            for v in meta.values()
-            if (
-                "short" in v and isinstance(v["short"], (int, float)) and v["short"] > 0
-            )
-        ],
-        dtype=np.float32,
-    )
+    skipped_count = 0
+    shorts_list = []
+    for v in meta.values():
+        if "short" in v and isinstance(v["short"], (int, float)) and v["short"] > 0:
+            shorts_list.append(v["short"])
+        else:
+            skipped_count += 1
+    if skipped_count > 0:
+        print(f"Skipped {skipped_count} entries with missing or invalid 'short' values.", file=sys.stderr)
+    shorts = np.array(shorts_list, dtype=np.float32)
     if shorts.size == 0:
         print("No valid entries.", file=sys.stderr)
         return
@@ -90,10 +90,12 @@ def main():
         if len(buckets) == 0:
             target_short = args.desired_short * args.tiny_boost
         else:
-            target_short = args.desired_short * (1.0 - 0.1 * (len(buckets) - 1))
-            target_short = max(
-                target_short, args.desired_short * 0.1
-            )  # Prevent negative or too small values
+            # Scale down target_short with more buckets, but do not go below 50% of desired_short
+            min_target_short = args.desired_short * 0.5
+            scale = max(1.0 - 0.1 * (len(buckets) - 1), 0.5)
+            target_short = args.desired_short * scale
+            target_short = max(target_short, min_target_short)
+            # This prevents target_short from becoming too small with many buckets
         # Prevent excessive upscale
         max_allowed = mean_short * args.max_upscale
         # Round up to multiple
@@ -113,7 +115,7 @@ def main():
     print("# --- Recommended bucket_resize config snippet ---")
     print("bucket_resize:")
     print("  enabled: true")
-    print(f"  metadata_path: <PATH_TO_METADATA_JSON>")
+    print("  metadata_path: <PATH_TO_METADATA_JSON>")
     print(f"  thresholds: {cfg_thresholds}")
     print(f"  sizes: {sizes}")
     print("  epoch_mode: sequential")

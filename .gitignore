@@ -103,3 +103,4 @@ docs
 data/datasets/
 data/pseudo_label/
 
+lightning_logs/

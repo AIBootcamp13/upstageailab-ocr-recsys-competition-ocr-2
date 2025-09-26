@@ -1,11 +1,12 @@
 # %% [markdown]
 # # Imports
 
+import logging
+
 # %%
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
-import logging
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,20 +15,25 @@ logger = logging.getLogger(__name__)
 # %% [markdown]
 # # Utilities
 
+
 # %%
 def imshow(im):
     # If the image is grayscale (2D), show it with a grayscale colormap.
     if len(im.shape) == 2:
-        plt.imshow(im, cmap='gray')
+        plt.imshow(im, cmap="gray")
     else:
         # If the image is color (3D), convert from BGR (OpenCV's default) to RGB for Matplotlib.
         plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
-    plt.axis('off')
+    plt.axis("off")
+
 
 # %%
 def reorder(vertices):
     # Reorders the 4 vertices into a consistent order: top-left, top-right, bottom-right, bottom-left
-    assert vertices.shape == (4, 2), f"Input vertices must have shape (4, 2), got {vertices.shape}"
+    assert vertices.shape == (
+        4,
+        2,
+    ), f"Input vertices must have shape (4, 2), got {vertices.shape}"
 
     reordered = np.zeros_like(vertices, dtype=np.float32)
     add = vertices.sum(1)
@@ -38,13 +44,14 @@ def reorder(vertices):
     reordered[3] = vertices[np.argmax(diff)]
     return reordered
 
+
 # %% [markdown]
 # # Image
 
 # %%
 # Load the image
-im = cv2.imread('data/datasets/images/test/drp.en_ko.in_house.selectstar_000017.jpg')
-imshow(im) # We'll show the final result at the end
+im = cv2.imread("../../data/datasets/images/test/drp.en_ko.in_house.selectstar_000017.jpg")
+imshow(im)  # We'll show the final result at the end
 
 # %% [markdown]
 # # Process
@@ -52,20 +59,25 @@ imshow(im) # We'll show the final result at the end
 # %% [markdown]
 # ## Grayscale Transform
 
+
 # %%
 def to_grayscale(im):
     return cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
+
 # %% [markdown]
 # ## Blurring the Image
+
 
 # %%
 def blur(im):
     # Using a slightly larger kernel can help reduce noise for edge detection
     return cv2.GaussianBlur(im, (5, 5), 0)
 
+
 # %% [markdown]
 # ## Edge Detection
+
 
 # %%
 def to_edges(im):
@@ -99,8 +111,10 @@ def to_edges(im):
 
     return edges
 
+
 # %% [markdown]
 # ## Contour Detection
+
 
 # %%
 def find_best_quadrilateral_corners(points):
@@ -150,6 +164,7 @@ def find_best_quadrilateral_corners(points):
 
     return None
 
+
 def find_vertices(im, kernel_size=5, iterations=3, epsilon_factor=0.02):
     """
     Find document vertices using improved contour detection optimized for documents.
@@ -159,7 +174,11 @@ def find_vertices(im, kernel_size=5, iterations=3, epsilon_factor=0.02):
     # Try multiple dilation strategies
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     dilated1 = cv2.dilate(edges, kernel, iterations=iterations)
-    dilated2 = cv2.dilate(edges, cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size)), iterations=iterations)
+    dilated2 = cv2.dilate(
+        edges,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size)),
+        iterations=iterations,
+    )
 
     # Find contours on both dilated versions
     contours1, _ = cv2.findContours(dilated1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -215,6 +234,7 @@ def find_vertices(im, kernel_size=5, iterations=3, epsilon_factor=0.02):
     # If no valid quadrilateral found, return None
     return None
 
+
 def _is_reasonable_document(vertices, img_height, img_width):
     """
     Check if detected quadrilateral is a reasonable document candidate.
@@ -256,8 +276,10 @@ def _is_reasonable_document(vertices, img_height, img_width):
 
     return True
 
+
 # %% [markdown]
 # ## Perspective Transform
+
 
 # %%
 def fallback_crop(im):
@@ -276,9 +298,7 @@ def fallback_crop(im):
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
         # Use adaptive thresholding to find text regions
-        thresh = cv2.adaptiveThreshold(
-            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
-        )
+        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
         # Apply morphological operations to clean up noise
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -322,7 +342,7 @@ def fallback_crop(im):
             return im
 
         # Crop the region
-        cropped = im[y:y+h, x:x+w]
+        cropped = im[y : y + h, x : x + w]
 
         logger.info(f"Fallback cropping applied. Region: ({x}, {y}, {w}, {h}) -> Output size: {cropped.shape}")
         return cropped
@@ -330,6 +350,7 @@ def fallback_crop(im):
     except Exception as e:
         logger.error(f"Fallback cropping failed: {e}, returning original image")
         return im
+
 
 def crop_out(im, vertices):
     """
@@ -375,12 +396,10 @@ def crop_out(im, vertices):
     maxHeight = max(maxHeight, 50)
 
     # Define the destination points for the warp based on the calculated dimensions
-    target = np.array([
-        [0, 0],
-        [maxWidth - 1, 0],
-        [maxWidth - 1, maxHeight - 1],
-        [0, maxHeight - 1]
-    ], dtype=np.float32)
+    target = np.array(
+        [[0, 0], [maxWidth - 1, 0], [maxWidth - 1, maxHeight - 1], [0, maxHeight - 1]],
+        dtype=np.float32,
+    )
 
     try:
         transform = cv2.getPerspectiveTransform(vertices.astype(np.float32), target)
@@ -389,6 +408,7 @@ def crop_out(im, vertices):
     except Exception as e:
         logger.error(f"Perspective transform failed: {e}, using fallback cropping")
         return fallback_crop(im)
+
 
 def _is_valid_quadrilateral(vertices):
     """
@@ -434,7 +454,7 @@ def _is_valid_quadrilateral(vertices):
     # Check that points are reasonably spread out
     distances = []
     for i in range(4):
-        for j in range(i+1, 4):
+        for j in range(i + 1, 4):
             dist = np.linalg.norm(vertices[i] - vertices[j])
             distances.append(dist)
 
@@ -446,14 +466,13 @@ def _is_valid_quadrilateral(vertices):
 
     # Check area using shoelace formula
     x, y = vertices[:, 0], vertices[:, 1]
-    area = 0.5 * abs(
-        x[0]*y[1] + x[1]*y[2] + x[2]*y[3] + x[3]*y[0] -
-        (x[1]*y[0] + x[2]*y[1] + x[3]*y[2] + x[0]*y[3])
-    )
+    area = 0.5 * abs(x[0] * y[1] + x[1] * y[2] + x[2] * y[3] + x[3] * y[0] - (x[1] * y[0] + x[2] * y[1] + x[3] * y[2] + x[0] * y[3]))
     return area > 100  # Minimum area threshold
+
 
 # %% [markdown]
 # ## Image Enhancement
+
 
 # %%
 def enhance(im, block_size=21, C=10):
@@ -489,17 +508,20 @@ def enhance(im, block_size=21, C=10):
     # 3. Use adaptive thresholding to create a clean, high-contrast binary image.
     # This is highly effective for documents with varying lighting.
     enhanced = cv2.adaptiveThreshold(
-        gray, 255,
+        gray,
+        255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY,
         block_size,  # Configurable block size
-        C            # Configurable constant
+        C,  # Configurable constant
     )
 
     return enhanced
 
+
 # %% [markdown]
 # ## Result
+
 
 # %%
 def scan(im, logger=None):
@@ -535,7 +557,14 @@ def scan(im, logger=None):
             logger.warning("Document outline not found, enhancing original image.")
             # Convert original to grayscale and apply adaptive threshold
             gray_original = to_grayscale(original_im)
-            return cv2.adaptiveThreshold(gray_original, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10)
+            return cv2.adaptiveThreshold(
+                gray_original,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                21,
+                10,
+            )
 
         logger.info(f"Document detected with vertices: {vertices}")
         cropped = crop_out(im, vertices)
@@ -549,11 +578,19 @@ def scan(im, logger=None):
         # Return enhanced original as fallback
         logger.warning("Returning enhanced original image due to processing error")
         gray_original = to_grayscale(original_im)
-        return cv2.adaptiveThreshold(gray_original, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 10)
+        return cv2.adaptiveThreshold(
+            gray_original,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            21,
+            10,
+        )
+
 
 # %%
 scanned = scan(im)
 imshow(scanned)
 
 # %%
-cv2.imwrite('scanned_improved2.jpg', scanned)
+cv2.imwrite("scanned_improved2.jpg", scanned)

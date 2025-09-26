@@ -46,9 +46,7 @@ def run_experiments(ablation_type: str, tag: str, configs: list = None):
     print(f"Running: {' '.join(cmd)}")
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=Path(__file__).parent
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).parent)
 
         if result.returncode == 0:
             print("✅ Experiments completed successfully!")
@@ -80,9 +78,7 @@ def collect_results(project: str, tag: str, output_file: str):
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=Path(__file__).parent
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).parent)
 
         if result.returncode == 0:
             print("✅ Results collected successfully!")
@@ -125,9 +121,7 @@ def generate_table(
         cmd.extend(["--output-latex", output_latex])
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=Path(__file__).parent
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).parent)
 
         if result.returncode == 0:
             print("✅ Table generated successfully!")
@@ -143,9 +137,7 @@ def generate_table(
         return False
 
 
-def create_visualization(
-    input_file: str, ablation_type: str, metric: str, output_file: str
-):
+def create_visualization(input_file: str, ablation_type: str, metric: str, output_file: str):
     """Create visualization of ablation results."""
     print(f"📈 Creating visualization...")
 
@@ -207,22 +199,12 @@ def main():
         help="Type of ablation study",
     )
     parser.add_argument("--tag", required=True, help="Experiment tag for tracking")
-    parser.add_argument(
-        "--configs", nargs="+", help="Additional config overrides for custom ablation"
-    )
+    parser.add_argument("--configs", nargs="+", help="Additional config overrides for custom ablation")
     parser.add_argument("--project", default="OCR_Ablation", help="wandb project name")
-    parser.add_argument(
-        "--metric", default="val/hmean", help="Primary metric for comparison"
-    )
-    parser.add_argument(
-        "--skip-experiments", action="store_true", help="Skip running experiments"
-    )
-    parser.add_argument(
-        "--skip-collection", action="store_true", help="Skip result collection"
-    )
-    parser.add_argument(
-        "--skip-table", action="store_true", help="Skip table generation"
-    )
+    parser.add_argument("--metric", default="val/hmean", help="Primary metric for comparison")
+    parser.add_argument("--skip-experiments", action="store_true", help="Skip running experiments")
+    parser.add_argument("--skip-collection", action="store_true", help="Skip result collection")
+    parser.add_argument("--skip-table", action="store_true", help="Skip table generation")
     parser.add_argument("--skip-viz", action="store_true", help="Skip visualization")
 
     args = parser.parse_args()
@@ -265,9 +247,7 @@ def main():
         print("STEP 3: GENERATING TABLES")
         print("=" * 60)
 
-        success = generate_table(
-            results_file, args.ablation, args.metric, table_md_file, table_latex_file
-        )
+        success = generate_table(results_file, args.ablation, args.metric, table_md_file, table_latex_file)
         if not success:
             print("❌ Workflow failed at table generation stage")
             sys.exit(1)

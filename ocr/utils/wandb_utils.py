@@ -3,6 +3,7 @@
 
 import hashlib
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -10,6 +11,32 @@ import torch
 from omegaconf import DictConfig
 
 import wandb
+
+
+def load_env_variables():
+    """Load environment variables from .env file if it exists."""
+    env_file = Path(".env")
+    if env_file.exists():
+        try:
+            with open(env_file, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        if "=" in line:
+                            key, value = line.split("=", 1)
+                            key = key.strip()
+                            value = value.strip().strip('"').strip("'")  # Remove quotes
+                            os.environ[key] = value
+                            # Auto-login to WandB if API key is provided
+                            if key == "WANDB_API_KEY" and value:
+                                try:
+                                    import wandb
+
+                                    wandb.login(key=value)
+                                except Exception as e:
+                                    print(f"Warning: Failed to login to WandB: {e}")
+        except Exception as e:
+            print(f"Warning: Failed to load .env file: {e}")
 
 
 def generate_run_name(cfg: DictConfig) -> str:
@@ -20,21 +47,33 @@ def generate_run_name(cfg: DictConfig) -> str:
     Else:
         <user>_<model>-b<bs>-lr<lr>_SCORE_PLACEHOLDER
     """
-    user_prefix = cfg.wandb.get("user_prefix", "user")
-    model_name = cfg.model.get("name", "model").replace("_", "-")
-    batch_size = cfg.data.get("batch_size", "N/A")
-    lr_float = cfg.training.get("learning_rate", 0)
+    # Handle case where wandb is just a boolean flag
+    if isinstance(cfg.wandb, bool):
+        wandb_config: dict = {}
+    else:
+        wandb_config = cfg.wandb or {}
+
+    # Get user prefix from environment variable or config
+    user_prefix = os.environ.get("WANDB_USER", wandb_config.get("user_prefix", "user"))
+
+    # Get model name and make it concise
+    model_name = getattr(cfg, "model", {}).get("name", "model") if hasattr(cfg, "model") else "model"
+    # Extract concise model name (remove common prefixes/suffixes)
+    model_name = model_name.replace("model_", "").replace("_model", "").replace("encoder_", "").replace("_encoder", "")
+    model_name = model_name.replace("_", "-")
+
+    batch_size = cfg.data.get("batch_size", "N/A") if hasattr(cfg, "data") else "N/A"
+    lr_float = getattr(cfg, "training", {}).get("learning_rate", 0) if hasattr(cfg, "training") else 0
     lr_str = f"{lr_float:.0e}".replace("e-0", "e")
+
     # Prefer wandb.experiment_tag; fall back to top-level or data tag
-    tag = (
-        cfg.wandb.get("experiment_tag")
-        or getattr(cfg, "experiment_tag", None)
-        or getattr(cfg.data, "experiment_tag", None)
-    )
+    tag = wandb_config.get("experiment_tag") or getattr(cfg, "experiment_tag", None) or getattr(cfg.data, "experiment_tag", None)
     if tag:
         tag = str(tag).strip().replace(" ", "-").replace("/", "-")[:40]
+
     model_details_parts = [model_name, f"b{batch_size}", f"lr{lr_str}"]
     model_details = "-".join(filter(None, model_details_parts))
+
     if tag:
         core = f"{user_prefix}_{tag}_{model_details}"
     else:
@@ -61,9 +100,7 @@ def finalize_run(final_loss: float):
     wandb.finish()
 
 
-def log_validation_images(
-    images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: int = 42, filenames=None
-):
+def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: int = 42, filenames=None):
     """Logs images with ground truth (green) and predicted (red) boxes to W&B.
 
     Adds a compact legend overlay and samples up to `limit` images with a fixed seed
@@ -139,17 +176,29 @@ def log_validation_images(
 
         # Draw ground truth boxes (in green)
         for box in gt_iter:
-            box = np.array(box).reshape(4, 2).astype(np.int32)
-            cv2.polylines(
-                img_to_draw, [box], isClosed=True, color=(0, 255, 0), thickness=2
-            )
+            box_array = np.array(box).reshape(-1, 2).astype(np.int32)
+            # Handle polygons with different numbers of points
+            if len(box_array) >= 3:  # Need at least 3 points for a polygon
+                cv2.polylines(
+                    img_to_draw,
+                    [box_array],
+                    isClosed=True,
+                    color=(0, 255, 0),
+                    thickness=2,
+                )
 
         # Draw predicted boxes (in red)
         for box in pred_iter:
-            box = np.array(box).reshape(4, 2).astype(np.int32)
-            cv2.polylines(
-                img_to_draw, [box], isClosed=True, color=(255, 0, 0), thickness=2
-            )
+            box_array = np.array(box).reshape(-1, 2).astype(np.int32)
+            # Handle polygons with different numbers of points
+            if len(box_array) >= 3:  # Need at least 3 points for a polygon
+                cv2.polylines(
+                    img_to_draw,
+                    [box_array],
+                    isClosed=True,
+                    color=(255, 0, 0),
+                    thickness=2,
+                )
 
         # Add small legend (top-left)
         legend_h = 36
@@ -188,8 +237,8 @@ def log_validation_images(
         sizes.append(img_uint8.shape[:2])  # (H, W)
         # Filename & original dims if provided.
         # NOTE: Use original sampled index `i` (not the display ordering `rank`).
-        # Previous implementation used `rank`, which reorders images by (GT/PRED presence)
-        # causing filename/image mismatches in W&B captions.
+        # Previous implementation used `rank`, which reorders images by
+        # (GT/PRED presence) causing filename/image mismatches in W&B captions.
         fname = "(unknown)"
         orig_w = -1
         orig_h = -1

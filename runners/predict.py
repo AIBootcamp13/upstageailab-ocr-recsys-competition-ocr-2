@@ -1,10 +1,13 @@
 import os
-import sys
 
 import hydra
 import lightning.pytorch as pl
 
-sys.path.append(os.getcwd())
+# Setup project paths automatically
+from ocr.utils.path_utils import setup_paths
+
+setup_paths()
+
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"

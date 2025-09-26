@@ -7,7 +7,6 @@ without wandb for testing purposes.
 """
 
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -47,18 +46,14 @@ experiment_tag: "demo_lr_ablation"
     ]
 
     try:
-        result = subprocess.run(
-            cmd, cwd=Path(__file__).parent, capture_output=True, text=True
-        )
+        result = subprocess.run(cmd, cwd=Path(__file__).parent, capture_output=True, text=True)
 
         if result.returncode == 0:
             print("✅ Demo experiments completed!")
             print("\nNext steps for full ablation studies:")
             print("1. Enable wandb: Set wandb=true in configs")
             print("2. Use multirun: Add -m flag for parallel execution")
-            print(
-                "3. Collect results: python collect_results.py --project OCR_Ablation --tag demo_lr_ablation"
-            )
+            print("3. Collect results: python collect_results.py --project OCR_Ablation --tag demo_lr_ablation")
             print(
                 "4. Generate table: python generate_ablation_table.py --input results.csv --ablation-type learning_rate --metric val/hmean"
             )

@@ -109,9 +109,7 @@ class DBCollateFN:
                     (height, width),
                 )
 
-                distance_map = np.zeros(
-                    (polygon.shape[0], height, width), dtype=np.float32
-                )
+                distance_map = np.zeros((polygon.shape[0], height, width), dtype=np.float32)
                 for i in range(polygon.shape[0]):
                     j = (i + 1) % polygon.shape[0]
                     absolute_distance = self.distance(xs, ys, polygon[i], polygon[j])
@@ -123,17 +121,13 @@ class DBCollateFN:
                 ymin_valid = min(max(0, ymin), thresh_map.shape[0] - 1)
                 ymax_valid = min(max(0, ymax), thresh_map.shape[0] - 1)
 
-                thresh_map[ymin_valid : ymax_valid + 1, xmin_valid : xmax_valid + 1] = (
-                    np.fmax(
-                        1
-                        - distance_map[
-                            ymin_valid - ymin : ymax_valid - ymax + height,
-                            xmin_valid - xmin : xmax_valid - xmax + width,
-                        ],  # noqa
-                        thresh_map[
-                            ymin_valid : ymax_valid + 1, xmin_valid : xmax_valid + 1
-                        ],
-                    )
+                thresh_map[ymin_valid : ymax_valid + 1, xmin_valid : xmax_valid + 1] = np.fmax(
+                    1
+                    - distance_map[
+                        ymin_valid - ymin : ymax_valid - ymax + height,
+                        xmin_valid - xmin : xmax_valid - xmax + width,
+                    ],  # noqa
+                    thresh_map[ymin_valid : ymax_valid + 1, xmin_valid : xmax_valid + 1],
                 )
 
         # Normalize the threshold map
@@ -151,22 +145,14 @@ class DBCollateFN:
         height, width = xs.shape[:2]
         square_distance_1 = np.square(xs - point_1[0]) + np.square(ys - point_1[1])
         square_distance_2 = np.square(xs - point_2[0]) + np.square(ys - point_2[1])
-        square_distance = (
-            np.square(point_1[0] - point_2[0])
-            + np.square(point_1[1] - point_2[1])
-            + np.finfo(float).eps
-        )
+        square_distance = np.square(point_1[0] - point_2[0]) + np.square(point_1[1] - point_2[1]) + np.finfo(float).eps
 
         denom = 2 * np.sqrt(square_distance_1 * square_distance_2) + np.finfo(float).eps
         cosin = (square_distance - square_distance_1 - square_distance_2) / denom
         square_sin = 1 - np.square(cosin)
         square_sin = np.nan_to_num(square_sin)
-        result = np.sqrt(
-            square_distance_1 * square_distance_2 * square_sin / square_distance
-        )
+        result = np.sqrt(square_distance_1 * square_distance_2 * square_sin / square_distance)
 
-        result[cosin < 0] = np.sqrt(np.fmin(square_distance_1, square_distance_2))[
-            cosin < 0
-        ]
+        result[cosin < 0] = np.sqrt(np.fmin(square_distance_1, square_distance_2))[cosin < 0]
         # self.extend_line(point_1, point_2, result)
         return result

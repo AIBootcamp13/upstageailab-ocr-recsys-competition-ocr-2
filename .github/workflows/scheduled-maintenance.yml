@@ -1,0 +1,117 @@
+name: Scheduled Code Quality
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  code-quality-maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v1
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run comprehensive code quality checks
+        id: quality-check
+        run: |
+          echo "Running pre-commit checks..."
+          uv run pre-commit run --all-files
+
+          echo "Checking for changes..."
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "📝 Code quality issues found and fixed"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "✅ No code quality issues found"
+          fi
+
+      - name: Create maintenance PR
+        if: steps.quality-check.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🤖 Weekly code quality maintenance"
+          title: "🤖 Automated Code Quality Maintenance"
+          body: |
+            ## 🤖 Automated Code Quality Maintenance
+
+            This PR contains automated fixes for code quality issues detected during weekly maintenance:
+
+            - Code formatting (Black)
+            - Import sorting (isort)
+            - Linting fixes (flake8)
+            - Type checking improvements
+            - Unused import removal
+            - Other code quality improvements
+
+            ### Changes Made
+            - Applied Black code formatting
+            - Sorted imports with isort
+            - Fixed flake8 violations
+            - Removed unused imports and variables
+            - Applied other automated code quality fixes
+
+            ---
+            *This PR was automatically created by the weekly code quality maintenance workflow.*
+          branch: automated/code-quality-maintenance
+          delete-branch: true
+          labels: |
+            automated
+            maintenance
+            code-quality
+
+      - name: Create issue for manual review
+        if: steps.quality-check.outputs.changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🤖 Code Quality Maintenance Applied',
+              body: `## 🤖 Code Quality Maintenance Applied
+
+            The weekly automated code quality maintenance has detected and fixed issues in the codebase.
+
+            ### What Happened
+            - Automated tools (Black, isort, flake8, autoflake) found and fixed code quality issues
+            - A maintenance PR has been created with the fixes
+            - Please review the changes before merging
+
+            ### Next Steps
+            1. Review the automated PR: \`automated/code-quality-maintenance\`
+            2. Test the changes to ensure functionality is preserved
+            3. Merge the PR if everything looks good
+
+            ---
+            *This issue was automatically created by the weekly maintenance workflow.*`,
+              labels: ['automated', 'maintenance', 'code-quality']
+            })

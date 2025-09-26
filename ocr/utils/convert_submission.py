@@ -9,14 +9,7 @@ def convert_json_to_csv(json_path, output_path):
     # Check if CSV file already exists
     csv_file = Path(output_path)
     if csv_file.exists():
-        response = (
-            input(
-                f"The file '{csv_file}' already exists. "
-                f"Do you want to overwrite it? (yes/No): "
-            )
-            .strip()
-            .lower()
-        )
+        response = input(f"The file '{csv_file}' already exists. " f"Do you want to overwrite it? (yes/No): ").strip().lower()
         if response != "yes":
             print("Conversion cancelled.")
             return None
@@ -31,9 +24,7 @@ def convert_json_to_csv(json_path, output_path):
 
         polygons = []
         for idx, word in content["words"].items():
-            assert (
-                "points" in word
-            ), f"'{idx}' in '{filename}' doesn't contain the 'points' key."
+            assert "points" in word, f"'{idx}' in '{filename}' doesn't contain the 'points' key."
 
             points = word["points"]
             assert len(points) > 0, f"No points found in '{idx}' of '{filename}'."
@@ -52,9 +43,7 @@ def convert_json_to_csv(json_path, output_path):
 
 def convert():
     parser = argparse.ArgumentParser(description="Convert JSON to CSV")
-    parser.add_argument(
-        "-J", "--json_path", type=str, required=True, help="Path to the input JSON file"
-    )
+    parser.add_argument("-J", "--json_path", type=str, required=True, help="Path to the input JSON file")
     parser.add_argument(
         "-O",
         "--output_path",

@@ -21,9 +21,7 @@ class BackgroundGenerator:
         """
         self.config: Union[DictConfig, Dict[str, Any]] = config or {}
 
-    def generate_plain_background(
-        self, size: Tuple[int, int], color: Optional[Tuple[int, int, int]] = None
-    ) -> np.ndarray:
+    def generate_plain_background(self, size: Tuple[int, int], color: Optional[Tuple[int, int, int]] = None) -> np.ndarray:
         """Generate plain color background.
 
         Args:
@@ -40,9 +38,7 @@ class BackgroundGenerator:
         image = np.full((*size[::-1], 3), color, dtype=np.uint8)
         return image
 
-    def generate_gradient_background(
-        self, size: Tuple[int, int], colors: Optional[List[Tuple[int, int, int]]] = None
-    ) -> np.ndarray:
+    def generate_gradient_background(self, size: Tuple[int, int], colors: Optional[List[Tuple[int, int, int]]] = None) -> np.ndarray:
         """Generate gradient background.
 
         Args:
@@ -61,17 +57,12 @@ class BackgroundGenerator:
         # Simple vertical gradient
         for y in range(height):
             factor = y / (height - 1) if height > 1 else 0
-            color = [
-                int(colors[0][i] + factor * (colors[1][i] - colors[0][i]))
-                for i in range(3)
-            ]
+            color = [int(colors[0][i] + factor * (colors[1][i] - colors[0][i])) for i in range(3)]
             image[y, :, :] = color
 
         return image
 
-    def generate_noise_background(
-        self, size: Tuple[int, int], intensity: float = 0.1
-    ) -> np.ndarray:
+    def generate_noise_background(self, size: Tuple[int, int], intensity: float = 0.1) -> np.ndarray:
         """Generate noise background.
 
         Args:
@@ -86,9 +77,7 @@ class BackgroundGenerator:
 
         # Add random noise
         noise = np.random.randint(0, int(255 * intensity), image.shape, dtype=np.uint8)
-        image = np.clip(
-            image.astype(np.int32) + noise - int(127 * intensity), 0, 255
-        ).astype(np.uint8)
+        image = np.clip(image.astype(np.int32) + noise - int(127 * intensity), 0, 255).astype(np.uint8)
 
         return image
 

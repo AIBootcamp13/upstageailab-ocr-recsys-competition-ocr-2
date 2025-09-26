@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -23,21 +23,13 @@ class TestCLEvalMetric:
     def sample_predictions(self):
         """Create sample prediction data."""
         # det_quads: list of polygon coordinate arrays
-        return [
-            np.array(
-                [[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32
-            ).flatten()
-        ]
+        return [np.array([[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32).flatten()]
 
     @pytest.fixture
     def sample_targets(self):
         """Create sample target data."""
         # gt_quads: list of polygon coordinate arrays
-        return [
-            np.array(
-                [[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32
-            ).flatten()
-        ]
+        return [np.array([[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32).flatten()]
 
     @pytest.fixture
     def sample_letters_det(self):
@@ -54,21 +46,10 @@ class TestCLEvalMetric:
         metric = CLEvalMetric(**default_options)
 
         assert metric.options.CASE_SENSITIVE == default_options["case_sensitive"]
-        assert (
-            metric.options.RECALL_GRANULARITY_PENALTY_WEIGHT
-            == default_options["recall_gran_penalty"]
-        )
-        assert (
-            metric.options.PRECISION_GRANULARITY_PENALTY_WEIGHT
-            == default_options["precision_gran_penalty"]
-        )
-        assert (
-            metric.options.VERTICAL_ASPECT_RATIO_THRESH
-            == default_options["vertical_aspect_ratio_thresh"]
-        )
-        assert (
-            metric.options.AREA_PRECISION_CONSTRAINT == default_options["ap_constraint"]
-        )
+        assert metric.options.RECALL_GRANULARITY_PENALTY_WEIGHT == default_options["recall_gran_penalty"]
+        assert metric.options.PRECISION_GRANULARITY_PENALTY_WEIGHT == default_options["precision_gran_penalty"]
+        assert metric.options.VERTICAL_ASPECT_RATIO_THRESH == default_options["vertical_aspect_ratio_thresh"]
+        assert metric.options.AREA_PRECISION_CONSTRAINT == default_options["ap_constraint"]
 
     def test_options_class(self):
         """Test Options class initialization."""
@@ -80,13 +61,13 @@ class TestCLEvalMetric:
             ap_constraint=0.3,
         )
 
-        assert options.CASE_SENSITIVE == True
+        assert options.CASE_SENSITIVE
         assert options.RECALL_GRANULARITY_PENALTY_WEIGHT == 1.0
         assert options.PRECISION_GRANULARITY_PENALTY_WEIGHT == 1.0
         assert options.VERTICAL_ASPECT_RATIO_THRESH == 0.5
         assert options.AREA_PRECISION_CONSTRAINT == 0.3
-        assert options.DUMP_SAMPLE_RESULT == False
-        assert options.ORIENTATION == False
+        assert not options.DUMP_SAMPLE_RESULT
+        assert not options.ORIENTATION
 
     def test_compute_metric(
         self,
@@ -100,9 +81,7 @@ class TestCLEvalMetric:
         metric = CLEvalMetric(**default_options)
 
         # Update metric with sample data
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
 
         # Compute results
         results = metric.compute()
@@ -138,12 +117,8 @@ class TestCLEvalMetric:
         metric = CLEvalMetric(**default_options)
 
         # Update multiple times
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
 
         assert len(metric.predictions) == 2
         assert len(metric.targets) == 2
@@ -160,9 +135,7 @@ class TestCLEvalMetric:
         metric = CLEvalMetric(**default_options)
 
         # Update with data
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
         assert len(metric.predictions) > 0
         assert len(metric.targets) > 0
 
@@ -183,15 +156,11 @@ class TestCLEvalMetric:
         metric = CLEvalMetric(**default_options)
 
         # Update and compute
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
         results1 = metric.compute()
 
         # Update again and compute
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
         results2 = metric.compute()
 
         # Results should be different (accumulated)
@@ -212,9 +181,7 @@ class TestCLEvalMetric:
 
         metric = CLEvalMetric(**default_options, scale_wise=True, scale_bins=scale_bins)
 
-        assert (
-            len(metric.scalewise_metric) > 0
-        )  # Should have scale-wise metrics initialized
+        assert len(metric.scalewise_metric) > 0  # Should have scale-wise metrics initialized
 
     @patch("ocr.metrics.cleval_metric.evaluation")
     def test_evaluation_function_called_with_correct_options(
@@ -227,7 +194,7 @@ class TestCLEvalMetric:
         sample_letters_gt,
     ):
         """Test that evaluation function receives correct options."""
-        from ocr.metrics.data import CoreStats, SampleResult, Stats
+        from ocr.metrics.data import SampleResult, Stats
 
         # Create a proper SampleResult mock
         mock_stats = Stats()
@@ -242,16 +209,12 @@ class TestCLEvalMetric:
         mock_stats.num_merged = 0
         mock_stats.num_char_overlapped = 0
 
-        mock_sample_result = SampleResult(
-            matches=[], gts=[], preds=[], stats=mock_stats
-        )
+        mock_sample_result = SampleResult(matches=[], gts=[], preds=[], stats=mock_stats)
 
         mock_evaluation.return_value = mock_sample_result
 
         metric = CLEvalMetric(**default_options)
-        metric.update(
-            sample_predictions, sample_targets, sample_letters_det, sample_letters_gt
-        )
+        metric.update(sample_predictions, sample_targets, sample_letters_det, sample_letters_gt)
         metric.compute()
 
         # Verify evaluation was called
@@ -270,8 +233,8 @@ class TestCLEvalMetric:
         case_sensitive_metric = CLEvalMetric(case_sensitive=True)
         case_insensitive_metric = CLEvalMetric(case_sensitive=False)
 
-        assert case_sensitive_metric.options.CASE_SENSITIVE == True
-        assert case_insensitive_metric.options.CASE_SENSITIVE == False
+        assert case_sensitive_metric.options.CASE_SENSITIVE
+        assert not case_insensitive_metric.options.CASE_SENSITIVE
 
     def test_metric_with_custom_penalties(self):
         """Test metric with custom penalty weights."""

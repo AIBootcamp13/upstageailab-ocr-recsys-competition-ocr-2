@@ -6,12 +6,11 @@ This script demonstrates how the command builder generates CLI commands
 from configuration dictionaries.
 """
 
-import sys
-from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent
-sys.path.append(str(project_root))
+# Setup project paths automatically
+from ocr.utils.path_utils import setup_paths
+
+setup_paths()
 
 from ui.utils.command_builder import CommandBuilder
 from ui.utils.config_parser import ConfigParser
@@ -22,7 +21,7 @@ def demo_train_command():
     print("🚀 Training Command Demo")
     print("=" * 50)
 
-    config_parser = ConfigParser()
+    ConfigParser()
     command_builder = CommandBuilder()
 
     # Example training configuration
@@ -151,6 +150,4 @@ if __name__ == "__main__":
     demo_test_command()
     demo_predict_command()
 
-    print(
-        "✨ Demo completed! Run 'python run_ui.py command_builder' to launch the interactive UI."
-    )
+    print("✨ Demo completed! Run 'python run_ui.py command_builder' to launch the interactive UI.")

@@ -5,6 +5,13 @@ Path Utilities for OCR Project
 This module provides centralized path resolution utilities for the OCR project.
 It handles common path operations and ensures consistent path resolution across all scripts.
 Enhanced with modular path configuration for better reusability.
+
+NEW: For simple path setup in any script, use:
+
+    from ocr.utils.path_utils import setup_paths
+    setup_paths()
+
+This automatically handles sys.path setup and environment variables.
 """
 
 import os
@@ -48,21 +55,13 @@ class OCRPathConfig:
             output_dir=Path(config.get("output_dir", "outputs")),
             images_dir=Path(config.get("images_dir", "data/datasets/images")),
             annotations_dir=Path(config.get("annotations_dir", "data/datasets/jsons")),
-            pseudo_labels_dir=Path(
-                config.get("pseudo_labels_dir", "data/pseudo_label")
-            ),
+            pseudo_labels_dir=Path(config.get("pseudo_labels_dir", "data/pseudo_label")),
             logs_dir=Path(config.get("logs_dir", "outputs/logs")),
             checkpoints_dir=Path(config.get("checkpoints_dir", "outputs/checkpoints")),
             submissions_dir=Path(config.get("submissions_dir", "outputs/submissions")),
-            models_dir=(
-                Path(config.get("models_dir", "models"))
-                if config.get("models_dir")
-                else None
-            ),
+            models_dir=(Path(config.get("models_dir", "models")) if config.get("models_dir") else None),
             pretrained_models_dir=(
-                Path(config.get("pretrained_models_dir", "pretrained"))
-                if config.get("pretrained_models_dir")
-                else None
+                Path(config.get("pretrained_models_dir", "pretrained")) if config.get("pretrained_models_dir") else None
             ),
         )
 
@@ -154,9 +153,7 @@ class OCRPathResolver:
         """Get path to experiment submissions."""
         return self.config.submissions_dir / experiment_name
 
-    def resolve_relative_path(
-        self, path: Union[str, Path], base: Optional[str] = None
-    ) -> Path:
+    def resolve_relative_path(self, path: Union[str, Path], base: Optional[str] = None) -> Path:
         """Resolve a path that might be relative to different bases."""
         path = Path(path)
 
@@ -327,6 +324,41 @@ class PathUtils:
 
         return results
 
+    @classmethod
+    def setup_paths(cls) -> Path:
+        """
+        Setup project paths and sys.path for any script.
+
+        This is the RECOMMENDED way to handle path resolution in the OCR project.
+        Call this function at the top of any script that needs to import from
+        the OCR project modules.
+
+        Usage:
+            from ocr.utils.path_utils import setup_paths
+            setup_paths()
+
+            # Now you can import from any OCR module
+            from ocr.datasets.preprocessing import DocumentPreprocessor
+            from ui.utils.config_parser import ConfigParser
+
+        This replaces the old brittle approach of:
+            import sys
+            from pathlib import Path
+            project_root = Path(__file__).parent.parent.parent
+            sys.path.append(str(project_root))
+        """
+        # Add project root to sys.path if not already there
+        project_root = cls.get_project_root()
+        project_root_str = str(project_root)
+
+        if project_root_str not in sys.path:
+            sys.path.insert(0, project_root_str)
+
+        # Set environment variable for consistency
+        os.environ[cls.PROJECT_ROOT_ENV] = project_root_str
+
+        return project_root
+
 
 # Global path resolver instance
 _ocr_path_resolver = OCRPathResolver()
@@ -419,3 +451,8 @@ def ensure_project_root_env() -> None:
 def validate_paths() -> dict:
     """Validate that all expected paths exist."""
     return PathUtils.validate_paths()
+
+
+def setup_paths():
+    """Setup project paths and sys.path for any script."""
+    return PathUtils.setup_paths()

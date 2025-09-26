@@ -22,20 +22,9 @@ Example:
     python run_ablation.py +ablation=learning_rate experiment_tag=lr_ablation
 """
 
-import os
-import sys
-from pathlib import Path
-
 import hydra
-from hydra.core.global_hydra import GlobalHydra
-from hydra.core.plugins import create_config_search_path
-from hydra.core.utils import configure_log
-from omegaconf import DictConfig, OmegaConf
-
-# Add project root to path
-sys.path.append(str(Path(__file__).parent))
-
 import lightning.pytorch as pl
+from omegaconf import DictConfig, OmegaConf
 
 import wandb
 from ocr.lightning_modules import get_pl_modules_by_cfg

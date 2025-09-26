@@ -27,15 +27,11 @@ class UNet(nn.Module):
     ):
         super(UNet, self).__init__()
 
-        assert len(strides) == len(
-            in_channels
-        ), "Mismatch in 'strides' and 'in_channels' lengths."
+        assert len(strides) == len(in_channels), "Mismatch in 'strides' and 'in_channels' lengths."
 
         # Parameters에 따라 UNet 구조를 동적으로 생성
         # Decoder size 계산
-        upscale_factors = [
-            strides[idx] // strides[idx - 1] for idx in range(1, len(strides))
-        ]
+        upscale_factors = [strides[idx] // strides[idx - 1] for idx in range(1, len(strides))]
         outscale_factors = list(accumulate(upscale_factors, lambda x, y: x * y))
 
         self.upsamples = nn.ModuleList()
@@ -44,24 +40,16 @@ class UNet(nn.Module):
 
         self.inners = nn.ModuleList()
         for in_channel in in_channels:
-            self.inners.append(
-                nn.Conv2d(in_channel, inner_channels, kernel_size=1, bias=bias)
-            )
+            self.inners.append(nn.Conv2d(in_channel, inner_channels, kernel_size=1, bias=bias))
 
         self.outers = nn.ModuleList()
         for outscale in reversed(outscale_factors):
             outer = nn.Sequential(
-                nn.Conv2d(
-                    inner_channels, output_channels, kernel_size=3, padding=1, bias=bias
-                ),
+                nn.Conv2d(inner_channels, output_channels, kernel_size=3, padding=1, bias=bias),
                 nn.Upsample(scale_factor=outscale, mode="nearest"),
             )
             self.outers.append(outer)
-        self.outers.append(
-            nn.Conv2d(
-                inner_channels, output_channels, kernel_size=3, padding=1, bias=bias
-            )
-        )
+        self.outers.append(nn.Conv2d(inner_channels, output_channels, kernel_size=3, padding=1, bias=bias))
 
         self.upsamples.apply(self.weights_init)
         self.inners.apply(self.weights_init)
@@ -85,8 +73,6 @@ class UNet(nn.Module):
             up_features.append(up)
 
         out_features = [self.outers[0](in_features[-1])]
-        out_features += [
-            outer(feat) for feat, outer in zip(up_features, self.outers[1:])
-        ]
+        out_features += [outer(feat) for feat, outer in zip(up_features, self.outers[1:])]
 
         return out_features

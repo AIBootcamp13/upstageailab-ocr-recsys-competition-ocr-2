@@ -3,7 +3,7 @@
 Text rendering on images for synthetic data.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 from omegaconf import DictConfig
@@ -82,13 +82,10 @@ class TextRenderer:
         # Draw text
         draw.text(position, text, fill=color, font=font)
 
-        # Convert back to numpy array
-        rendered_image = np.array(pil_image)
-
         return TextRegion(
             text=text,
-            bbox=(x1, y1, x2, y2),
-            polygon=polygon,
+            bbox=(int(x1), int(y1), int(x2), int(y2)),
+            polygon=[(int(x), int(y)) for x, y in polygon],
             font_size=font_size,
             angle=angle,
         )

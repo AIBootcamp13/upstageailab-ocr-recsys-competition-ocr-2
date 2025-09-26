@@ -1,1 +1,1 @@
-from .cleval_metric import CLEvalMetric
+from .cleval_metric import CLEvalMetric  # noqa: F401

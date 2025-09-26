@@ -5,12 +5,12 @@ OCR Inference UI - Streamlit Application
 A Streamlit application for real-time OCR inference with uploaded images.
 Users can upload images, select trained models, and see OCR predictions instantly.
 """
+import logging
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
-import logging
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -23,31 +23,33 @@ try:
     if str(project_root) not in sys.path:
         sys.path.append(str(project_root))
 except NameError:
-    project_root = Path('.').resolve()
+    project_root = Path(".").resolve()
 
 # Import project modules
 try:
     # Try to import inference engine, but don't fail if it's not available
-    from ui.utils.inference_engine import InferenceEngine, get_available_checkpoints
+    from ui.utils.inference_engine import get_available_checkpoints
+
     INFERENCE_ENGINE_AVAILABLE = True
 except ImportError:
     INFERENCE_ENGINE_AVAILABLE = False
     # This st.warning will be called in the main app logic to be visible to the user
 
+
 def display_image_with_ocr_predictions(image: np.ndarray, predictions: dict, title: str = "OCR Predictions"):
     """Display image with OCR predictions overlaid."""
     try:
         pil_image = Image.fromarray(image)
-        draw = ImageDraw.Draw(pil_image, 'RGBA')
+        draw = ImageDraw.Draw(pil_image, "RGBA")
 
-        polygons_str = predictions.get('polygons', '')
+        polygons_str = predictions.get("polygons", "")
         if polygons_str:
-            polygons = polygons_str.split('|')
-            texts = predictions.get('texts', [])
-            confidences = predictions.get('confidences', [])
+            polygons = polygons_str.split("|")
+            texts = predictions.get("texts", [])
+            confidences = predictions.get("confidences", [])
 
             for i, polygon_str in enumerate(polygons):
-                coords = [int(x) for x in polygon_str.split(',')]
+                coords = [int(x) for x in polygon_str.split(",")]
                 if len(coords) >= 8 and len(coords) % 2 == 0:
                     points = [(coords[j], coords[j + 1]) for j in range(0, len(coords), 2)]
 
@@ -71,9 +73,8 @@ def display_image_with_ocr_predictions(image: np.ndarray, predictions: dict, tit
                             bbox = draw.textbbox(text_pos, label)
                             draw.rectangle(bbox, fill=(255, 0, 0, 180))
                             draw.text(text_pos, label, fill=(255, 255, 255, 255))
-                        except AttributeError: # Fallback for older PIL versions
+                        except AttributeError:  # Fallback for older PIL versions
                             draw.text(text_pos, label, fill=(255, 0, 0, 255))
-
 
         st.image(pil_image, caption=title, use_container_width=True)
     except Exception as e:
@@ -88,18 +89,18 @@ def main():
         page_title="OCR Inference",
         page_icon="🔍",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded",
     )
 
     st.title("🔍 Real-time OCR Inference")
     st.markdown("Upload images and get instant OCR predictions.")
 
     # Initialize session state
-    if 'inference_results' not in st.session_state:
+    if "inference_results" not in st.session_state:
         st.session_state.inference_results = []
-    if 'selected_images' not in st.session_state:
+    if "selected_images" not in st.session_state:
         st.session_state.selected_images = set()
-    if 'processed_images' not in st.session_state:
+    if "processed_images" not in st.session_state:
         st.session_state.processed_images = set()
 
     # Create two columns for layout
@@ -116,7 +117,7 @@ def render_inference_controls():
     """Render the inference controls in the sidebar."""
     st.header("⚙️ Inference Controls")
 
-    if 'selected_model' not in st.session_state:
+    if "selected_model" not in st.session_state:
         st.session_state.selected_model = None
 
     # Model Selection
@@ -125,7 +126,7 @@ def render_inference_controls():
     selected_model = st.selectbox(
         "Select Trained Model",
         available_models,
-        help="Choose a trained OCR model for inference."
+        help="Choose a trained OCR model for inference.",
     )
 
     # Reset results if model changes
@@ -147,7 +148,7 @@ def render_inference_controls():
         "Upload Images",
         type=["jpg", "jpeg", "png", "bmp"],
         accept_multiple_files=True,
-        help="Upload one or more images for OCR inference"
+        help="Upload one or more images for OCR inference",
     )
 
     # Handle image selection
@@ -156,7 +157,7 @@ def render_inference_controls():
         current_filenames = {file.name for file in uploaded_files}
 
         # If new files were uploaded, deselect old images and select new ones
-        if 'previous_uploaded_files' not in st.session_state or st.session_state.previous_uploaded_files != current_filenames:
+        if "previous_uploaded_files" not in st.session_state or st.session_state.previous_uploaded_files != current_filenames:
             # Deselect old images
             st.session_state.selected_images = set()
             # Select all new images by default
@@ -213,15 +214,12 @@ def render_results_display():
         return
 
     # --- Calculate and Display Overall Summary ---
-    successful_results = [r for r in st.session_state.inference_results if r.get('success', False)]
+    successful_results = [r for r in st.session_state.inference_results if r.get("success", False)]
     total_images = len(st.session_state.inference_results)
     successful = len(successful_results)
     failed = total_images - successful
 
-    all_confidences = [
-        conf for r in successful_results
-        for conf in r.get('predictions', {}).get('confidences', [])
-    ]
+    all_confidences = [conf for r in successful_results for conf in r.get("predictions", {}).get("confidences", [])]
     avg_confidence = sum(all_confidences) / len(all_confidences) if all_confidences else 0
 
     col1, col2, col3, col4 = st.columns(4)
@@ -245,13 +243,13 @@ def render_results_display():
 
 def display_single_result(result: dict):
     """Display a single inference result inside an expander."""
-    if not result.get('success', False):
+    if not result.get("success", False):
         st.error(f"❌ Inference failed: {result.get('error', 'Unknown error')}")
         return
 
     # --- Calculate and Display Per-Image Stats ---
-    predictions = result.get('predictions', {})
-    confidences = predictions.get('confidences', [])
+    predictions = result.get("predictions", {})
+    confidences = predictions.get("confidences", [])
     num_detections = len(confidences)
     avg_confidence = sum(confidences) / num_detections if num_detections > 0 else 0
 
@@ -262,17 +260,17 @@ def display_single_result(result: dict):
         st.metric("Avg. Confidence", f"{avg_confidence:.2%}")
 
     # --- Display Image with Prediction Overlays ---
-    if 'image' in result and 'predictions' in result:
+    if "image" in result and "predictions" in result:
         display_image_with_ocr_predictions(
-            result['image'],
-            result['predictions'],
-            title=f"OCR Predictions for {result.get('filename', '')}"
+            result["image"],
+            result["predictions"],
+            title=f"OCR Predictions for {result.get('filename', '')}",
         )
 
     # --- Display Raw Data in a Collapsible Section ---
-    if 'predictions' in result:
+    if "predictions" in result:
         with st.expander("🔧 Raw Prediction Data"):
-            st.json(result['predictions'])
+            st.json(result["predictions"])
 
 
 def get_available_models() -> List[str]:
@@ -302,7 +300,10 @@ def run_inference(uploaded_files: List, model_path: str):
         # Check if this image has already been processed
         if filename in st.session_state.processed_images:
             st.info(f"⏭️ Skipping {filename} - already processed")
-            progress_bar.progress((i + 1) / total_files, text=f"Skipped {filename} (already processed)... ({i+1}/{total_files})")
+            progress_bar.progress(
+                (i + 1) / total_files,
+                text=f"Skipped {filename} (already processed)... ({i+1}/{total_files})",
+            )
             continue
 
         progress_bar.progress((i) / total_files, text=f"Processing {filename}... ({i+1}/{total_files})")
@@ -343,28 +344,25 @@ def perform_inference(image_path: str, model_path: str, filename: str) -> dict:
         if INFERENCE_ENGINE_AVAILABLE and "Demo Mode" not in model_path:
             try:
                 from ui.utils.inference_engine import run_inference_on_image
+
                 predictions = run_inference_on_image(image_path, model_path)
                 if predictions is None:
                     raise ValueError("Inference engine returned no results.")
             except Exception as e:
                 st.warning(f"⚠️ Real inference failed ({e}), using mock predictions as a fallback.")
-                predictions = None # Ensure fallback is triggered
+                predictions = None  # Ensure fallback is triggered
 
         if predictions is None:
             predictions = generate_mock_predictions(image.shape)
 
         return {
-            'filename': filename,
-            'success': True,
-            'image': image_rgb,
-            'predictions': predictions,
+            "filename": filename,
+            "success": True,
+            "image": image_rgb,
+            "predictions": predictions,
         }
     except Exception as e:
-        return {
-            'filename': filename,
-            'success': False,
-            'error': str(e)
-        }
+        return {"filename": filename, "success": False, "error": str(e)}
 
 
 def generate_mock_predictions(image_shape: Tuple) -> dict:
@@ -377,9 +375,9 @@ def generate_mock_predictions(image_shape: Tuple) -> dict:
     mock_boxes = [box1, box2, box3]
 
     return {
-        'polygons': '|'.join([f"{b[0]},{b[1]},{b[2]},{b[1]},{b[2]},{b[3]},{b[0]},{b[3]}" for b in mock_boxes]),
-        'texts': ['Sample Text 1', 'Another Example', 'Third Line'],
-        'confidences': [0.95, 0.87, 0.92]
+        "polygons": "|".join([f"{b[0]},{b[1]},{b[2]},{b[1]},{b[2]},{b[3]},{b[0]},{b[3]}" for b in mock_boxes]),
+        "texts": ["Sample Text 1", "Another Example", "Third Line"],
+        "confidences": [0.95, 0.87, 0.92],
     }
 
 

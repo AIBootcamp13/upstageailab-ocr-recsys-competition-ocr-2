@@ -1,10 +1,13 @@
 import os
-import sys
 
 import hydra
 import lightning.pytorch as pl
 
-sys.path.append(os.getcwd())
+# Setup project paths automatically
+from ocr.utils.path_utils import setup_paths
+
+setup_paths()
+
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
 CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
@@ -25,13 +28,9 @@ def test(config):
     if config.get("wandb"):
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
 
-        logger = Logger(
-            config.exp_name, project=config.project_name, config=dict(config)
-        )
+        logger = Logger(config.exp_name, project=config.project_name, config=dict(config))
     else:
-        from lightning.pytorch.loggers.tensorboard import (  # noqa: E402
-            TensorBoardLogger,
-        )
+        from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 
         logger = TensorBoardLogger(
             save_dir=config.log_dir,

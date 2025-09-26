@@ -13,3 +13,7 @@ hydra:
 log_dir: 'outputs/${exp_name}/logs'
 checkpoint_dir: 'outputs/${exp_name}/checkpoints'
 submission_dir: 'outputs/${exp_name}/submissions'
+
+# Global training data defaults
+data:
+  batch_size: 4

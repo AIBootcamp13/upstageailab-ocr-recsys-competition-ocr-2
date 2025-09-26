@@ -8,7 +8,9 @@ Extendable: add new check_* functions that append to the warnings list.
 """
 from __future__ import annotations
 
+import json
 import os
+from glob import glob
 from typing import List
 
 
@@ -52,11 +54,6 @@ def validate_runtime(cfg) -> List[str]:
     if inp and (inp % 8 != 0):
         warns.append(f"Input size {inp} not divisible by 8; FPN strides may misalign.")
     return warns
-
-
-__all__ = ["validate_runtime"]
-import json
-from glob import glob
 
 
 def _read_images_count(data_dir: str) -> int:
@@ -106,9 +103,7 @@ def validate_config_paths(cfg, mode: str):
         if mode == "train":
             train_json = os.path.join(data_dir, "ufo", "train_split.json")
             if not os.path.exists(train_json):
-                warnings.append(
-                    f"Missing train_split.json at {train_json} (will still proceed if custom loader overrides)"
-                )
+                warnings.append(f"Missing train_split.json at {train_json} (will still proceed if custom loader overrides)")
 
     if mode in ("train", "evaluate") and hasattr(cfg, "validation"):
         val_dir = getattr(cfg.validation, "data_dir", None)
@@ -125,29 +120,20 @@ def validate_config_paths(cfg, mode: str):
         if data_dir and val_dir:
             if "tiny" in data_dir and "tiny" not in val_dir:
                 errors.append(
-                    "Tiny training dataset paired with non-tiny validation directory. Set validation=tiny or update validation.data_dir."
+                    "Tiny training dataset paired with non-tiny validation directory. " "Set validation=tiny or update validation.data_dir."
                 )
-        if (
-            data_dir
-            and val_dir
-            and os.path.isdir(os.path.join(data_dir, "ufo"))
-            and os.path.isdir(os.path.join(val_dir, "ufo"))
-        ):
+        if data_dir and val_dir and os.path.isdir(os.path.join(data_dir, "ufo")) and os.path.isdir(os.path.join(val_dir, "ufo")):
             train_n = _read_annotation_count(data_dir, "train_split.json")
             val_n = _read_annotation_count(val_dir, gt_json) if gt_json else -1
             if train_n > 0 and val_n > 0 and val_n > 10 * train_n:
-                warnings.append(
-                    f"Validation set ({val_n}) is >10x larger than train subset ({train_n}); check configs."
-                )
+                warnings.append(f"Validation set ({val_n}) is >10x larger than train subset ({train_n}); check configs.")
 
     if mode == "predict":
         pred_dir = getattr(cfg.predict, "data_dir", None)
         if pred_dir and not os.path.isdir(pred_dir):
             errors.append(f"predict.data_dir does not exist: {pred_dir}")
         if pred_dir and data_dir and "tiny" in pred_dir and "tiny" not in data_dir:
-            warnings.append(
-                "Predicting on tiny subset while base data config is non-tiny (ok, just noting)."
-            )
+            warnings.append("Predicting on tiny subset while base data config is non-tiny (ok, just noting).")
 
     if errors:
         msg = "CONFIG VALIDATION FAILED:\n" + "\n".join("  - " + e for e in errors)

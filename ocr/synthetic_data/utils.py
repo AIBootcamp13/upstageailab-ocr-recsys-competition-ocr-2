@@ -3,7 +3,6 @@
 Utility functions and augmentation setup for synthetic data generation.
 """
 
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from omegaconf import DictConfig
@@ -61,9 +60,7 @@ def augment_existing_dataset(
     source_entries: list[dict] = []  # Would load actual dataset
 
     generator = SyntheticDatasetGenerator(config)
-    return generator.generate_augmented_dataset(
-        source_entries, output_dir, augmentation_factor
-    )
+    return generator.generate_augmented_dataset(source_entries, output_dir, augmentation_factor)
 
 
 def setup_augmentation_pipeline(config: Optional[DictConfig] = None) -> Optional[Any]:

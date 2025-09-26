@@ -24,11 +24,13 @@ from ocr.utils.logging import logger
 class OfflineSampleGenerator:
     """Generate offline samples with preprocessing applied."""
 
-    def __init__(self,
-                 source_dir: str = "data/datasets/images",
-                 output_dir: str = "outputs/samples",
-                 num_samples: int = 10,
-                 preprocessing_config: Optional[Dict] = None):
+    def __init__(
+        self,
+        source_dir: str = "data/datasets/images",
+        output_dir: str = "outputs/samples",
+        num_samples: int = 10,
+        preprocessing_config: Optional[Dict] = None,
+    ):
         """
         Initialize the sample generator.
 
@@ -44,11 +46,11 @@ class OfflineSampleGenerator:
 
         # Default preprocessing configuration
         default_config = {
-            'enable_document_detection': True,
-            'enable_perspective_correction': True,
-            'enable_enhancement': True,
-            'enable_text_enhancement': True,
-            'target_size': (640, 640)
+            "enable_document_detection": True,
+            "enable_perspective_correction": True,
+            "enable_enhancement": True,
+            "enable_text_enhancement": True,
+            "target_size": (640, 640),
         }
 
         self.preprocessing_config = {**default_config, **(preprocessing_config or {})}
@@ -66,7 +68,7 @@ class OfflineSampleGenerator:
 
     def collect_sample_images(self) -> List[Path]:
         """Collect sample images from the dataset."""
-        image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff'}
+        image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
 
         # Collect all image files
         all_images = []
@@ -98,31 +100,27 @@ class OfflineSampleGenerator:
         """
         try:
             # Load image
-            image = Image.open(image_path).convert('RGB')
+            image = Image.open(image_path).convert("RGB")
             original_array = np.array(image)
 
             # Apply preprocessing
             result = self.preprocessor(original_array)
 
             return {
-                'image_path': image_path,
-                'original_image': original_array,
-                'processed_image': result['image'],
-                'metadata': result['metadata'],
-                'success': True
+                "image_path": image_path,
+                "original_image": original_array,
+                "processed_image": result["image"],
+                "metadata": result["metadata"],
+                "success": True,
             }
 
         except Exception as e:
             logger.error(f"Failed to process {image_path}: {e}")
-            return {
-                'image_path': image_path,
-                'error': str(e),
-                'success': False
-            }
+            return {"image_path": image_path, "error": str(e), "success": False}
 
     def save_sample(self, sample_data: Dict, sample_idx: int):
         """Save a processed sample to disk."""
-        if not sample_data['success']:
+        if not sample_data["success"]:
             logger.warning(f"Skipping failed sample {sample_idx}")
             return
 
@@ -130,50 +128,52 @@ class OfflineSampleGenerator:
 
         # Save original image
         original_path = self.output_dir / "original" / f"{base_name}_original.jpg"
-        Image.fromarray(sample_data['original_image']).save(original_path)
+        Image.fromarray(sample_data["original_image"]).save(original_path)
 
         # Save processed image
         processed_path = self.output_dir / "processed" / f"{base_name}_processed.jpg"
-        Image.fromarray(sample_data['processed_image']).save(processed_path)
+        Image.fromarray(sample_data["processed_image"]).save(processed_path)
 
         # Save metadata
         metadata_path = self.output_dir / "processed" / f"{base_name}_metadata.json"
-        with open(metadata_path, 'w') as f:
-            json.dump(sample_data['metadata'], f, indent=2, default=str)
+        with open(metadata_path, "w") as f:
+            json.dump(sample_data["metadata"], f, indent=2, default=str)
 
         # Create comparison visualization
         self._create_comparison_visualization(
-            sample_data['original_image'],
-            sample_data['processed_image'],
-            sample_data['metadata'],
-            self.output_dir / "comparison" / f"{base_name}_comparison.jpg"
+            sample_data["original_image"],
+            sample_data["processed_image"],
+            sample_data["metadata"],
+            self.output_dir / "comparison" / f"{base_name}_comparison.jpg",
         )
 
-    def _create_comparison_visualization(self,
-                                       original: np.ndarray,
-                                       processed: np.ndarray,
-                                       metadata: Dict,
-                                       output_path: Path):
+    def _create_comparison_visualization(
+        self,
+        original: np.ndarray,
+        processed: np.ndarray,
+        metadata: Dict,
+        output_path: Path,
+    ):
         """Create a side-by-side comparison visualization."""
         fig, axes = plt.subplots(1, 2, figsize=(15, 6))
 
         # Original image
         axes[0].imshow(original)
-        axes[0].set_title("Original Image", fontsize=14, fontweight='bold')
-        axes[0].axis('off')
+        axes[0].set_title("Original Image", fontsize=14, fontweight="bold")
+        axes[0].axis("off")
 
         # Processed image
         axes[1].imshow(processed)
-        axes[1].set_title("After Lens-Style Preprocessing", fontsize=14, fontweight='bold')
-        axes[1].axis('off')
+        axes[1].set_title("After Lens-Style Preprocessing", fontsize=14, fontweight="bold")
+        axes[1].axis("off")
 
         # Add processing info
-        if processing_steps := metadata.get('processing_steps', []):
+        if processing_steps := metadata.get("processing_steps", []):
             info_text = f"Applied: {', '.join(processing_steps)}"
             fig.suptitle(info_text, fontsize=12, y=0.98)
 
         plt.tight_layout()
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close()
 
     def generate_samples(self):
@@ -199,79 +199,92 @@ class OfflineSampleGenerator:
 
     def _generate_summary_report(self, samples: List[Dict]):
         """Generate a summary report of the sample generation."""
-        successful_samples = [s for s in samples if s['success']]
-        failed_samples = [s for s in samples if not s['success']]
+        successful_samples = [s for s in samples if s["success"]]
+        failed_samples = [s for s in samples if not s["success"]]
 
         report = {
-            'generation_summary': {
-                'total_samples': len(samples),
-                'successful_samples': len(successful_samples),
-                'failed_samples': len(failed_samples),
-                'success_rate': len(successful_samples) / len(samples) if samples else 0
+            "generation_summary": {
+                "total_samples": len(samples),
+                "successful_samples": len(successful_samples),
+                "failed_samples": len(failed_samples),
+                "success_rate": (len(successful_samples) / len(samples) if samples else 0),
             },
-            'preprocessing_config': self.preprocessing_config,
-            'processing_steps_stats': {}
+            "preprocessing_config": self.preprocessing_config,
+            "processing_steps_stats": {},
         }
 
         # Collect processing steps statistics
         if successful_samples:
             all_steps = {}
             for sample in successful_samples:
-                steps = sample['metadata'].get('processing_steps', [])
+                steps = sample["metadata"].get("processing_steps", [])
                 for step in steps:
                     all_steps[step] = all_steps.get(step, 0) + 1
 
-            report['processing_steps_stats'] = all_steps
+            report["processing_steps_stats"] = all_steps
 
         # Save report
         report_path = self.output_dir / "generation_report.json"
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         # Print summary
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("📊 OFFLINE SAMPLE GENERATION REPORT")
-        print("="*60)
+        print("=" * 60)
         print(f"Total Samples: {report['generation_summary']['total_samples']}")
         print(f"Successful: {report['generation_summary']['successful_samples']}")
         print(f"Failed: {report['generation_summary']['failed_samples']}")
         print(".1f")
 
-        if report['processing_steps_stats']:
+        if report["processing_steps_stats"]:
             print("\n🔧 Processing Steps Applied:")
-            for step, count in report['processing_steps_stats'].items():
+            for step, count in report["processing_steps_stats"].items():
                 print(f"   {step}: {count} samples")
 
         print(f"\n📁 Output Directory: {self.output_dir}")
-        print("="*60)
+        print("=" * 60)
 
 
 def main():
     """Main entry point for offline sample generation."""
     parser = argparse.ArgumentParser(description="Generate offline preprocessing samples")
-    parser.add_argument("--source-dir", default="data/datasets/images",
-                       help="Directory containing source images")
-    parser.add_argument("--output-dir", default="outputs/samples",
-                       help="Directory to save processed samples")
-    parser.add_argument("--num-samples", type=int, default=10,
-                       help="Number of samples to generate")
-    parser.add_argument("--no-document-detection", action="store_true",
-                       help="Disable document boundary detection")
-    parser.add_argument("--no-perspective-correction", action="store_true",
-                       help="Disable perspective correction")
-    parser.add_argument("--no-enhancement", action="store_true",
-                       help="Disable image enhancement")
-    parser.add_argument("--no-text-enhancement", action="store_true",
-                       help="Disable text-specific enhancement")
+    parser.add_argument(
+        "--source-dir",
+        default="data/datasets/images",
+        help="Directory containing source images",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="outputs/samples",
+        help="Directory to save processed samples",
+    )
+    parser.add_argument("--num-samples", type=int, default=10, help="Number of samples to generate")
+    parser.add_argument(
+        "--no-document-detection",
+        action="store_true",
+        help="Disable document boundary detection",
+    )
+    parser.add_argument(
+        "--no-perspective-correction",
+        action="store_true",
+        help="Disable perspective correction",
+    )
+    parser.add_argument("--no-enhancement", action="store_true", help="Disable image enhancement")
+    parser.add_argument(
+        "--no-text-enhancement",
+        action="store_true",
+        help="Disable text-specific enhancement",
+    )
 
     args = parser.parse_args()
 
     # Configure preprocessing
     preprocessing_config = {
-        'enable_document_detection': not args.no_document_detection,
-        'enable_perspective_correction': not args.no_perspective_correction,
-        'enable_enhancement': not args.no_enhancement,
-        'enable_text_enhancement': not args.no_text_enhancement,
+        "enable_document_detection": not args.no_document_detection,
+        "enable_perspective_correction": not args.no_perspective_correction,
+        "enable_enhancement": not args.no_enhancement,
+        "enable_text_enhancement": not args.no_text_enhancement,
     }
 
     # Generate samples
@@ -279,7 +292,7 @@ def main():
         source_dir=args.source_dir,
         output_dir=args.output_dir,
         num_samples=args.num_samples,
-        preprocessing_config=preprocessing_config
+        preprocessing_config=preprocessing_config,
     )
 
     generator.generate_samples()

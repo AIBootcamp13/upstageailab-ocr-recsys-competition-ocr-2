@@ -16,18 +16,13 @@ Usage:
 """
 
 import argparse
-import json
-from pathlib import Path
 
 import pandas as pd
-from wandb.apis.public import Runs
 
 import wandb
 
 
-def collect_wandb_results(
-    project_name: str, tag: str = None, entity: str = None
-) -> pd.DataFrame:
+def collect_wandb_results(project_name: str, tag: str = None, entity: str = None) -> pd.DataFrame:
     """
     Collect results from wandb experiments.
 
@@ -63,16 +58,8 @@ def collect_wandb_results(
         if run.system_metrics:
             # Get final values for key metrics
             system_metrics = {
-                "gpu_memory_used": (
-                    run.system_metrics.get("_gpu_memory_used", [0])[-1]
-                    if "_gpu_memory_used" in run.system_metrics
-                    else 0
-                ),
-                "cpu_percent": (
-                    run.system_metrics.get("_cpu_percent", [0])[-1]
-                    if "_cpu_percent" in run.system_metrics
-                    else 0
-                ),
+                "gpu_memory_used": (run.system_metrics.get("_gpu_memory_used", [0])[-1] if "_gpu_memory_used" in run.system_metrics else 0),
+                "cpu_percent": (run.system_metrics.get("_cpu_percent", [0])[-1] if "_cpu_percent" in run.system_metrics else 0),
             }
 
         # Combine all data
@@ -81,11 +68,7 @@ def collect_wandb_results(
             "run_name": run.name,
             "status": run.state,
             "created_at": run.created_at,
-            "duration": (
-                (run.heartbeat_at - run.created_at).total_seconds()
-                if run.heartbeat_at
-                else None
-            ),
+            "duration": ((run.heartbeat_at - run.created_at).total_seconds() if run.heartbeat_at else None),
             **config,  # Flatten config
             **summary,  # Flatten summary metrics
             **system_metrics,
@@ -152,22 +135,16 @@ def print_summary_table(df: pd.DataFrame, group_by: str = None, metrics: list = 
         best_metric = metrics[0]  # Use first metric for ranking
         if best_metric in df.columns:
             print(f"\nTop 5 by {best_metric}:")
-            top_runs = df.nlargest(5, best_metric)[
-                ["run_name", best_metric] + metrics[1:]
-            ]
+            top_runs = df.nlargest(5, best_metric)[["run_name", best_metric] + metrics[1:]]
             print(top_runs.round(4))
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Collect ablation study results from wandb"
-    )
+    parser = argparse.ArgumentParser(description="Collect ablation study results from wandb")
     parser.add_argument("--project", required=True, help="wandb project name")
     parser.add_argument("--entity", help="wandb entity (username/team)")
     parser.add_argument("--tag", help="Filter runs by tag")
-    parser.add_argument(
-        "--output", default="ablation_results.csv", help="Output CSV file"
-    )
+    parser.add_argument("--output", default="ablation_results.csv", help="Output CSV file")
     parser.add_argument("--sort-by", help="Column to sort results by")
     parser.add_argument("--group-by", help="Column to group results by for summary")
     parser.add_argument("--metrics", nargs="+", help="Metrics to include in summary")

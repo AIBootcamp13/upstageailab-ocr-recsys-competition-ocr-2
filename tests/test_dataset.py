@@ -48,9 +48,7 @@ class TestOCRDataset:
 
         return [img1_path, img2_path, img3_path]
 
-    def test_dataset_with_annotations(
-        self, temp_dir, sample_annotations, create_sample_images
-    ):
+    def test_dataset_with_annotations(self, temp_dir, sample_annotations, create_sample_images):
         """Test dataset loading with annotation file."""
         # Create annotation file
         annotation_path = temp_dir / "annotations.json"
@@ -102,7 +100,7 @@ class TestOCRDataset:
         dataset = OCRDataset(temp_dir, annotation_path, transform)
 
         # Get first item
-        item = dataset[0]
+        dataset[0]
 
         # Verify transform was called
         transform.assert_called_once()
@@ -115,13 +113,7 @@ class TestOCRDataset:
 
     def test_missing_image_file(self, temp_dir):
         """Test behavior when annotation references non-existent image."""
-        annotations = {
-            "images": {
-                "missing.jpg": {
-                    "words": {"word1": {"points": [[0, 0], [10, 10], [10, 0]]}}
-                }
-            }
-        }
+        annotations = {"images": {"missing.jpg": {"words": {"word1": {"points": [[0, 0], [10, 10], [10, 0]]}}}}}
 
         annotation_path = temp_dir / "annotations.json"
         with open(annotation_path, "w") as f:

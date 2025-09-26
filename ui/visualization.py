@@ -3,12 +3,11 @@ Visualization components for OCR evaluation viewer.
 """
 
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image, ImageDraw
 
@@ -20,19 +19,10 @@ def display_dataset_overview(df: pd.DataFrame):
     # Calculate basic statistics
     total_images = len(df)
     total_polygons = sum(
-        (
-            len(row["polygons"].split("|"))
-            if pd.notna(row["polygons"]) and row["polygons"].strip()
-            else 0
-        )
-        for _, row in df.iterrows()
+        (len(row["polygons"].split("|")) if pd.notna(row["polygons"]) and row["polygons"].strip() else 0) for _, row in df.iterrows()
     )
     avg_polygons = total_polygons / total_images if total_images > 0 else 0
-    empty_predictions = sum(
-        1
-        for _, row in df.iterrows()
-        if pd.isna(row["polygons"]) or not row["polygons"].strip()
-    )
+    empty_predictions = sum(1 for _, row in df.iterrows() if pd.isna(row["polygons"]) or not row["polygons"].strip())
 
     # Display metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -123,9 +113,7 @@ def display_image_viewer(df: pd.DataFrame, image_dir: str):
         st.session_state.image_viewer_page = 0
 
     # Pagination controls
-    images_per_page = 1  # Show one image at a time for detailed view
     total_images = len(df)
-    total_pages = total_images
 
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -199,9 +187,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
 
                     if len(coords) >= 8 and len(coords) % 2 == 0:
                         # Convert to (x,y) tuples
-                        points = [
-                            (coords[j], coords[j + 1]) for j in range(0, len(coords), 2)
-                        ]
+                        points = [(coords[j], coords[j + 1]) for j in range(0, len(coords), 2)]
 
                         # Draw polygon with compatibility check for width parameter
                         try:
@@ -213,9 +199,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
                             )
                         except TypeError:
                             # Fallback for older Pillow versions that don't support width parameter
-                            draw.polygon(
-                                points, outline=(255, 0, 0, 255), fill=(255, 0, 0, 50)
-                            )
+                            draw.polygon(points, outline=(255, 0, 0, 255), fill=(255, 0, 0, 50))
 
                         # Draw label
                         if points:
@@ -227,20 +211,16 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
 
                         valid_polygons += 1
 
-                except Exception as e:
+                except Exception:
                     # Skip malformed polygons and continue with others
                     continue
 
             st.image(image, caption=f"Predictions on {image_name}")
-            st.info(
-                f"Found {valid_polygons} valid text regions in this image (out of {len(polygons)} total)"
-            )
+            st.info(f"Found {valid_polygons} valid text regions in this image (out of {len(polygons)} total)")
 
             # Click to enlarge functionality
             if st.button("🔍 Click to Enlarge", key=f"enlarge_{image_name}"):
-                st.session_state[f"enlarge_{image_name}"] = not st.session_state.get(
-                    f"enlarge_{image_name}", False
-                )
+                st.session_state[f"enlarge_{image_name}"] = not st.session_state.get(f"enlarge_{image_name}", False)
 
             if st.session_state.get(f"enlarge_{image_name}", False):
                 st.markdown("### 🔍 Enlarged View")
@@ -274,9 +254,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
 
             # Click to enlarge for images without predictions too
             if st.button("🔍 Click to Enlarge", key=f"enlarge_{image_name}"):
-                st.session_state[f"enlarge_{image_name}"] = not st.session_state.get(
-                    f"enlarge_{image_name}", False
-                )
+                st.session_state[f"enlarge_{image_name}"] = not st.session_state.get(f"enlarge_{image_name}", False)
 
             if st.session_state.get(f"enlarge_{image_name}", False):
                 st.markdown("### 🔍 Enlarged View")
@@ -310,7 +288,6 @@ def display_image_grid(
 ):
     """Display a grid of images with their metrics."""
     end_idx = min(start_idx + max_images, len(df))
-    display_count = end_idx - start_idx
 
     st.markdown(f"### Images {start_idx + 1}-{end_idx} of {len(df)} ({sort_metric})")
 
@@ -336,7 +313,7 @@ def display_image_grid(
                                 st.metric(sort_metric, f"{value:.2f}")
                             else:
                                 st.metric(sort_metric, str(value))
-                        except Exception as e:
+                        except Exception:
                             st.metric(sort_metric, str(row[sort_metric]))
                 except Exception as e:
                     st.error(f"Error loading {row['filename']}: {str(e)}")
@@ -386,9 +363,7 @@ def display_statistical_analysis(df: pd.DataFrame):
 
     with col2:
         st.markdown("#### Total Area Distribution")
-        fig = px.histogram(
-            df, x="total_area", nbins=20, title="Distribution of Total Prediction Area"
-        )
+        fig = px.histogram(df, x="total_area", nbins=20, title="Distribution of Total Prediction Area")
         st.plotly_chart(
             fig,
         )
@@ -470,10 +445,7 @@ def display_model_comparison_stats(df_a: pd.DataFrame, df_b: pd.DataFrame):
         "Difference": [
             str(metrics_b["total_predictions"] - metrics_a["total_predictions"]),
             f"{metrics_b['avg_predictions'] - metrics_a['avg_predictions']:.1f}",
-            str(
-                metrics_b["images_with_predictions"]
-                - metrics_a["images_with_predictions"]
-            ),
+            str(metrics_b["images_with_predictions"] - metrics_a["images_with_predictions"]),
             str(metrics_b["empty_predictions"] - metrics_a["empty_predictions"]),
         ],
     }
@@ -489,20 +461,14 @@ def display_model_comparison_stats(df_a: pd.DataFrame, df_b: pd.DataFrame):
 
     with col2:
         delta = metrics_b["avg_predictions"] - metrics_a["avg_predictions"]
-        st.metric(
-            "Avg per Image", f"{metrics_b['avg_predictions']:.1f}", delta=f"{delta:.1f}"
-        )
+        st.metric("Avg per Image", f"{metrics_b['avg_predictions']:.1f}", delta=f"{delta:.1f}")
 
     with col3:
-        delta = (
-            metrics_b["images_with_predictions"] - metrics_a["images_with_predictions"]
-        )
+        delta = metrics_b["images_with_predictions"] - metrics_a["images_with_predictions"]
         st.metric("Images w/ Preds", metrics_b["images_with_predictions"], delta=delta)
 
     with col4:
-        delta = (
-            metrics_a["empty_predictions"] - metrics_b["empty_predictions"]
-        )  # Note: inverted for positive meaning
+        delta = metrics_a["empty_predictions"] - metrics_b["empty_predictions"]  # Note: inverted for positive meaning
         st.metric("Empty Preds", metrics_b["empty_predictions"], delta=-delta)
 
 
@@ -526,16 +492,12 @@ def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir:
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col1:
-        if st.button(
-            "⬅️ Previous", disabled=st.session_state.visual_comparison_page == 0
-        ):
+        if st.button("⬅️ Previous", disabled=st.session_state.visual_comparison_page == 0):
             st.session_state.visual_comparison_page -= 1
 
     with col2:
         current_image = common_images[st.session_state.visual_comparison_page]
-        st.markdown(
-            f"**Image {st.session_state.visual_comparison_page + 1} of {len(common_images)}**"
-        )
+        st.markdown(f"**Image {st.session_state.visual_comparison_page + 1} of {len(common_images)}**")
         st.markdown(f"**{current_image}**")
 
     with col3:
@@ -549,9 +511,7 @@ def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir:
     display_side_by_side_comparison(df_a, df_b, current_image, image_dir)
 
 
-def display_side_by_side_comparison(
-    df_a: pd.DataFrame, df_b: pd.DataFrame, image_name: str, image_dir: str
-):
+def display_side_by_side_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_name: str, image_dir: str):
     """Display side-by-side comparison of two models on the same image."""
     image_path = Path(image_dir) / image_name
 
@@ -583,11 +543,7 @@ def display_side_by_side_comparison(
                 str(row_a["polygons"]) if pd.notna(row_a["polygons"]) else "",
                 (255, 0, 0),
             )
-            pred_count_a = (
-                len(str(row_a["polygons"]).split("|"))
-                if pd.notna(row_a["polygons"])
-                else 0
-            )
+            pred_count_a = len(str(row_a["polygons"]).split("|")) if pd.notna(row_a["polygons"]) else 0
             conf_a = row_a.get("avg_confidence", 0.8)
             st.image(
                 img_a,
@@ -601,11 +557,7 @@ def display_side_by_side_comparison(
                 str(row_b["polygons"]) if pd.notna(row_b["polygons"]) else "",
                 (0, 255, 0),
             )
-            pred_count_b = (
-                len(str(row_b["polygons"]).split("|"))
-                if pd.notna(row_b["polygons"])
-                else 0
-            )
+            pred_count_b = len(str(row_b["polygons"]).split("|")) if pd.notna(row_b["polygons"]) else 0
             conf_b = row_b.get("avg_confidence", 0.8)
             st.image(
                 img_b,
@@ -617,19 +569,13 @@ def display_side_by_side_comparison(
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric(
-                "Prediction Count", pred_count_b, delta=pred_count_b - pred_count_a
-            )
+            st.metric("Prediction Count", pred_count_b, delta=pred_count_b - pred_count_a)
 
         with col2:
             from .data_utils import calculate_total_area
 
-            area_a = calculate_total_area(
-                str(row_a["polygons"]) if pd.notna(row_a["polygons"]) else ""
-            )
-            area_b = calculate_total_area(
-                str(row_b["polygons"]) if pd.notna(row_b["polygons"]) else ""
-            )
+            area_a = calculate_total_area(str(row_a["polygons"]) if pd.notna(row_a["polygons"]) else "")
+            area_b = calculate_total_area(str(row_b["polygons"]) if pd.notna(row_b["polygons"]) else "")
             st.metric("Total Area", f"{area_b:.0f}", delta=f"{area_b - area_a:.0f}")
 
         with col3:
@@ -639,9 +585,7 @@ def display_side_by_side_comparison(
         st.error(f"Error creating comparison: {str(e)}")
 
 
-def draw_predictions_on_image(
-    image: Image.Image, polygons_str: str, color: Tuple[int, int, int]
-) -> Image.Image:
+def draw_predictions_on_image(image: Image.Image, polygons_str: str, color: Tuple[int, int, int]) -> Image.Image:
     """Draw predictions on an image with specified color."""
     if not polygons_str.strip():
         return image

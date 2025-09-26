@@ -1,6 +1,34 @@
 # OCR Project Streamlit UI
 
 This directory contains Streamlit applications for managing OCR training workflows and real-time inference.
+## Table of Contents
+
+- [Applications](#applications)
+    - [Command Builder (`command_builder.py`)](#command-builder-command_builderpy)
+        - [Features](#features)
+        - [Process Safety](#process-safety)
+        - [Usage](#usage)
+    - [Inference UI (`inference_ui.py`)](#inference-ui-inference_uipy)
+        - [Features](#features-1)
+        - [Setup Requirements](#setup-requirements)
+        - [Usage](#usage-1)
+        - [Inference Workflow](#inference-workflow)
+        - [Demo Mode](#demo-mode)
+    - [Evaluation Viewer (`evaluation_viewer.py`)](#evaluation-viewer-evaluation_viewerpy)
+        - [주요 기능](#주요-기능)
+        - [사용법](#사용법)
+        - [분석 기능](#분석-기능)
+- [Applications](#applications-1)
+    - [Command Builder (`command_builder.py`)](#command-builder-command_builderpy-1)
+    - [Evaluation Viewer (`evaluation_viewer.py`)](#evaluation-viewer-evaluation_viewerpy-1)
+    - [Resource Monitor (`resource_monitor.py`)](#resource-monitor-resource_monitorpy)
+        - [Features](#features-2)
+        - [Process Management](#process-management)
+        - [Usage](#usage-2)
+- [Architecture](#architecture)
+- [Dependencies](#dependencies)
+- [Development](#development)
+- [Future Enhancements](#future-enhancements)
 
 ## Applications
 

@@ -658,3 +658,98 @@ uv run pytest tests/test_new_feature.py -v
 ---
 
 **마지막 업데이트**: 2025년 9월 23일
+
+## 🤖 코드 품질 자동화
+
+이 프로젝트는 코드 품질을 자동으로 유지하기 위한 포괄적인 자동화 시스템을 갖추고 있습니다.
+
+### 자동화 수준
+
+#### 1. **Pre-commit Hooks** (로컬 개발자용)
+커밋 전에 자동으로 코드 품질 검사를 수행합니다.
+
+```bash
+# 설치 (최초 1회)
+make pre-commit
+# 또는
+pre-commit install
+
+# 수동 실행
+pre-commit run --all-files
+```
+
+#### 2. **CI/CD 자동화** (GitHub Actions)
+- **푸시/PR 시**: 자동 코드 품질 검사
+- **PR 시**: 자동 수정 적용 및 커밋
+- **주간**: 정기적인 코드 품질 유지보수
+
+#### 3. **로컬 자동화 스크립트**
+```bash
+# 코드 품질 자동 수정
+make quality-fix
+# 또는
+./scripts/code-quality.sh
+
+# 품질 검사만 수행
+make quality-check
+```
+
+### 자동화되는 작업
+
+| 도구 | 목적 | 자동화 수준 |
+|------|------|-------------|
+| **Black** | 코드 포맷팅 | ✅ 자동 적용 |
+| **isort** | import 정렬 | ✅ 자동 적용 |
+| **flake8** | 린팅 | ✅ 자동 적용 |
+| **autoflake** | 미사용 import 제거 | ✅ 자동 적용 |
+| **mypy** | 타입 체크 | ✅ 검사만 |
+
+### 워크플로우
+
+#### 개발자 워크플로우
+```bash
+# 1. 코드 작성
+# 2. 자동 품질 검사 (pre-commit)
+git add .
+git commit  # 자동으로 품질 검사가 실행됨
+
+# 3. 수동 품질 개선 (필요시)
+make quality-fix
+```
+
+#### CI 워크플로우
+- **푸시**: 코드 품질 검사
+- **PR**: 자동 수정 적용
+- **매주 월요일**: 유지보수 PR 생성
+
+### 설정 파일들
+
+- `.pre-commit-config.yaml` - Pre-commit 훅 설정
+- `.github/workflows/ci.yml` - CI/CD 파이프라인
+- `.github/workflows/scheduled-maintenance.yml` - 주간 유지보수
+- `setup.cfg` - Flake8 설정
+- `pyproject.toml` - Black, isort, mypy 설정
+- `Makefile` - 편의 명령어들
+
+### 수동 실행
+
+```bash
+# 모든 품질 도구 실행
+make quality-check
+
+# 코드 포맷팅만
+make format
+
+# 린팅만
+make lint
+
+# 테스트와 품질 검사
+make ci
+```
+
+### 자동화의 이점
+
+- **일관성**: 모든 기여자가 동일한 코드 스타일 유지
+- **품질 보장**: 자동으로 버그 유발 코드를 방지
+- **시간 절약**: 수동 코드 리뷰 시간 감소
+- **지속적 개선**: 정기적인 코드 품질 유지보수

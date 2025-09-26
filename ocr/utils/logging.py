@@ -17,19 +17,11 @@ except ImportError:
     TORCH_AVAILABLE = False
 
 try:
-    from rich import print as rprint
     from rich.console import Console
     from rich.logging import RichHandler
     from rich.panel import Panel
-    from rich.progress import (
-        BarColumn,
-        Progress,
-        SpinnerColumn,
-        TextColumn,
-        TimeElapsedColumn,
-    )
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.table import Table
-    from rich.text import Text
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -43,8 +35,12 @@ try:
     ICECREAM_AVAILABLE = True
 except ImportError:
     ICECREAM_AVAILABLE = False
-    ic = lambda x: x  # fallback
-    install = lambda: None
+
+    def ic(x):
+        return x  # fallback
+
+    def install():
+        pass
 
 
 class OCRLogger:
@@ -92,9 +88,7 @@ class OCRLogger:
             # Fallback to basic console handler
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(self.level)
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
@@ -103,9 +97,7 @@ class OCRLogger:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
             file_handler = logging.FileHandler(self.log_file)
             file_handler.setLevel(self.level)
-            file_formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
-            )
+            file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s")
             file_handler.setFormatter(file_formatter)
             self.logger.addHandler(file_handler)
 
@@ -234,9 +226,7 @@ class DebugTools:
             )
         else:
             print(f"{name}_info: {info}")
-            print(
-                f"{name}_sample: {tensor.flatten()[:10] if tensor.numel() > 10 else tensor}"
-            )
+            print(f"{name}_sample: {tensor.flatten()[:10] if tensor.numel() > 10 else tensor}")
 
     @staticmethod
     def debug_model(model, input_shape: Optional[tuple] = None):
@@ -312,9 +302,7 @@ def log_experiment_end(experiment_name: str, metrics: Dict[str, Any]):
     logger.log_metrics(metrics)
 
 
-def create_experiment_logger(
-    experiment_name: str, output_dir: Union[str, Path]
-) -> OCRLogger:
+def create_experiment_logger(experiment_name: str, output_dir: Union[str, Path]) -> OCRLogger:
     """Create a logger for a specific experiment."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = Path(output_dir) / "logs" / f"{experiment_name}_{timestamp}.log"

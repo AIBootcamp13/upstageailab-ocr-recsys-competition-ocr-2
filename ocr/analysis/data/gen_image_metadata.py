@@ -10,7 +10,8 @@ Bucket proposal heuristics (modifiable):
   else -> 640 (no upscale needed)
 
 Usage:
-  python scripts/gen_image_metadata.py --images data/ICDAR17_full_dataset/images --out data/ICDAR17_full_dataset/metadata.json
+  python scripts/gen_image_metadata.py --images data/ICDAR17_full_dataset/images \
+    --out data/ICDAR17_full_dataset/metadata.json
 
 Later you can refine buckets or add median text height (would require parsing UFO GT).
 """
@@ -18,8 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
 from pathlib import Path
 
 from PIL import Image
@@ -29,11 +28,7 @@ from tqdm import tqdm
 def propose_bucket(short_side: int) -> int:
     if short_side < 360:
         return 768
-    if short_side < 480:
-        return 704
-    if short_side < 640:
-        return 640
-    return 640
+    return 704 if short_side < 480 else 640
 
 
 def main():
@@ -60,11 +55,7 @@ def main():
         long_side = max(w, h)
         aspect = long_side / short_side if short_side > 0 else None
         bucket = propose_bucket(short_side)
-        key_bin = (
-            360
-            if short_side < 360
-            else 480 if short_side < 480 else 640 if short_side < 640 else ">640"
-        )
+        key_bin = 360 if short_side < 360 else 480 if short_side < 480 else 640 if short_side < 640 else ">640"
         hist[key_bin] += 1
         meta[p.name] = dict(
             w=w,

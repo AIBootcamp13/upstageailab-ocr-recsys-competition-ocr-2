@@ -38,21 +38,21 @@ class OCRDataset(Dataset):
             print(f"Error loading annotation file {annotation_path}: {e}")
             return
 
-        for filename in annotations["images"].keys():
-                # Image file이 경로에 존재하는지 확인
-                if (self.image_path / filename).exists():
-                    # words 정보를 가지고 있는지 확인
-                    if "words" in annotations["images"][filename]:
-                        # Words의 Points 변환
-                        gt_words = annotations["images"][filename]["words"]
-                        polygons = [
-                            np.array([np.round(word_data["points"])], dtype=np.int32)
-                            for word_data in gt_words.values()
-                            if isinstance(word_data.get("points"), list) and len(word_data["points"]) > 0
-                        ]
-                        self.anns[filename] = polygons if polygons else None
-                    else:
-                        self.anns[filename] = None
+        for filename in annotations.get("images", {}).keys():
+            # Image file이 경로에 존재하는지 확인
+            if (self.image_path / filename).exists():
+                # words 정보를 가지고 있는지 확인
+                if "words" in annotations.get("images", {}).get(filename, {}):
+                    # Words의 Points 변환
+                    gt_words = annotations.get("images", {}).get(filename, {}).get("words", {})
+                    polygons = [
+                        np.array([np.round(word_data["points"])], dtype=np.int32)
+                        for word_data in gt_words.values()
+                        if isinstance(word_data.get("points"), list) and len(word_data["points"]) > 0
+                    ]
+                    self.anns[filename] = polygons or None
+                else:
+                    self.anns[filename] = None
 
     def __len__(self):
         return len(self.anns.keys())
@@ -97,17 +97,17 @@ class OCRDataset(Dataset):
         Orientation 1 (normal) requires no rotation.
         """
         if orientation == 2:
-            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         elif orientation == 3:
             image = image.rotate(180)
         elif orientation == 4:
-            image = image.rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(180).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         elif orientation == 5:
-            image = image.rotate(-90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(-90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         elif orientation == 6:
             image = image.rotate(-90, expand=True)
         elif orientation == 7:
-            image = image.rotate(90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         elif orientation == 8:
             image = image.rotate(90, expand=True)
         # Orientation 1 (normal) and any other values: no rotation needed
