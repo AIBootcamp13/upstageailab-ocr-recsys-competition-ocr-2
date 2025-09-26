@@ -1,0 +1,6 @@
+# @package model.decoder
+
+_target_: ${decoder_path}.DBPPDecoder
+in_channels: [64, 128, 256, 512]
+inner_channels: 256
+out_channels: 128

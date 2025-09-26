@@ -1,0 +1,6 @@
+# @package model.loss
+
+_target_: ${loss_path}.CraftLoss
+region_weight: 1.0
+affinity_weight: 1.0
+eps: 1.0e-6

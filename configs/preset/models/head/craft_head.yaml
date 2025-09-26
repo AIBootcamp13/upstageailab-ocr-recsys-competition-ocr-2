@@ -1,0 +1,11 @@
+# @package model.head
+
+_target_: ${head_path}.CraftHead
+in_channels: 256
+hidden_channels: 128
+postprocess:
+  text_threshold: 0.7
+  link_threshold: 0.4
+  low_text: 0.3
+  min_area: 16
+  expand_ratio: 1.5

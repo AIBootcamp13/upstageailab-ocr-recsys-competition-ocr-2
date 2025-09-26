@@ -1,0 +1,22 @@
+# @package model
+
+architecture_name: dbnetpp
+component_overrides:
+  encoder:
+    model_name: "resnet50"
+    select_features: [1, 2, 3, 4]
+    pretrained: true
+  decoder:
+    inner_channels: 256
+    out_channels: 128
+  head:
+    upscale: 4
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 0.0003
+  weight_decay: 0.0001
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 200
+  eta_min: 1.0e-6

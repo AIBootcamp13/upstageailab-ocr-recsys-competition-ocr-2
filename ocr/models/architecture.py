@@ -1,6 +1,8 @@
 import torch.nn as nn
 from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
 
+from .core import get_registry
 from .decoder import get_decoder_by_cfg
 from .encoder import get_encoder_by_cfg
 from .head import get_head_by_cfg
@@ -11,20 +13,12 @@ class OCRModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
+        self.architecture_name = getattr(cfg, "architecture_name", None)
 
-        # 각 모듈 instantiate
-        self.encoder = get_encoder_by_cfg(cfg.encoder)
-
-        # Dynamically configure decoder with encoder's output channels
-        decoder_cfg = cfg.decoder.copy()
-        if hasattr(decoder_cfg, "in_channels") or "in_channels" in decoder_cfg:
-            # Use encoder's output channels for decoder input
-            encoder_out_channels = self.encoder.out_channels
-            decoder_cfg.in_channels = encoder_out_channels
-
-        self.decoder = get_decoder_by_cfg(decoder_cfg)
-        self.head = get_head_by_cfg(cfg.head)
-        self.loss = get_loss_by_cfg(cfg.loss)
+        if self.architecture_name:
+            self._init_from_registry(cfg)
+        else:
+            self._init_from_components(cfg)
 
     def forward(self, images, return_loss=True, **kwargs):
         encoded_features = self.encoder(images)
@@ -54,7 +48,51 @@ class OCRModel(nn.Module):
             scheduler_config = self.cfg.scheduler
             scheduler = instantiate(scheduler_config, optimizer=optimizer)
 
-        return optimizer, scheduler
+        return [optimizer], [scheduler] if scheduler else []
 
     def get_polygons_from_maps(self, batch, pred):
         return self.head.get_polygons_from_maps(batch, pred)
+
+    def _init_from_registry(self, cfg):
+        registry = get_registry()
+        component_configs = self._prepare_component_configs(cfg)
+        architecture_name = str(self.architecture_name)
+        components = registry.create_architecture_components(architecture_name, **component_configs)
+        self.encoder = components["encoder"]
+        self.decoder = components["decoder"]
+        self.head = components["head"]
+        self.loss = components["loss"]
+
+    def _init_from_components(self, cfg):
+        self.encoder = get_encoder_by_cfg(cfg.encoder)
+
+        decoder_cfg = cfg.decoder.copy()
+        if hasattr(decoder_cfg, "in_channels") or "in_channels" in decoder_cfg:
+            encoder_out_channels = self.encoder.out_channels
+            decoder_cfg.in_channels = encoder_out_channels
+
+        self.decoder = get_decoder_by_cfg(decoder_cfg)
+        self.head = get_head_by_cfg(cfg.head)
+        self.loss = get_loss_by_cfg(cfg.loss)
+
+    def _prepare_component_configs(self, cfg) -> dict:
+        overrides = getattr(cfg, "component_overrides", None)
+        component_configs: dict[str, dict] = {}
+        if overrides is not None:
+            for name in ("encoder", "decoder", "head", "loss"):
+                if name in overrides and overrides[name] is not None:
+                    component_configs[f"{name}_config"] = self._to_container(overrides[name])
+        return component_configs
+
+    @staticmethod
+    def _to_container(config_section):
+        if isinstance(config_section, DictConfig):
+            result = OmegaConf.to_container(config_section, resolve=True)
+        elif isinstance(config_section, dict):
+            result = dict(config_section)
+        else:
+            raise TypeError(f"Unsupported override configuration type: {type(config_section)!r}")
+
+        if not isinstance(result, dict):
+            raise TypeError("Component overrides must resolve to a dictionary of keyword arguments.")
+        return result

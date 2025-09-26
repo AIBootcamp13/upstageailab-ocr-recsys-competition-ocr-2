@@ -1,0 +1,8 @@
+# @package model.encoder
+
+_target_: ${encoder_path}.CraftVGGEncoder
+model_name: "vgg16_bn"
+pretrained: true
+output_indices: [1, 2, 3, 4]
+extra_channels: 512
+freeze_backbone: false

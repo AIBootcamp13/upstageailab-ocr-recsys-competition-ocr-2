@@ -38,6 +38,13 @@
 - **Architecture Creation**: One-line creation of complete model architectures
 - **Configuration Validation**: Automatic compatibility checking between components
 
+### Architecture Expansion Progress 🚀
+- **CRAFT Architecture**: Added full encoder/decoder/head/loss stack with registry registration and Hydra presets (`preset/models/craft.yaml`)
+- **DBNet++ Variant**: Introduced bi-directional decoder, upgraded presets (`preset/models/dbnetpp.yaml`), and registry registration (`dbnetpp`)
+- **Data Pipeline Support**: New `CraftCollateFN` generates region/affinity maps compatible with CRAFT training
+- **Configuration Flexibility**: `OCRModel` now supports `architecture_name` + `component_overrides` for registry-driven instantiation
+- **Unit Tests**: Added coverage for new components (`tests/test_craft_components.py`, `tests/test_dbnetpp_components.py`, registry path in `tests/test_architecture.py`)
+
 ## Process Management Improvements ✅
 
 ### Orphaned Process Prevention
@@ -80,8 +87,8 @@
 - **Testing Infrastructure**: Comprehensive unit tests with pytest coverage
 
 ## Next Steps
-- Implement CRAFT architecture for character-level text detection
-- Add DBNet++ enhanced version with better feature extraction
+- Benchmark new CRAFT and DBNet++ presets against DBNet baseline
+- Integrate architecture selection into training workflows (CLI/UI overrides)
 - Integrate Vision Transformer backbone support
 - Add advanced data augmentation techniques
 - Create comprehensive architecture benchmarking suite

@@ -13,7 +13,7 @@ class TestOCRModel:
         """Create a mock configuration for testing."""
         from omegaconf import OmegaConf
 
-        config = OmegaConf.create(
+        return OmegaConf.create(
             {
                 "encoder": {},
                 "decoder": {},
@@ -22,7 +22,6 @@ class TestOCRModel:
                 "optimizer": {},
             }
         )
-        return config
 
     @pytest.fixture
     def sample_input(self):
@@ -208,3 +207,39 @@ class TestOCRModel:
 
             assert result == expected_polygons
             mock_head_comp.get_polygons_from_maps.assert_called_once_with(gt_maps, pred_maps)
+
+        def test_model_initialization_with_registry(self, mock_config):
+            with (
+                patch("ocr.models.architecture.get_registry") as mock_get_registry,
+                patch("ocr.models.architecture.get_decoder_by_cfg"),
+                patch("ocr.models.architecture.get_encoder_by_cfg"),
+                patch("ocr.models.architecture.get_head_by_cfg"),
+                patch("ocr.models.architecture.get_loss_by_cfg"),
+            ):
+                encoder = Mock()
+                decoder = Mock()
+                head = Mock()
+                loss = Mock()
+
+                registry_mock = Mock()
+                registry_mock.create_architecture_components.return_value = {
+                    "encoder": encoder,
+                    "decoder": decoder,
+                    "head": head,
+                    "loss": loss,
+                }
+                mock_get_registry.return_value = registry_mock
+
+                from omegaconf import OmegaConf
+
+                OmegaConf.set_struct(mock_config, False)
+                mock_config.architecture_name = "craft"
+                mock_config.component_overrides = {}
+
+                model = OCRModel(mock_config)
+
+                assert model.encoder is encoder
+                assert model.decoder is decoder
+                assert model.head is head
+                assert model.loss is loss
+                registry_mock.create_architecture_components.assert_called_once_with("craft", **{})

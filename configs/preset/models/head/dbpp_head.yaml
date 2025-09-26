@@ -1,0 +1,13 @@
+# @package model.head
+
+_target_: ${head_path}.DBHead
+in_channels: 128
+upscale: 4
+k: 50
+bias: false
+smooth: false
+postprocess:
+  thresh: 0.3
+  box_thresh: 0.4
+  max_candidates: 300
+  use_polygon: false

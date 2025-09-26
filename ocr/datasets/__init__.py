@@ -1,6 +1,7 @@
 from hydra.utils import instantiate
 
 from .base import OCRDataset  # noqa: F401
+from .craft_collate_fn import CraftCollateFN  # noqa: F401
 from .db_collate_fn import DBCollateFN  # noqa: F401
 from .preprocessing import DocumentPreprocessor, LensStylePreprocessorAlbumentations  # noqa: F401
 from .transforms import DBTransforms  # noqa: F401

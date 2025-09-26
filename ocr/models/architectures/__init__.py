@@ -1,5 +1,5 @@
 """OCR architecture implementations and registrations."""
 
-from . import dbnet  # noqa: F401
+from . import craft, dbnet, dbnetpp  # noqa: F401
 
-__all__ = ["dbnet"]
+__all__ = ["dbnet", "craft", "dbnetpp"]
