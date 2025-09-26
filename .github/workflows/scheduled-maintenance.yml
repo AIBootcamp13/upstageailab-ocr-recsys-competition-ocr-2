@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
+      - name: Install pre-commit
+        run: pip install pre-commit
+
       - name: Run comprehensive code quality checks
         id: quality-check
         run: |
