@@ -12,7 +12,7 @@ class ComponentRegistry:
     a centralized way to register and discover components.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._encoders: dict[str, type[BaseEncoder]] = {}
         self._decoders: dict[str, type[BaseDecoder]] = {}
         self._heads: dict[str, type[BaseHead]] = {}
@@ -229,7 +229,7 @@ class ComponentRegistry:
         """
         arch_config = self.get_architecture(architecture_name)
 
-        components = {}
+        components: dict[str, Any] = {}
 
         # Create encoder
         encoder_class = self.get_encoder(arch_config["encoder"])
