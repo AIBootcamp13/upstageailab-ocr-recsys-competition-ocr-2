@@ -119,6 +119,25 @@ def test_transform_polygons_filters_degenerate_after_clipping():
     polygons = [
         np.array(
             [
+                [80.0, 82.5],
+                [80.0, 96.0],
+                [80.0, 96.0],
+                [80.0, 82.5],
+            ],
+            dtype=np.float32,
+        ).reshape(1, -1, 2)
+    ]
+
+    transformed = OCRDataset.transform_polygons_for_exif(polygons, orientation=1, image_size=(640, 640))
+
+    assert transformed == []
+
+
+def test_transform_polygons_skip_when_already_rotated():
+    width, height = 1280, 960
+    polygons = [
+        np.array(
+            [
                 [165.43, 970.5],
                 [192.15, 970.5],
                 [192.15, 999.77],
@@ -128,6 +147,7 @@ def test_transform_polygons_filters_degenerate_after_clipping():
         ).reshape(1, -1, 2)
     ]
 
-    transformed = OCRDataset.transform_polygons_for_exif(polygons, orientation=6, image_size=(1280, 960))
+    transformed = OCRDataset.transform_polygons_for_exif(polygons, orientation=6, image_size=(width, height))
 
-    assert transformed == []
+    assert len(transformed) == 1
+    np.testing.assert_allclose(transformed[0], polygons[0])

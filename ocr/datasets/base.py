@@ -103,18 +103,28 @@ class OCRDataset(Dataset):
         Handles orientations 1-8 according to EXIF standard.
         Orientation 1 (normal) requires no rotation.
         """
+        # Set interpolation and fill color for rotation
+        rotate_kwargs = {
+            "resample": Image.BICUBIC,
+        }
+        # If image has alpha channel, use transparent fill, else white
+        if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+            rotate_kwargs["fillcolor"] = (0, 0, 0, 0)
+        else:
+            rotate_kwargs["fillcolor"] = (255, 255, 255)
+
         if orientation == 2:
-            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 3:
             image = image.rotate(180)
         elif orientation == 4:
-            image = image.rotate(180).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            image = image.rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 5:
-            image = image.rotate(-90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            image = image.rotate(-90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 6:
             image = image.rotate(-90, expand=True)
         elif orientation == 7:
-            image = image.rotate(90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+            image = image.rotate(90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 8:
             image = image.rotate(90, expand=True)
         # Orientation 1 (normal) and any other values: no rotation needed
@@ -126,6 +136,12 @@ class OCRDataset(Dataset):
         orientation: int,
         image_size: tuple[int, int],
     ) -> list[np.ndarray]:
+        """Apply EXIF-aware rotation to polygons and drop degenerate results.
+
+        Polygons that already fit within the target oriented frame are not
+        transformed again to prevent double-rotation, but they are still
+        clipped and filtered so downstream consumers receive clean shapes.
+        """
         if not polygons:
             return []
 
@@ -135,9 +151,6 @@ class OCRDataset(Dataset):
             for polygon_array in [OCRDataset._ensure_polygon_array(polygon)]
             if polygon_array is not None
         ]
-
-        if orientation == 1:
-            return normalised_polygons
 
         width, height = image_size
         transformers = {
@@ -150,30 +163,40 @@ class OCRDataset(Dataset):
             8: lambda x, y: (y, width - 1 - x),
         }
 
-        transform_point = transformers.get(orientation)
-        if transform_point is None:
-            return normalised_polygons
-
-        transformed: list[np.ndarray] = []
-        for polygon_array in normalised_polygons:
-            if not hasattr(polygon_array, "reshape"):
-                polygon_array = np.asarray(polygon_array, dtype=np.float32)
-            else:
-                polygon_array = np.asarray(polygon_array)
-
-            if polygon_array.dtype == np.dtype("O"):
-                polygon_array = polygon_array.astype(np.float32, copy=False)
-
-            normalised_shape = polygon_array.shape
-            points = polygon_array.reshape(-1, 2)
-            rotated_points = np.array([transform_point(float(x), float(y)) for x, y in points], dtype=np.float32)
-            rotated_points = rotated_points.astype(polygon_array.dtype, copy=False)
-            transformed.append(rotated_points.reshape(normalised_shape))
-
         if orientation in {5, 6, 7, 8}:
             new_width, new_height = height, width
         else:
             new_width, new_height = width, height
+
+        fits_original = OCRDataset._polygons_fit_within(normalised_polygons, width, height)
+        fits_rotated = OCRDataset._polygons_fit_within(normalised_polygons, new_width, new_height)
+
+        force_identity = orientation == 1
+        skip_transform = force_identity or (not force_identity and not fits_original and fits_rotated)
+
+        transformed: list[np.ndarray] = []
+
+        if skip_transform:
+            transformed = [np.array(polygon, copy=True) for polygon in normalised_polygons]
+        else:
+            transform_point = transformers.get(orientation)
+            if transform_point is None:
+                transformed = [np.array(polygon, copy=True) for polygon in normalised_polygons]
+            else:
+                for polygon_array in normalised_polygons:
+                    if not hasattr(polygon_array, "reshape"):
+                        polygon_array = np.asarray(polygon_array, dtype=np.float32)
+                    else:
+                        polygon_array = np.asarray(polygon_array)
+
+                    if polygon_array.dtype == np.dtype("O"):
+                        polygon_array = polygon_array.astype(np.float32, copy=False)
+
+                    normalised_shape = polygon_array.shape
+                    points = polygon_array.reshape(-1, 2)
+                    rotated_points = np.array([transform_point(float(x), float(y)) for x, y in points], dtype=np.float32)
+                    rotated_points = rotated_points.astype(polygon_array.dtype, copy=False)
+                    transformed.append(rotated_points.reshape(normalised_shape))
 
         OCRDataset._clip_polygons_in_place(transformed, new_width, new_height)
         return OCRDataset._filter_degenerate_polygons(transformed)
@@ -232,3 +255,22 @@ class OCRDataset(Dataset):
             filtered.append(polygon)
 
         return filtered
+
+    @staticmethod
+    def _polygons_fit_within(polygons: Sequence[np.ndarray], width: int, height: int) -> bool:
+        if width <= 0 or height <= 0:
+            return False
+
+        for polygon in polygons:
+            if polygon.size == 0:
+                continue
+            points = polygon.reshape(-1, 2)
+            if not points.size:
+                continue
+            xmin = float(points[:, 0].min())
+            xmax = float(points[:, 0].max())
+            ymin = float(points[:, 1].min())
+            ymax = float(points[:, 1].max())
+            if xmin < 0 or ymin < 0 or xmax >= width or ymax >= height:
+                return False
+        return True
