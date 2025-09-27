@@ -40,7 +40,13 @@ class ConfigParser:
         if "models" in self._cache:
             return self._cache["models"]
 
-        models = {"encoders": [], "decoders": [], "heads": [], "losses": []}
+        models = {
+            "encoders": [],
+            "decoders": [],
+            "heads": [],
+            "losses": [],
+            "optimizers": [],
+        }
 
         # Scan model directories
         model_dirs = {
@@ -54,6 +60,12 @@ class ConfigParser:
             if dir_path.exists():
                 for yaml_file in dir_path.glob("*.yaml"):
                     models[component_type].append(yaml_file.stem)
+
+        # Optimizers from modular group
+        optimizer_dir = self.config_dir / "model" / "optimizers"
+        if optimizer_dir.exists():
+            for yaml_file in optimizer_dir.glob("*.yaml"):
+                models["optimizers"].append(yaml_file.stem)
 
         # Add registry-discovered components (if not already present)
         for enc in registry.list_encoders():
@@ -91,7 +103,89 @@ class ConfigParser:
 
     def get_available_architectures(self) -> list[str]:
         """Get available architecture presets from the registry for UI selection."""
+        # Ensure architectures are registered by importing the module
+        from ocr.models import architectures  # noqa: F401
+
         return registry.list_architectures()
+
+    def get_architecture_metadata(self) -> dict[str, Any]:
+        """Return UI-focused metadata for each registered architecture."""
+        if "architecture_metadata" in self._cache:
+            return self._cache["architecture_metadata"]
+
+        metadata: dict[str, Any] = {}
+        arch_dir = self.config_dir / "model" / "architectures"
+        arch_ui_dir = self.config_dir / "ui_meta" / "architectures"
+        if arch_dir.exists():
+            for yaml_file in arch_dir.glob("*.yaml"):
+                try:
+                    with open(yaml_file) as f:
+                        data = yaml.safe_load(f) or {}
+                except yaml.YAMLError:
+                    continue
+
+                name = yaml_file.stem
+                ui_metadata: dict[str, Any] = {}
+                if arch_ui_dir.exists():
+                    ui_meta_path = arch_ui_dir / yaml_file.name
+                    if ui_meta_path.exists():
+                        try:
+                            with open(ui_meta_path) as meta_file:
+                                meta_payload = yaml.safe_load(meta_file) or {}
+                            ui_metadata = meta_payload.get("ui_metadata", meta_payload)
+                        except yaml.YAMLError:
+                            ui_metadata = {}
+
+                # Ensure consistent keys
+                ui_metadata.setdefault("components", {})
+                ui_metadata.setdefault("compatible_backbones", [])
+                ui_metadata.setdefault("recommended_optimizers", [])
+                ui_metadata.setdefault("default_backbone", None)
+                ui_metadata.setdefault("default_optimizer", None)
+                ui_metadata.setdefault("default_learning_rate", None)
+                ui_metadata.setdefault("recommended_data", None)
+                ui_metadata.setdefault("default_decoder", None)
+                ui_metadata.setdefault("compatible_decoders", [])
+
+                metadata[name] = {
+                    "ui_metadata": ui_metadata,
+                    "component_overrides": data.get("component_overrides", {}),
+                }
+
+        self._cache["architecture_metadata"] = metadata
+        return metadata
+
+    def get_optimizer_metadata(self) -> dict[str, Any]:
+        """Return UI metadata for optimizers."""
+        if "optimizer_metadata" in self._cache:
+            return self._cache["optimizer_metadata"]
+
+        metadata: dict[str, Any] = {}
+        optimizer_ui_dir = self.config_dir / "ui_meta" / "optimizers"
+        if optimizer_ui_dir.exists():
+            for yaml_file in optimizer_ui_dir.glob("*.yaml"):
+                try:
+                    with open(yaml_file) as f:
+                        payload = yaml.safe_load(f) or {}
+                except yaml.YAMLError:
+                    continue
+
+                name = yaml_file.stem
+                ui_metadata = payload.get("ui_metadata", payload)
+                learning_rate_meta = ui_metadata.get("learning_rate", {})
+                if isinstance(learning_rate_meta, dict):
+                    learning_rate_meta.setdefault("min", None)
+                    learning_rate_meta.setdefault("max", None)
+                    learning_rate_meta.setdefault("default", None)
+                    learning_rate_meta.setdefault("step", None)
+                    learning_rate_meta.setdefault("help", None)
+
+                metadata[name] = {
+                    "ui_metadata": ui_metadata,
+                }
+
+        self._cache["optimizer_metadata"] = metadata
+        return metadata
 
     def get_training_parameters(self) -> dict[str, Any]:
         """Get available training parameters and their ranges from modular configs.
@@ -166,16 +260,16 @@ class ConfigParser:
         """Get available dataset configurations.
 
         Returns:
-            List of available dataset config names.
+            List of available dataset configuration names.
         """
         if "datasets" in self._cache:
             return self._cache["datasets"]
 
         datasets = []
-        dataset_dir = self.config_dir / "preset" / "datasets"
+        dataset_dir = self.config_dir / "data"
 
         if dataset_dir.exists():
-            datasets = [yaml_file.stem for yaml_file in dataset_dir.glob("*.yaml")]
+            datasets.extend(yaml_file.stem for yaml_file in dataset_dir.glob("*.yaml"))
 
         self._cache["datasets"] = datasets
         return datasets
@@ -213,8 +307,19 @@ class ConfigParser:
         if config.get("max_epochs", 0) <= 0:
             errors.append("max_epochs must be positive")
 
-        if not (1e-5 <= config.get("learning_rate", 0) <= 1e-2):
-            errors.append("learning_rate must be between 1e-5 and 1e-2")
+        optimizer_name = config.get("optimizer")
+        learning_rate = config.get("learning_rate", 0)
+        if optimizer_name:
+            optimizer_metadata = self.get_optimizer_metadata()
+            optimizer_info = optimizer_metadata.get(optimizer_name, {})
+            lr_meta = optimizer_info.get("ui_metadata", {}).get("learning_rate", {})
+            lr_min = lr_meta.get("min", 1e-5)
+            lr_max = lr_meta.get("max", 1e-2)
+        else:
+            lr_min, lr_max = 1e-5, 1e-2
+
+        if not (lr_min <= learning_rate <= lr_max):
+            errors.append(f"learning_rate must be between {lr_min} and {lr_max}")
 
         if config.get("batch_size", 0) <= 0:
             errors.append("batch_size must be positive")

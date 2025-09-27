@@ -35,14 +35,49 @@ ui_elements:
     validation:
       required_if: "resume_training == true"
 
+  - key: architecture
+    type: selectbox
+    label: "Architecture"
+    options_source: "models.architectures"
+    default: "dbnet"
+    help: "OCR architecture preset (DBNet, CRAFT, DBNet++)."
+    visible_if: "resume_training == false"
+    hydra_override:
+      - "model.architecture_name"
+      - "model/architectures"
+    metadata_help_key: "notes"
+    architecture_fallback: "dbnet"
+
+  - key: architecture_components
+    type: info
+    label: "Component Summary"
+    visible_if: "resume_training == false"
+    metadata_info_key: "components"
+    info_template: "Encoder: {encoder}\nDecoder: {decoder}\nHead: {head}\nLoss: {loss}"
+
   - key: encoder
     type: selectbox
-    label: "Encoder"
+    label: "Backbone (Encoder)"
     options_source: "models.backbones"
     default: "resnet18"
     help: "Backbone encoder architecture."
     visible_if: "resume_training == false"
     hydra_override: "model.encoder.model_name"
+    filter_by_architecture_key: "compatible_backbones"
+    metadata_default_key: "default_backbone"
+    metadata_help_key: "compatible_backbones"
+
+  - key: optimizer
+    type: selectbox
+    label: "Optimizer"
+    options_source: "models.optimizers"
+    default: "adam"
+    help: "Optimizer preset to load into the model configuration."
+    visible_if: "resume_training == false"
+    hydra_override: "model/optimizers"
+    filter_by_architecture_key: "recommended_optimizers"
+    metadata_default_key: "default_optimizer"
+    metadata_help_key: "recommended_optimizers"
 
   - key: learning_rate
     type: slider
@@ -55,7 +90,9 @@ ui_elements:
     hydra_override: "model.optimizer.lr"
     validation:
       required: true
-      range: [1.0e-5, 1.0e-2]
+    metadata_default_key: "default_learning_rate"
+    optimizer_metadata_key: "learning_rate"
+    optimizer_help_key: "learning_rate.help"
 
   - key: batch_size
     type: slider
@@ -86,3 +123,13 @@ ui_elements:
     default: 42
     min_value: 0
     hydra_override: "seed"
+
+  - key: dataset
+    type: selectbox
+    label: "Dataset Config"
+    options_source: "datasets"
+    default: "default"
+    help: "Hydra dataset configuration to load."
+    visible_if: "resume_training == false"
+    hydra_override: "data"
+    metadata_default_key: "recommended_data"

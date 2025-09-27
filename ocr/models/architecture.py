@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import torch.nn as nn
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
@@ -77,11 +79,35 @@ class OCRModel(nn.Module):
 
     def _prepare_component_configs(self, cfg) -> dict:
         overrides = getattr(cfg, "component_overrides", None)
-        component_configs: dict[str, dict] = {}
+        component_configs: dict[str, Any] = {}
         if overrides is not None:
             for name in ("encoder", "decoder", "head", "loss"):
-                if name in overrides and overrides[name] is not None:
-                    component_configs[f"{name}_config"] = self._to_container(overrides[name])
+                if name not in overrides or overrides[name] is None:
+                    continue
+
+                section = self._to_container(overrides[name])
+                if not isinstance(section, dict):
+                    raise TypeError(f"Component override for '{name}' must resolve to a mapping, got {type(section)!r}.")
+                section_dict = cast(dict[str, Any], dict(section))
+                component_name_key = f"{name}_name"
+                component_config_key = f"{name}_config"
+
+                override_name: str | None = None
+                override_params: dict[str, Any] | None
+
+                if "name" in section_dict:
+                    override_name = section_dict.get("name")
+                    params = section_dict.get("params")
+                    if params is None:
+                        params = {k: v for k, v in section_dict.items() if k != "name"}
+                    override_params = dict(params) if isinstance(params, dict) else {}
+                else:
+                    override_params = section_dict  # legacy format: plain parameter dict
+
+                if override_name:
+                    component_configs[component_name_key] = override_name
+
+                component_configs[component_config_key] = override_params or {}
         return component_configs
 
     @staticmethod

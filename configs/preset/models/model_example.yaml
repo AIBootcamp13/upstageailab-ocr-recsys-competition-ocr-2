@@ -1,16 +1,18 @@
 # @package model
 
 defaults:
-  - /preset/models/decoder/unet
+  - /model/architectures: dbnet
+  - /model/optimizers: adam
   - /preset/models/encoder/timm_backbone
+  - /preset/models/decoder/unet
   - /preset/models/head/db_head
   - /preset/models/loss/db_loss
   - _self_
 
 optimizer:
-  _target_: torch.optim.Adam
   lr: 0.001
   weight_decay: 0.0001
+
 scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
   step_size: 100

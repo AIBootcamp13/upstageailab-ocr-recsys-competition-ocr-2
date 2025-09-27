@@ -1,5 +1,8 @@
 """Component registry system for plug-and-play OCR architectures."""
 
+from __future__ import annotations
+
+import inspect
 from typing import Any
 
 from .base_classes import BaseDecoder, BaseEncoder, BaseHead, BaseLoss, BaseMetric
@@ -232,28 +235,54 @@ class ComponentRegistry:
         components: dict[str, Any] = {}
 
         # Create encoder
-        encoder_class = self.get_encoder(arch_config["encoder"])
-        encoder_config = component_configs.get("encoder_config", {})
+        encoder_name = component_configs.get("encoder_name") or arch_config["encoder"]
+        encoder_class = self.get_encoder(encoder_name)
+        encoder_config = self._filter_component_kwargs(encoder_class, component_configs.get("encoder_config", {}))
         components["encoder"] = encoder_class(**encoder_config)
 
         # Create decoder
-        decoder_class = self.get_decoder(arch_config["decoder"])
+        decoder_name = component_configs.get("decoder_name") or arch_config["decoder"]
+        decoder_class = self.get_decoder(decoder_name)
         decoder_config = component_configs.get("decoder_config", {})
         decoder_config.setdefault("in_channels", components["encoder"].out_channels)
+        decoder_config = self._filter_component_kwargs(decoder_class, decoder_config)
         components["decoder"] = decoder_class(**decoder_config)
 
         # Create head
-        head_class = self.get_head(arch_config["head"])
+        head_name = component_configs.get("head_name") or arch_config["head"]
+        head_class = self.get_head(head_name)
         head_config = component_configs.get("head_config", {})
         head_config.setdefault("in_channels", components["decoder"].out_channels)
+        head_config = self._filter_component_kwargs(head_class, head_config)
         components["head"] = head_class(**head_config)
 
         # Create loss
-        loss_class = self.get_loss(arch_config["loss"])
-        loss_config = component_configs.get("loss_config", {})
+        loss_name = component_configs.get("loss_name") or arch_config["loss"]
+        loss_class = self.get_loss(loss_name)
+        loss_config = self._filter_component_kwargs(loss_class, component_configs.get("loss_config", {}))
         components["loss"] = loss_class(**loss_config)
 
         return components
+
+    @staticmethod
+    def _filter_component_kwargs(component_cls: type, config: dict[str, Any]) -> dict[str, Any]:
+        """Filter configuration dictionary to match component signature.
+
+        Prevents leaking kwargs from one architecture override into another when
+        switching presets within the same Hydra composition.
+        """
+
+        if not config:
+            return {}
+
+        signature = inspect.signature(component_cls.__init__)  # type: ignore[misc]
+        parameters = signature.parameters
+
+        if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()):
+            return config
+
+        allowed_keys = {name for name, param in parameters.items() if name != "self"}
+        return {key: value for key, value in config.items() if key in allowed_keys}
 
 
 # Global registry instance

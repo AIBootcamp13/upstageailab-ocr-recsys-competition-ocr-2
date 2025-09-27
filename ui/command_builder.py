@@ -141,10 +141,14 @@ def maybe_suffix_exp_name(overrides: list[str], values: dict[str, Any], append_s
     if not append_suffix or not values.get("encoder") or values.get("resume_training"):
         return overrides
     encoder = values["encoder"]
+    architecture = values.get("architecture")
     for i, ov in enumerate(overrides):
         if ov.startswith("exp_name="):
             base_name = ov.split("=", 1)[1]
-            overrides[i] = f"exp_name={base_name}-{encoder}"
+            if architecture:
+                overrides[i] = f"exp_name={base_name}-{architecture}-{encoder}"
+            else:
+                overrides[i] = f"exp_name={base_name}-{encoder}"
             break
     return overrides
 

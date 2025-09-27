@@ -1,88 +1,98 @@
-name: CI
+# This workflow unifies linting, formatting, testing, and auto-fixing into a single job.
+# It runs on pushes and pull requests to ensure consistent code quality.
+name: CI & Auto-format
 
 on:
   push:
-    branches: [ "01_refactor/config" ]
+    branches:
+      - main
+      - '01_refactor/config' # Adjust to your development branches
   pull_request:
-    branches: [ "01_refactor/config" ]
+    branches:
+      - main
+      - '01_refactor/config' # Adjust to your base branches
+
+# Grant permissions for the workflow to write commit statuses and push code.
+permissions:
+  contents: write
 
 jobs:
-  lint-and-test:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Check out the repository code
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # On pull requests, check out the head of the PR branch
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
 
-      - name: Set up Python
+      # Step 2: Set up the Python environment
+      - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
+      # Step 3: Install and configure uv, the package manager
       - name: Install uv
         uses: astral-sh/setup-uv@v1
 
-      - name: Create UV cache directory
-        run: mkdir -p ~/.cache/uv
-
+      # Step 4: Cache dependencies to speed up subsequent runs
       - name: Cache uv dependencies
         uses: actions/cache@v4
         with:
           path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-uv-
 
+      # Step 5: Install project dependencies
       - name: Install dependencies
         run: uv sync --extra dev
 
-      - name: Run quality checks
-        run: make quality-check
-
-      - name: Run tests
-        run: uv run pytest tests/ -v
-
-  auto-fix:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v1
-
-      - name: Create UV cache directory
-        run: mkdir -p ~/.cache/uv
-
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
-      - name: Install dependencies
-        run: uv sync --extra dev
-
+      # Step 6: Run Ruff to automatically fix linting and formatting issues
       - name: Auto-fix with Ruff
+        id: ruff_fix
         run: |
+          echo "Running Ruff linter and formatter with auto-fix..."
           uv run ruff check . --fix --unsafe-fixes
           uv run ruff format .
-          if [ -n "$(git status --porcelain)" ]; then
-            git config --global user.name 'github-actions[bot]'
-            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-            git add .
-            git commit -m "🤖 Auto-fix: code formatting and linting with Ruff"
-            git push
+
+          # Check if any files were changed by the auto-fix process
+          if git diff --quiet; then
+            echo "No linting changes were applied."
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Linting and formatting changes were applied."
+            echo "changes=true" >> $GITHUB_OUTPUT
           fi
+
+      # Step 7: Verify that all issues are resolved after auto-fixing.
+      # If this step fails, it means there are errors that Ruff cannot fix automatically,
+      # and they require manual intervention.
+      - name: Verify code quality after auto-fix
+        run: |
+          echo "Verifying all linting issues are resolved..."
+          uv run ruff check .
+          echo "Verifying all formatting issues are resolved..."
+          uv run ruff format . --check
+          echo "✅ All quality checks passed."
+
+      # Step 8: Commit the automated fixes back to the pull request branch
+      - name: Commit and Push Fixes
+        if: ${{ steps.ruff_fix.outputs.changes == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "🤖 [CI] Auto-fix code style with Ruff"
+          # Push the changes to the head branch of the pull request
+          git push origin ${{ github.head_ref }}
+
+      # Step 9: Run Mypy for static type checking
+      - name: Run Mypy Static Type Checking
+        run: uv run mypy .
+
+      # Step 10: Run the test suite with pytest
+      - name: Run tests with pytest
+        run: uv run pytest tests/ -v

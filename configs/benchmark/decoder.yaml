@@ -1,0 +1,65 @@
+# @package _global_
+
+# Compose the standard training stack as the base configuration
+defaults:
+  - /base
+  - /preset/models/model_example
+  - /preset/lightning_modules/base
+  - override /hydra/hydra_logging: disabled
+  - override /hydra/job_logging: disabled
+  - _self_
+
+# Replace the experiment name to avoid clobbering regular training outputs
+seed: 42
+exp_name: "decoder_benchmark"
+resume: null
+
+logger:
+  wandb: false
+  project_name: "decoder-benchmark"
+  exp_version: "v1.0"
+
+benchmark:
+  base_exp_name: "decoder_benchmark"
+  # Aggregate folder for benchmark artefacts (resolved relative to repo root)
+  output_dir: "outputs/decoder_benchmark"
+  results_filename: "decoder_benchmark_${now:%Y%m%d_%H%M%S}.csv"
+  metric_key: "val/hmean"
+  evaluate_split: "val"  # one of: val, test, both
+  run_test: false
+  skip_training: false
+  resume_from_checkpoint: null
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  limit_test_batches: 1.0
+  decoders:
+    - key: "unet"
+      name: "unet"
+      params:
+        inner_channels: 256
+        output_channels: 256
+    - key: "fpn"
+      name: "fpn_decoder"
+      params:
+        inner_channels: 256
+        output_channels: 256
+    - key: "pan"
+      name: "pan_decoder"
+      params:
+        inner_channels: 256
+        output_channels: 256
+  trainer_overrides:
+    max_epochs: 3
+    accelerator: auto
+    devices: 1
+    precision: 16-mixed
+    enable_checkpointing: false
+    enable_model_summary: false
+    log_every_n_steps: 25
+    limit_train_batches: ${benchmark.limit_train_batches}
+    limit_val_batches: ${benchmark.limit_val_batches}
+    limit_test_batches: ${benchmark.limit_test_batches}
+  logger_overrides:
+    wandb: false
+    project_name: "decoder-benchmark"
+    exp_version: "bench"

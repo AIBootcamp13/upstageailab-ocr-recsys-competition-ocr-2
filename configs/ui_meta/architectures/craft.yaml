@@ -1,0 +1,19 @@
+ui_metadata:
+  components:
+    encoder: craft_vgg
+    decoder: craft_decoder
+    head: craft_head
+    loss: craft_loss
+  default_backbone: vgg16_bn
+  recommended_data: craft
+  default_optimizer: adam
+  default_learning_rate: 0.0005
+  default_decoder: craft_decoder
+  compatible_decoders:
+    - craft_decoder
+  compatible_backbones:
+    - vgg16_bn
+    - vgg19_bn
+  recommended_optimizers:
+    - adam
+  notes: "CRAFT is optimized for high-resolution text detection with VGG-style encoders."

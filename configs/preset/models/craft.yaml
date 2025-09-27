@@ -1,6 +1,14 @@
 # @package model
 
-architecture_name: craft
+defaults:
+  - /model/architectures: craft
+  - /model/optimizers: adam
+  - /preset/models/encoder/craft_vgg
+  - /preset/models/decoder/craft_decoder
+  - /preset/models/head/craft_head
+  - /preset/models/loss/craft_loss
+  - _self_
+
 component_overrides:
   encoder:
     pretrained: true
@@ -12,9 +20,9 @@ component_overrides:
     hidden_channels: 128
 
 optimizer:
-  _target_: torch.optim.Adam
   lr: 0.0005
   weight_decay: 0.0001
+
 scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
   step_size: 100

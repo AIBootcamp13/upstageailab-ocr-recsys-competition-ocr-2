@@ -1,0 +1,22 @@
+ui_metadata:
+  components:
+    encoder: dbnetpp_backbone
+    decoder: dbnetpp_decoder
+    head: dbnetpp_head
+    loss: dbnetpp_loss
+  default_backbone: resnet50
+  recommended_data: default
+  default_optimizer: adamw
+  default_learning_rate: 0.0005
+  default_decoder: dbnetpp_decoder
+  compatible_decoders:
+    - dbnetpp_decoder
+    - fpn_decoder
+    - pan_decoder
+  compatible_backbones:
+    - resnet50
+    - resnet101
+  recommended_optimizers:
+    - adamw
+    - adam
+  notes: "DBNet++ pairs best with higher-capacity timm backbones. FPN/PAN decoders are lighter-weight fallbacks for CPU-bound inference."

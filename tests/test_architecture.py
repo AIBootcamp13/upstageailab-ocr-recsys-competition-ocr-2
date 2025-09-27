@@ -208,38 +208,75 @@ class TestOCRModel:
             assert result == expected_polygons
             mock_head_comp.get_polygons_from_maps.assert_called_once_with(gt_maps, pred_maps)
 
-        def test_model_initialization_with_registry(self, mock_config):
-            with (
-                patch("ocr.models.architecture.get_registry") as mock_get_registry,
-                patch("ocr.models.architecture.get_decoder_by_cfg"),
-                patch("ocr.models.architecture.get_encoder_by_cfg"),
-                patch("ocr.models.architecture.get_head_by_cfg"),
-                patch("ocr.models.architecture.get_loss_by_cfg"),
-            ):
-                encoder = Mock()
-                decoder = Mock()
-                head = Mock()
-                loss = Mock()
+    def test_model_initialization_with_registry(self, mock_config):
+        with (
+            patch("ocr.models.architecture.get_registry") as mock_get_registry,
+            patch("ocr.models.architecture.get_decoder_by_cfg"),
+            patch("ocr.models.architecture.get_encoder_by_cfg"),
+            patch("ocr.models.architecture.get_head_by_cfg"),
+            patch("ocr.models.architecture.get_loss_by_cfg"),
+        ):
+            encoder = Mock()
+            decoder = Mock()
+            head = Mock()
+            loss = Mock()
 
-                registry_mock = Mock()
-                registry_mock.create_architecture_components.return_value = {
-                    "encoder": encoder,
-                    "decoder": decoder,
-                    "head": head,
-                    "loss": loss,
+            registry_mock = Mock()
+            registry_mock.create_architecture_components.return_value = {
+                "encoder": encoder,
+                "decoder": decoder,
+                "head": head,
+                "loss": loss,
+            }
+            mock_get_registry.return_value = registry_mock
+
+            from omegaconf import OmegaConf
+
+            OmegaConf.set_struct(mock_config, False)
+            mock_config.architecture_name = "craft"
+            mock_config.component_overrides = {}
+
+            model = OCRModel(mock_config)
+
+            assert model.encoder is encoder
+            assert model.decoder is decoder
+            assert model.head is head
+            assert model.loss is loss
+            registry_mock.create_architecture_components.assert_called_once_with("craft", **{})
+
+    def test_component_override_with_decoder_name(self, mock_config):
+        with patch("ocr.models.architecture.get_registry") as mock_get_registry:
+            encoder = Mock(name="encoder")
+            decoder = Mock(name="decoder")
+            head = Mock(name="head")
+            loss = Mock(name="loss")
+
+            registry_mock = Mock()
+            registry_mock.create_architecture_components.return_value = {
+                "encoder": encoder,
+                "decoder": decoder,
+                "head": head,
+                "loss": loss,
+            }
+            mock_get_registry.return_value = registry_mock
+
+            from omegaconf import OmegaConf
+
+            OmegaConf.set_struct(mock_config, False)
+            mock_config.architecture_name = "dbnet"
+            mock_config.component_overrides = {
+                "decoder": {
+                    "name": "fpn_decoder",
+                    "params": {
+                        "inner_channels": 128,
+                        "out_channels": 128,
+                    },
                 }
-                mock_get_registry.return_value = registry_mock
+            }
 
-                from omegaconf import OmegaConf
+            OCRModel(mock_config)
 
-                OmegaConf.set_struct(mock_config, False)
-                mock_config.architecture_name = "craft"
-                mock_config.component_overrides = {}
-
-                model = OCRModel(mock_config)
-
-                assert model.encoder is encoder
-                assert model.decoder is decoder
-                assert model.head is head
-                assert model.loss is loss
-                registry_mock.create_architecture_components.assert_called_once_with("craft", **{})
+            registry_mock.create_architecture_components.assert_called_once()
+            _, kwargs = registry_mock.create_architecture_components.call_args
+            assert kwargs["decoder_name"] == "fpn_decoder"
+            assert kwargs["decoder_config"]["out_channels"] == 128

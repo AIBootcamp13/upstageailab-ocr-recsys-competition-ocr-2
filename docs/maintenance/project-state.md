@@ -1,7 +1,7 @@
 # Project State - DBNet OCR Competition
 
 ## Current Status: MODULAR ARCHITECTURE + COMPONENT REGISTRY
-*Last updated: 2025-09-26*
+*Last updated: 2025-09-27*
 
 ### 2025-09-26 Update – Mixed Precision Compatibility
 - Re-enabled `persistent_workers` with tuned worker counts (train 8 / val & test 4 / predict 2) and increased `prefetch_factor` for better GPU saturation on RTX 3090-class hardware.
@@ -44,6 +44,8 @@
 - **Data Pipeline Support**: New `CraftCollateFN` generates region/affinity maps compatible with CRAFT training
 - **Configuration Flexibility**: `OCRModel` now supports `architecture_name` + `component_overrides` for registry-driven instantiation
 - **Unit Tests**: Added coverage for new components (`tests/test_craft_components.py`, `tests/test_dbnetpp_components.py`, registry path in `tests/test_architecture.py`)
+- **Decoder Library** *(2025-09-27)*: Added shared `fpn_decoder` and `pan_decoder` options registered in the component registry with UI metadata updates for receipt-focused experimentation.
+- **Decoder Benchmarking Toolkit** *(2025-09-27)*: Introduced `scripts/decoder_benchmark.py` with Hydra configuration (`configs/benchmark/decoder.yaml`) to sweep decoder overrides and produce CSV summaries for FPN, PAN, and UNet baselines.
 
 ## Process Management Improvements ✅
 
@@ -87,55 +89,12 @@
 - **Testing Infrastructure**: Comprehensive unit tests with pytest coverage
 
 ## Next Steps
+- Operationalize the decoder benchmarking workflow (schedule sweeps, store CSV results, and surface comparisons in docs/UI)
 - Benchmark new CRAFT and DBNet++ presets against DBNet baseline
 - Integrate architecture selection into training workflows (CLI/UI overrides)
 - Integrate Vision Transformer backbone support
 - Add advanced data augmentation techniques
 - Create comprehensive architecture benchmarking suite
-
-## Process Management Improvements ✅
-
-### Orphaned Process Prevention
-- **Signal Handling**: Added SIGINT/SIGTERM handlers to `runners/train.py` for graceful shutdown
-- **Process Groups**: Implemented process group management (`os.setpgrp()`, `os.setsid()`) to ensure complete cleanup
-- **DataLoader Safety**: Disabled `persistent_workers` in all dataloaders to prevent orphaned worker processes
-- **UI Process Control**: Enhanced command execution with process group termination capabilities
-
-### Process Monitoring Utilities
-- **Process Monitor Script**: Created `scripts/process_monitor.py` for detecting and cleaning up orphaned processes
-- **Comprehensive Detection**: Monitors both training processes and their DataLoader worker processes
-- **Safe Termination**: Supports graceful (SIGTERM) and forceful (SIGKILL) process termination
-- **Dry-run Mode**: Preview what would be terminated without actually doing it
-
-### UI Enhancements
-- **Resource Monitor UI**: New comprehensive monitoring interface for system resources, training processes, and GPU utilization
-- **Real-time Monitoring**: CPU, memory, GPU usage with progress bars and metrics
-- **Process Management**: Interactive process termination with confirmation dialogs
-- **Auto-refresh**: 5-second interval updates for live monitoring
-- **Integration**: Seamless integration with process monitor utility script
-
-## Performance Optimizations Completed ✅
-
-### GPU Utilization Improvements
-- **DataLoader Optimization**: Increased batch size to 32, added 8 workers, enabled pin_memory and persistent_workers
-- **Training Configuration**: Added gradient accumulation (effective batch size 64), disabled deterministic training
-- **Evaluation Speed**: Fixed CLEval metric computation (removed unnecessary .cpu().numpy() calls), improved evaluation speed by ~1.5x
-
-### Library Modernization
-- **Deprecated Dependencies**: Successfully removed pynvml dependency and replaced with PyTorch native GPU monitoring
-- **GPU Monitoring**: Updated `profile_performance.py` to use `torch.cuda.mem_get_info()` instead of deprecated pynvml functions
-- **Dependency Management**: Cleaned up dev dependencies, maintained nvidia-ml-py for system monitoring
-
-## Architecture Status
-- **DBNet Implementation**: Modular encoder/decoder/head architecture with plug-and-play components
-- **Configuration**: Hydra-based configuration system fully implemented
-- **Testing**: Comprehensive unit tests with pytest coverage
-
-## Next Steps
-- Full training pipeline validation with optimized settings
-- Model architecture experimentation (different encoders/backbones)
-- Competition submission preparation
-- Code quality maintenance with automated tools
 
 ## Key Files Modified (Process Management)
 - `runners/train.py` - Added signal handlers and process group management

@@ -1,0 +1,25 @@
+ui_metadata:
+  components:
+    encoder: timm_backbone
+    decoder: unet
+    head: db_head
+    loss: db_loss
+  default_backbone: resnet18
+  recommended_data: default
+  default_optimizer: adam
+  default_learning_rate: 0.001
+  default_decoder: unet
+  compatible_decoders:
+    - unet
+    - fpn_decoder
+    - pan_decoder
+  compatible_backbones:
+    - resnet18
+    - resnet34
+    - resnet50
+    - mobilenetv3_small_050
+    - efficientnet_b0
+  recommended_optimizers:
+    - adam
+    - adamw
+  notes: "Use FPN for balanced accuracy/speed on receipts; PAN favours recall on dense text."

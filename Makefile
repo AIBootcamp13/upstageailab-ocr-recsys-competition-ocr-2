@@ -9,6 +9,7 @@ help:
 	@echo "  dev-install         - Install development dependencies"
 	@echo "  test                - Run tests"
 	@echo "  lint                - Run linting checks"
+	@echo "  lint-fix            - Run linting checks and auto-fix issues"
 	@echo "  format              - Format code with black and isort"
 	@echo "  quality-check       - Run comprehensive code quality checks"
 	@echo "  quality-fix         - Auto-fix code quality issues"
@@ -38,6 +39,9 @@ test-cov:
 # Code Quality
 lint:
 	uv run ruff check .
+
+lint-fix:
+	uv run ruff check --fix .
 
 format:
 	uv run ruff format .

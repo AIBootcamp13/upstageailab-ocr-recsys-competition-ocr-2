@@ -50,6 +50,8 @@ class CraftLoss(BaseLoss):
         target: torch.Tensor,
         mask: torch.Tensor | None,
     ) -> torch.Tensor:
+        if prediction.shape[-2:] != target.shape[-2:]:
+            prediction = F.interpolate(prediction, size=target.shape[-2:], mode="bilinear", align_corners=False)
         loss = F.mse_loss(prediction, target, reduction="none")
         if mask is not None:
             loss = loss * mask

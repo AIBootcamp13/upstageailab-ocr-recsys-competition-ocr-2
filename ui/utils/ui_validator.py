@@ -6,6 +6,8 @@ from typing import Any
 
 import yaml
 
+from ui.utils.config_parser import ConfigParser
+
 
 def _eval_condition(expr: str, values: dict[str, Any]) -> bool:
     if not expr:
@@ -18,6 +20,14 @@ def _eval_condition(expr: str, values: dict[str, Any]) -> bool:
         return False
 
 
+def _get_optimizer_lr_metadata(optimizer_name: str, optimizer_metadata: dict[str, Any]) -> dict[str, Any]:
+    if not optimizer_name:
+        return {}
+    info = optimizer_metadata.get(optimizer_name, {}) or {}
+    lr_meta = info.get("ui_metadata", {}).get("learning_rate", {})
+    return lr_meta if isinstance(lr_meta, dict) else {}
+
+
 def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
     """Validate collected values using rules in schema YAML.
 
@@ -26,6 +36,10 @@ def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
     """
     with open(schema_path) as f:
         schema = yaml.safe_load(f) or {}
+
+    config_parser = ConfigParser()
+    architecture_metadata = config_parser.get_architecture_metadata()
+    optimizer_metadata = config_parser.get_optimizer_metadata()
 
     errors: list[str] = []
     elements = schema.get("ui_elements", [])
@@ -54,13 +68,13 @@ def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
             errors.append(f"'{label}' must be at least {int(rules['min_length'])} characters long.")
 
         # min/max for numeric
-        if "min" in rules and isinstance(value, (int, float)) and value < rules["min"]:
+        if "min" in rules and isinstance(value, int | float) and value < rules["min"]:
             errors.append(f"'{label}' must be >= {rules['min']}.")
-        if "max" in rules and isinstance(value, (int, float)) and value > rules["max"]:
+        if "max" in rules and isinstance(value, int | float) and value > rules["max"]:
             errors.append(f"'{label}' must be <= {rules['max']}.")
 
         # range [min, max]
-        if "range" in rules and isinstance(value, (int, float)):
+        if "range" in rules and isinstance(value, int | float):
             rmin, rmax = rules["range"][0], rules["range"][1]
             if not (rmin <= value <= rmax):
                 errors.append(f"'{label}' must be between {rmin} and {rmax}.")
@@ -70,5 +84,33 @@ def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
     # For our schema, encoder is hidden when resume_training==true. If somehow both exist, block.
     if values.get("resume_training") and values.get("checkpoint_path") and values.get("encoder") not in (None, ""):
         errors.append("Cannot change Encoder when resuming from a checkpoint.")
+
+    selected_optimizer = values.get("optimizer")
+
+    if selected_arch := values.get("architecture"):
+        arch_info = architecture_metadata.get(selected_arch, {})
+        ui_meta = arch_info.get("ui_metadata", {}) if arch_info else {}
+        compatible_backbones = ui_meta.get("compatible_backbones") or []
+        selected_backbone = values.get("encoder")
+        if compatible_backbones and selected_backbone and selected_backbone not in compatible_backbones:
+            errors.append(
+                "Selected encoder/backbone is not compatible with the chosen architecture. "
+                "Please pick one of: " + ", ".join(compatible_backbones)
+            )
+
+        recommended_opts = ui_meta.get("recommended_optimizers") or []
+        if recommended_opts and selected_optimizer and selected_optimizer not in recommended_opts:
+            errors.append(
+                "Selected optimizer is not recommended for the chosen architecture. Suggested options: " + ", ".join(recommended_opts)
+            )
+        learning_rate = values.get("learning_rate")
+        if selected_optimizer and isinstance(learning_rate, int | float):
+            lr_meta = _get_optimizer_lr_metadata(selected_optimizer, optimizer_metadata)
+            lr_min = lr_meta.get("min")
+            lr_max = lr_meta.get("max")
+            if lr_min is not None and learning_rate < lr_min:
+                errors.append(f"Learning rate must be >= {lr_min} for optimizer '{selected_optimizer}'.")
+            if lr_max is not None and learning_rate > lr_max:
+                errors.append(f"Learning rate must be <= {lr_max} for optimizer '{selected_optimizer}'.")
 
     return errors

@@ -17,6 +17,28 @@ import yaml
 from ui.utils.config_parser import ConfigParser
 
 
+def _resolve_metadata_value(metadata: dict[str, Any], path: str | None) -> Any:
+    if not path:
+        return None
+    value: Any = metadata
+    for part in path.split("."):
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        else:
+            return None
+    return value
+
+
+def _stringify_metadata_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list | tuple | set):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return yaml.safe_dump(value, sort_keys=False).strip()
+    return str(value)
+
+
 @st.cache_data(show_spinner=False)
 def _load_schema(schema_path: str) -> dict[str, Any]:
     with open(schema_path) as f:
@@ -27,15 +49,21 @@ def _load_schema(schema_path: str) -> dict[str, Any]:
 def _get_options_from_source(source: str) -> list[str]:
     """Resolve dynamic options list by a simple registry backed by ConfigParser."""
     cp = ConfigParser()
-    if source == "models.backbones":
+    model_source_map = {
+        "models.backbones": "backbones",
+        "models.encoders": "encoders",
+        "models.decoders": "decoders",
+        "models.optimizers": "optimizers",
+        "models.losses": "losses",
+    }
+    if source in model_source_map:
         models = cp.get_available_models()
-        return models.get("backbones", [])
+        return models.get(model_source_map[source], [])
+    if source == "models.architectures":
+        return cp.get_available_architectures()
     if source == "checkpoints":
         return cp.get_available_checkpoints()
-    if source == "datasets":
-        return cp.get_available_datasets()
-    # Default: unknown source -> empty list
-    return []
+    return cp.get_available_datasets() if source == "datasets" else []
 
 
 def _is_visible(visible_if: str | None, values: dict[str, Any]) -> bool:
@@ -65,9 +93,7 @@ def _is_visible(visible_if: str | None, values: dict[str, Any]) -> bool:
 def _to_override(k: str, v: Any) -> str | None:
     if v is None or v == "":
         return None
-    if isinstance(v, bool):
-        return f"{k}={str(v).lower()}"
-    return f"{k}={v}"
+    return f"{k}={str(v).lower()}" if isinstance(v, bool) else f"{k}={v}"
 
 
 @dataclass
@@ -99,9 +125,8 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
             for k in override_key:
                 if ov := _to_override(k, value):
                     overrides.append(ov)
-        else:
-            if ov := _to_override(override_key, value):
-                overrides.append(ov)
+        elif ov := _to_override(override_key, value):
+            overrides.append(ov)
 
     return overrides, constant_overrides
 
@@ -117,6 +142,10 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
     elements: list[dict[str, Any]] = schema.get("ui_elements", [])
     constant_overrides: list[str] = schema.get("constant_overrides", [])
 
+    config_parser = ConfigParser()
+    architecture_metadata = config_parser.get_architecture_metadata()
+    optimizer_metadata = config_parser.get_optimizer_metadata()
+
     values: dict[str, Any] = {}
 
     # First pass: render or compute defaults so visibility can reference earlier values
@@ -130,24 +159,97 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
         label = label_val if isinstance(label_val, str) and label_val else key
         visible_if = element.get("visible_if")
 
-        # Resolve options if present
+        # Resolve base options
         options = element.get("options")
         options_source = element.get("options_source")
         if options is None and options_source:
             options = _get_options_from_source(options_source)
 
-        # Prepare default
         default = element.get("default")
+
+        # Architecture-aware metadata
+        arch_key = element.get("architecture_key", "architecture")
+        selected_arch = values.get(arch_key) or element.get("architecture_fallback")
+        architecture_info = architecture_metadata.get(selected_arch or "", {})
+        ui_meta = architecture_info.get("ui_metadata", {}) if architecture_info else {}
+
+        options_metadata_key = element.get("options_metadata_key")
+        if options_metadata_key:
+            meta_options = _resolve_metadata_value(ui_meta, options_metadata_key)
+            if isinstance(meta_options, dict):
+                options = list(meta_options.keys())
+            elif isinstance(meta_options, list | tuple | set):
+                options = list(meta_options)
+            elif meta_options is not None:
+                options = [str(meta_options)]
+
+        meta_filter_key = element.get("filter_by_architecture_key")
+        if meta_filter_key and options:
+            allowed = _resolve_metadata_value(ui_meta, meta_filter_key)
+            if isinstance(allowed, str):
+                allowed = [allowed]
+            if allowed:
+                filtered = [opt for opt in options if opt in allowed]
+                if filtered:
+                    options = filtered
+
+        meta_default_key = element.get("metadata_default_key")
+        if meta_default_key:
+            meta_default = _resolve_metadata_value(ui_meta, meta_default_key)
+            if meta_default is not None:
+                default = meta_default
+
+        # Optimizer-aware metadata
+        optimizer_key = element.get("optimizer_key", "optimizer")
+        selected_optimizer = values.get(optimizer_key) or element.get("optimizer_fallback")
+        optimizer_info = optimizer_metadata.get(selected_optimizer or "", {})
+        optimizer_ui_meta = optimizer_info.get("ui_metadata", {}) if optimizer_info else {}
+        optimizer_metadata_key = element.get("optimizer_metadata_key")
 
         # Visibility check using current values dict
         if not _is_visible(visible_if, values):
-            # Store None for hidden to simplify required_if checks
             values[key] = None
             continue
 
-        # Render widget by type
+        # Build help text
+        help_segments: list[str] = []
+        base_help = element.get("help")
+        if base_help:
+            help_segments.append(str(base_help))
+
+        meta_help_key = element.get("metadata_help_key")
+        if meta_help_key:
+            meta_help_val = _resolve_metadata_value(ui_meta, meta_help_key)
+            if meta_help_val:
+                help_segments.append(_stringify_metadata_value(meta_help_val))
+
+        optimizer_help_key = element.get("optimizer_help_key")
+        if optimizer_help_key:
+            optimizer_help_val = _resolve_metadata_value(optimizer_ui_meta, optimizer_help_key)
+            if optimizer_help_val:
+                help_segments.append(_stringify_metadata_value(optimizer_help_val))
+
+        help_text = "\n".join(segment for segment in help_segments if segment) or None
+
+        # Precompute slider parameters for metadata overrides
+        min_v = element.get("min_value")
+        max_v = element.get("max_value")
+        step = element.get("step")
+        fmt = element.get("format")
+        if optimizer_metadata_key and optimizer_ui_meta:
+            meta_lr = _resolve_metadata_value(optimizer_ui_meta, optimizer_metadata_key)
+            if isinstance(meta_lr, dict):
+                if meta_lr.get("min") is not None:
+                    min_v = meta_lr.get("min")
+                if meta_lr.get("max") is not None:
+                    max_v = meta_lr.get("max")
+                if meta_lr.get("default") is not None:
+                    default = meta_lr.get("default")
+                if meta_lr.get("step") is not None:
+                    step = meta_lr.get("step")
+
         if etype == "text_input":
-            values[key] = st.text_input(label, value=default or "", help=element.get("help"))
+            values[key] = st.text_input(label, value=default or "", help=help_text)
         elif etype == "number_input":
             kwargs: dict[str, Any] = {}
             if default is not None:
@@ -156,18 +258,12 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                 kwargs["min_value"] = element.get("min_value")
             if element.get("max_value") is not None:
                 kwargs["max_value"] = element.get("max_value")
-            if help_text := element.get("help"):
+            if help_text:
                 kwargs["help"] = help_text
             values[key] = st.number_input(label, **kwargs)
         elif etype == "checkbox":
-            values[key] = st.checkbox(label, value=bool(default), help=element.get("help"))
+            values[key] = st.checkbox(label, value=bool(default), help=help_text)
         elif etype == "slider":
-            min_v = element.get("min_value")
-            max_v = element.get("max_value")
-            step = element.get("step")
-            fmt = element.get("format")
-            help_text = element.get("help")
-            # Streamlit slider requires min/max and a value in range
             if min_v is None or max_v is None:
                 st.warning(f"Missing min/max for slider '{label}'. Skipping.")
                 values[key] = default
@@ -181,17 +277,31 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                     format=fmt,
                     help=help_text,
                 )
+        elif etype == "info":
+            info_key = element.get("metadata_info_key")
+            info_value = _resolve_metadata_value(ui_meta, info_key) if info_key else None
+            template = element.get("info_template", "{value}")
+            fallback_text = element.get("info_fallback", "No metadata available.")
+            if isinstance(info_value, dict):
+                try:
+                    message = template.format(**info_value)
+                except KeyError:
+                    message = template.format(value=_stringify_metadata_value(info_value))
+            elif info_value is not None:
+                message = template.format(value=_stringify_metadata_value(info_value))
+            else:
+                message = fallback_text
+            st.info(message)
+            values[key] = info_value
         elif etype == "selectbox":
             opts = options or [""]
-            # Compute index for default if exists
-            # Coerce default to str if options are strings to avoid type mismatch
             dval = str(default) if default is not None else ""
             index = opts.index(dval) if dval in opts else 0
             values[key] = st.selectbox(
                 label,
                 opts,
                 index=index,
-                help=element.get("help"),
+                help=help_text,
             )
         else:
             st.warning(f"Unsupported UI element type: {etype}")

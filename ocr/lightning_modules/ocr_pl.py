@@ -194,9 +194,17 @@ class OCRPLModule(pl.LightningModule):
         self.predict_step_outputs.clear()
 
     def configure_optimizers(self):
-        optimizer, scheduler = self.model.get_optimizers()
-        self.lr_scheduler = scheduler
-        return optimizer
+        optimizers, schedulers = self.model.get_optimizers()
+        optimizer_list = optimizers if isinstance(optimizers, list) else [optimizers]
+
+        if isinstance(schedulers, list):
+            self.lr_scheduler = schedulers[0] if schedulers else None
+        elif schedulers is None:
+            self.lr_scheduler = None
+        else:
+            self.lr_scheduler = schedulers
+
+        return optimizer_list
 
     def on_train_epoch_end(self):
         if self.lr_scheduler is None:
@@ -205,7 +213,9 @@ class OCRPLModule(pl.LightningModule):
         if self.trainer is not None and self.trainer.sanity_checking:
             return
 
-        optimizer = self.lr_scheduler.optimizer
+        optimizer = getattr(self.lr_scheduler, "optimizer", None)
+        if optimizer is None:
+            return
         step_count = getattr(optimizer, "_step_count", 0)
         if step_count > 0:
             self.lr_scheduler.step()

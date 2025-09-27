@@ -1,6 +1,9 @@
+# This is the standard configuration file for pre-commit hooks.
+# It helps catch and fix issues automatically before code is even committed.
+# To use, run `pre-commit install` in your local repository.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v4.6.0 # Using a more recent version
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -10,16 +13,18 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.2
+    # Run Ruff's formatter and linter.
+    rev: v0.5.0 # Using a more recent version
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff-linter-fixer
+        args: [--fix, --unsafe-fixes, --exit-non-zero-on-fix]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.10.1 # Using a more recent version
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports, --no-error-summary]
-        additional_dependencies: [types-Pillow, types-tqdm, types-PyYAML]
+        # You can customize args and dependencies to match your project's needs
+        additional_dependencies: [types-Pillow, types-tqdm, types-PyYAML, types-shapely]
         files: ^ocr/

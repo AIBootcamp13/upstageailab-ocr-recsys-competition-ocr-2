@@ -1,0 +1,22 @@
+# @package model
+
+architecture_name: dbnet
+
+component_overrides:
+  encoder:
+    model_name: "resnet18"
+    select_features: [1, 2, 3, 4]
+    pretrained: true
+  decoder:
+    name: "unet"
+    params:
+      inner_channels: 256
+      output_channels: 256
+      out_channels: 256
+  head:
+    k: 50
+  loss:
+    negative_ratio: 3.0
+    prob_map_loss_weight: 5.0
+    thresh_map_loss_weight: 10.0
+    binary_map_loss_weight: 1.0

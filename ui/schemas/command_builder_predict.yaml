@@ -1,9 +1,7 @@
 title: "OCR Prediction Command Builder"
 
 # UI schema for Streamlit command builder. Only for UI input validation and command building.
-constant_overrides:
-  - "model.encoder.model_name=resnet18"
-  - "model.optimizer.lr=0.001"
+constant_overrides: []
 
 ui_elements:
   - key: exp_name

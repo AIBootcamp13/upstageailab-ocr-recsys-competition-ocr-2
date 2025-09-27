@@ -1,26 +1,14 @@
 # @package model
+
 defaults:
-  - optimizer
+  - architectures: dbnet
+  - optimizers: adam
   - _self_
 
-_target_: ocr.models.DBNet
-architecture:
-  _target_: ocr.models.architectures.DBNetArchitecture
-  backbone:
-    _target_: ocr.models.backbones.db_resnet18
-    pretrained: true
-    in_channels: 3
-  decoder:
-    _target_: ocr.models.decoders.DBUNet
-    in_channels: [64, 128, 256, 512]
-    output_channels: 256
-  head:
-    _target_: ocr.models.heads.DBHead
-    in_channels: 256
-    k: 50
-loss:
-  _target_: ocr.models.losses.DBLoss
-  alpha: 1.0
-  beta: 10.0
-  negative_ratio: 3.0
-  reduction: "mean"
+_target_: ocr.models.architecture.OCRModel
+
+# Optional component overrides applied on top of architecture presets.
+component_overrides: {}
+
+# Optional learning rate scheduler configuration populated by presets or UI overrides.
+scheduler: null

@@ -1,0 +1,7 @@
+ui_metadata:
+  learning_rate:
+    default: 0.0003
+    min: 5.0e-6
+    max: 5.0e-3
+    step: 5.0e-6
+    help: "AdamW benefits from slightly smaller learning rates; try 3e-4 ± an order of magnitude."
