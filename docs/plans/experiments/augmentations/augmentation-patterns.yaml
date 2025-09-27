@@ -1,0 +1,327 @@
+# Augmentation Patterns Configuration
+# This file demonstrates usage patterns for Albumentations in OCR tasks
+# Each pattern is designed for specific scenarios and data characteristics
+
+# Base augmentation patterns
+base_augmentations:
+  # Minimal augmentations for stable training
+  minimal:
+    - name: "Normalize"
+      params:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+        max_pixel_value: 255.0
+    - name: "ToTensorV2"
+
+  # Standard augmentations for general OCR
+  standard:
+    - name: "Normalize"
+      params:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+        max_pixel_value: 255.0
+    - name: "ToTensorV2"
+
+# Geometric augmentations for text detection
+geometric_augmentations:
+  # Light geometric transformations
+  light:
+    - name: "Rotate"
+      params:
+        limit: [-5, 5]
+        p: 0.3
+    - name: "Affine"
+      params:
+        scale: [0.95, 1.05]
+        translate_percent: [-0.05, 0.05]
+        rotate: [-2, 2]
+        p: 0.2
+    - name: "Perspective"
+      params:
+        scale: 0.05
+        p: 0.1
+
+  # Medium geometric transformations
+  medium:
+    - name: "Rotate"
+      params:
+        limit: [-15, 15]
+        p: 0.5
+    - name: "Affine"
+      params:
+        scale: [0.9, 1.1]
+        translate_percent: [-0.1, 0.1]
+        rotate: [-5, 5]
+        p: 0.4
+    - name: "Perspective"
+      params:
+        scale: 0.1
+        p: 0.2
+    - name: "ElasticTransform"
+      params:
+        alpha: 1
+        sigma: 50
+        alpha_affine: 50
+        p: 0.1
+
+  # Heavy geometric transformations (use with caution)
+  heavy:
+    - name: "Rotate"
+      params:
+        limit: [-30, 30]
+        p: 0.7
+    - name: "Affine"
+      params:
+        scale: [0.8, 1.2]
+        translate_percent: [-0.15, 0.15]
+        rotate: [-10, 10]
+        p: 0.6
+    - name: "Perspective"
+      params:
+        scale: 0.15
+        p: 0.3
+    - name: "ElasticTransform"
+      params:
+        alpha: 2
+        sigma: 50
+        alpha_affine: 50
+        p: 0.2
+
+# Photometric augmentations for robustness
+photometric_augmentations:
+  # Color augmentations
+  color:
+    - name: "RandomBrightnessContrast"
+      params:
+        brightness_limit: 0.1
+        contrast_limit: 0.1
+        p: 0.3
+    - name: "HueSaturationValue"
+      params:
+        hue_shift_limit: 10
+        sat_shift_limit: 15
+        val_shift_limit: 10
+        p: 0.2
+    - name: "RGBShift"
+      params:
+        r_shift_limit: 10
+        g_shift_limit: 10
+        b_shift_limit: 10
+        p: 0.1
+
+  # Noise augmentations
+  noise:
+    - name: "GaussNoise"
+      params:
+        var_limit: [10, 50]
+        p: 0.2
+    - name: "ISONoise"
+      params:
+        color_shift: [0.01, 0.05]
+        intensity: [0.1, 0.5]
+        p: 0.1
+    - name: "MultiplicativeNoise"
+      params:
+        multiplier: [0.9, 1.1]
+        p: 0.1
+
+  # Blur augmentations
+  blur:
+    - name: "GaussianBlur"
+      params:
+        blur_limit: [3, 7]
+        p: 0.2
+    - name: "MotionBlur"
+      params:
+        blur_limit: [3, 7]
+        p: 0.1
+    - name: "MedianBlur"
+      params:
+        blur_limit: [3, 7]
+        p: 0.1
+
+# Domain-specific augmentations
+domain_augmentations:
+  # Receipt-specific augmentations
+  receipt:
+    - name: "RandomBrightnessContrast"
+      params:
+        brightness_limit: 0.2
+        contrast_limit: 0.2
+        p: 0.4
+    - name: "GaussNoise"
+      params:
+        var_limit: [5, 25]
+        p: 0.3
+    - name: "GaussianBlur"
+      params:
+        blur_limit: [3, 5]
+        p: 0.2
+    - name: "Affine"
+      params:
+        scale: [0.95, 1.05]
+        translate_percent: [-0.05, 0.05]
+        p: 0.3
+
+  # Scene text augmentations
+  scene_text:
+    - name: "Rotate"
+      params:
+        limit: [-10, 10]
+        p: 0.4
+    - name: "Perspective"
+      params:
+        scale: 0.1
+        p: 0.3
+    - name: "RandomBrightnessContrast"
+      params:
+        brightness_limit: 0.15
+        contrast_limit: 0.15
+        p: 0.3
+    - name: "GaussNoise"
+      params:
+        var_limit: [10, 30]
+        p: 0.2
+
+  # Handwritten text augmentations
+  handwritten:
+    - name: "ElasticTransform"
+      params:
+        alpha: 1.5
+        sigma: 30
+        alpha_affine: 30
+        p: 0.3
+    - name: "Affine"
+      params:
+        scale: [0.9, 1.1]
+        rotate: [-5, 5]
+        p: 0.4
+    - name: "GaussNoise"
+      params:
+        var_limit: [15, 40]
+        p: 0.3
+
+# Combined augmentation pipelines
+combined_pipelines:
+  # Balanced pipeline for general use
+  balanced:
+    - geometric_augmentations.light
+    - photometric_augmentations.color
+    - photometric_augmentations.noise
+    - base_augmentations.standard
+
+  # Aggressive pipeline for robustness
+  aggressive:
+    - geometric_augmentations.medium
+    - photometric_augmentations.color
+    - photometric_augmentations.noise
+    - photometric_augmentations.blur
+    - base_augmentations.standard
+
+  # Conservative pipeline for stable training
+  conservative:
+    - geometric_augmentations.light
+    - photometric_augmentations.color
+    - base_augmentations.standard
+
+  # Domain-specific pipelines
+  receipt_pipeline:
+    - domain_augmentations.receipt
+    - base_augmentations.standard
+
+  scene_text_pipeline:
+    - domain_augmentations.scene_text
+    - base_augmentations.standard
+
+  handwritten_pipeline:
+    - domain_augmentations.handwritten
+    - base_augmentations.standard
+
+# Augmentation scheduling
+scheduling:
+  # Progressive augmentation (increase intensity over time)
+  progressive:
+    epochs_0_10:
+      - geometric_augmentations.light
+      - photometric_augmentations.color
+    epochs_10_50:
+      - geometric_augmentations.medium
+      - photometric_augmentations.color
+      - photometric_augmentations.noise
+    epochs_50_end:
+      - geometric_augmentations.medium
+      - photometric_augmentations.color
+      - photometric_augmentations.noise
+      - photometric_augmentations.blur
+
+  # Curriculum learning (start simple, increase complexity)
+  curriculum:
+    stage_1:
+      - photometric_augmentations.color
+    stage_2:
+      - photometric_augmentations.color
+      - geometric_augmentations.light
+    stage_3:
+      - photometric_augmentations.color
+      - geometric_augmentations.light
+      - photometric_augmentations.noise
+
+# Validation augmentations (minimal, deterministic)
+validation_augmentations:
+  standard:
+    - name: "Normalize"
+      params:
+        mean: [0.485, 0.456, 0.406]
+        std: [0.229, 0.224, 0.225]
+        max_pixel_value: 255.0
+    - name: "ToTensorV2"
+
+# Test-time augmentations (TTA)
+test_time_augmentations:
+  # Basic TTA with flips and scales
+  basic_tta:
+    - original: {}
+    - horizontal_flip: {}
+    - scale_0_8:
+      scale: 0.8
+    - scale_1_2:
+      scale: 1.2
+
+  # Extended TTA with rotations
+  extended_tta:
+    - original: {}
+    - horizontal_flip: {}
+    - vertical_flip: {}
+    - rotate_90: {angle: 90}
+    - rotate_270: {angle: 270}
+    - scale_0_9:
+      scale: 0.9
+    - scale_1_1:
+      scale: 1.1
+
+# Augmentation metadata
+metadata:
+  version: "1.0.0"
+  description: "OCR augmentation patterns for Albumentations"
+  compatible_albumentations_version: ">=1.3.0"
+  last_updated: "2024-01-01"
+
+  # Performance characteristics
+  performance:
+    light_augmentations:
+      cpu_time_per_image: "~50ms"
+      gpu_memory_increase: "~10MB"
+    medium_augmentations:
+      cpu_time_per_image: "~100ms"
+      gpu_memory_increase: "~25MB"
+    heavy_augmentations:
+      cpu_time_per_image: "~200ms"
+      gpu_memory_increase: "~50MB"
+
+  # Recommendations
+  recommendations:
+    small_dataset: "Use aggressive augmentations to increase diversity"
+    large_dataset: "Use conservative augmentations to maintain stability"
+    noisy_data: "Use blur and noise augmentations for robustness"
+    clean_data: "Use geometric augmentations for invariance learning"
+    domain_shift: "Use domain-specific augmentations for adaptation"

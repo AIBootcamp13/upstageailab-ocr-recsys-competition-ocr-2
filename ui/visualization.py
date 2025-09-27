@@ -308,7 +308,7 @@ def display_image_grid(
                     if sort_metric in row and sort_metric != "filename":
                         try:
                             value = row[sort_metric]
-                            if isinstance(value, (int, float)):
+                            if isinstance(value, int | float):
                                 st.metric(sort_metric, f"{value:.2f}")
                             else:
                                 st.metric(sort_metric, str(value))

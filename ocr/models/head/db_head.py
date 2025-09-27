@@ -88,7 +88,7 @@ class DBHead(BaseHead):
 
     def weights_init(self, m: nn.Module) -> None:
         """Initialize network weights."""
-        if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+        if isinstance(m, nn.Conv2d | nn.ConvTranspose2d):
             nn.init.kaiming_normal_(m.weight.data)
             if m.bias is not None:
                 m.bias.data.fill_(1e-4)

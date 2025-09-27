@@ -68,19 +68,21 @@ packages = ["ocr"]
 # extra-index-url = ["https://download.pytorch.org/whl/cu121"]
 
 [tool.mypy]
+# General settings
 ignore_missing_imports = true
-show_error_codes = false  # Don't show informational notes as errors
-# Development-friendly settings
+show_error_codes = false
+exclude = ["scripts/process_monitor.py"]
+
+# Development-friendly settings (less strictness)
 warn_unused_ignores = false
 warn_redundant_casts = false
 warn_unused_configs = false
 warn_unreachable = false
-# Allow untyped calls and definitions for development
 disallow_untyped_calls = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = false
-# Specific modules without stubs
+
 [[tool.mypy.overrides]]
 module = [
     "numba",
@@ -113,7 +115,7 @@ select = [
 ]
 ignore = [
     "E203", # whitespace before ':'
-    "E501", # line too long, handled by black
+    "E501", # line too long, handled by ruff format
     "E402", # module level import not at top of file (common in scripts)
     "E722", # bare except (sometimes needed)
     "B008", # do not perform function calls in argument defaults
@@ -121,7 +123,6 @@ ignore = [
     "E741", # ambiguous variable name (l is common in image processing)
     "B007", # unused loop variable
     "B904", # raise without from
-    "F821", # undefined name (in notebooks)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -132,6 +133,7 @@ ignore = [
 "scripts/**" = ["E402"]
 "docker/**" = ["E402"]
 "ablation_study/**" = ["E722"]
+"notebooks/**/*.ipynb" = ["F821"]
 
 [tool.ruff.format]
 quote-style = "double"

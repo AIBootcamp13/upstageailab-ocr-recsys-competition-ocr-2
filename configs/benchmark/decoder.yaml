@@ -15,9 +15,17 @@ exp_name: "decoder_benchmark"
 resume: null
 
 logger:
-  wandb: false
+  wandb: true
   project_name: "decoder-benchmark"
   exp_version: "v1.0"
+  entity: null
+  group: "decoder-benchmark"
+  tags:
+    - decoder-benchmark
+  image_log_every_n_epochs: 1
+  image_log_max_images: 8
+  offline: false
+  log_model: false
 
 benchmark:
   base_exp_name: "decoder_benchmark"
@@ -60,6 +68,11 @@ benchmark:
     limit_val_batches: ${benchmark.limit_val_batches}
     limit_test_batches: ${benchmark.limit_test_batches}
   logger_overrides:
-    wandb: false
+    wandb: true
     project_name: "decoder-benchmark"
     exp_version: "bench"
+    group: "decoder-benchmark"
+    tags:
+      - decoder-benchmark
+    image_log_every_n_epochs: 1
+    image_log_max_images: 8

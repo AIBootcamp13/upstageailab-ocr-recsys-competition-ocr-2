@@ -7,6 +7,7 @@ import csv
 import sys
 import time
 from collections.abc import Iterable
+from contextlib import suppress
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +21,7 @@ except ImportError:  # pragma: no cover - torch is an optional runtime dependenc
 import hydra
 import lightning.pytorch as pl
 from hydra.utils import get_original_cwd
+from lightning.pytorch.callbacks import Callback
 from omegaconf import DictConfig, OmegaConf
 
 from ocr.lightning_modules import get_pl_modules_by_cfg
@@ -222,6 +224,87 @@ def _write_csv(output_file: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow(row)
 
 
+def _is_wandb_enabled(logger_cfg: dict[str, Any]) -> bool:
+    wandb_cfg = logger_cfg.get("wandb") if logger_cfg else None
+    if isinstance(wandb_cfg, dict):
+        return bool(wandb_cfg.get("enabled", True))
+    return bool(wandb_cfg)
+
+
+def _initialise_wandb_logger(
+    run_cfg: DictConfig,
+    decoder: DecoderSpec,
+    logger_cfg: dict[str, Any],
+) -> tuple[Any | None, list[Callback]]:
+    if not _is_wandb_enabled(logger_cfg):
+        return None, []
+
+    try:
+        from lightning.pytorch.loggers import WandbLogger
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError(
+            "W&B logging requested but the 'wandb' package is not installed. "
+            "Install wandb to enable logging or disable it in the benchmark configuration."
+        ) from exc
+
+    from ocr.utils.wandb_utils import generate_run_name, load_env_variables
+
+    load_env_variables()
+
+    tags = logger_cfg.get("tags") or []
+    if isinstance(tags, str):
+        tags = [tags]
+
+    config_payload = OmegaConf.to_container(run_cfg, resolve=True)
+
+    run_name = logger_cfg.get("run_name")
+    if not run_name:
+        try:
+            run_name = generate_run_name(run_cfg)
+        except Exception:
+            run_name = str(run_cfg.get("exp_name", "decoder_benchmark"))
+    if decoder.key:
+        run_name = f"{run_name}_{decoder.key}"
+
+    wandb_logger_kwargs: dict[str, Any] = {
+        "name": run_name,
+        "project": logger_cfg.get("project_name", "decoder-benchmark"),
+        "entity": logger_cfg.get("entity"),
+        "group": logger_cfg.get("group"),
+        "tags": tags,
+        "job_type": logger_cfg.get("job_type", "decoder-benchmark"),
+        "offline": bool(logger_cfg.get("offline", False)),
+        "log_model": bool(logger_cfg.get("log_model", False)),
+        "config": config_payload,
+    }
+
+    save_dir_value = logger_cfg.get("save_dir")
+    if save_dir_value is not None:
+        wandb_logger_kwargs["save_dir"] = save_dir_value
+
+    wandb_logger = WandbLogger(**wandb_logger_kwargs)
+
+    callbacks: list[Callback] = []
+    image_log_every = int(logger_cfg.get("image_log_every_n_epochs", 5))
+    max_images = int(logger_cfg.get("image_log_max_images", 8))
+    if image_log_every > 0 and max_images > 0:
+        try:
+            from ocr.lightning_modules.callbacks.wandb_image_logging import (  # noqa: WPS433
+                WandbImageLoggingCallback,
+            )
+
+            callbacks.append(
+                WandbImageLoggingCallback(
+                    log_every_n_epochs=image_log_every,
+                    max_images=max_images,
+                )
+            )
+        except Exception as exc:  # pragma: no cover - non-critical logging utility
+            print(f"Warning: Failed to initialise W&B image logging callback: {exc}")
+
+    return wandb_logger, callbacks
+
+
 def _extract_metric(metrics: dict[str, Any], metric_key: str) -> float | None:
     value = metrics.get(metric_key)
     if value is None:
@@ -244,7 +327,30 @@ def _run_single_decoder(
     model_module, data_module = get_pl_modules_by_cfg(run_cfg)
 
     trainer_kwargs = dict(run_cfg.get("trainer", {}))
-    trainer = pl.Trainer(**trainer_kwargs)
+    callbacks: list[Callback] = []
+
+    logger_cfg = _safe_to_dict(run_cfg.get("logger"))
+    wandb_logger, wandb_callbacks = _initialise_wandb_logger(run_cfg, decoder, logger_cfg)
+    callbacks.extend(wandb_callbacks)
+
+    existing_callbacks = trainer_kwargs.pop("callbacks", None)
+    if isinstance(existing_callbacks, list):
+        callbacks.extend(existing_callbacks)
+    elif existing_callbacks is not None:
+        callbacks.append(existing_callbacks)
+
+    logger_setting = trainer_kwargs.pop("logger", None)
+
+    trainer_init_kwargs = dict(trainer_kwargs)
+    if callbacks:
+        trainer_init_kwargs["callbacks"] = callbacks
+
+    if wandb_logger is not None:
+        trainer_init_kwargs["logger"] = wandb_logger
+    elif logger_setting is not None:
+        trainer_init_kwargs["logger"] = logger_setting
+
+    trainer = pl.Trainer(**trainer_init_kwargs)
 
     metrics_summary: dict[str, Any] = {
         "decoder": decoder.key,
@@ -300,6 +406,17 @@ def _run_single_decoder(
         metrics_summary["train_time_sec"] = round(end_time - start_time, 2)
         if torch is not None and torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+    if wandb_logger is not None:
+        try:
+            wandb_logger.experiment.summary.update(  # type: ignore[call-arg]
+                {key: value for key, value in metrics_summary.items() if isinstance(value, str | int | float)}
+            )
+        except Exception as exc:  # pragma: no cover - logging robustness
+            print(f"Warning: Failed to update W&B summary for {decoder.key}: {exc}")
+        finally:
+            with suppress(Exception):
+                wandb_logger.finalize(metrics_summary.get("status", "success"))
 
     return metrics_summary
 

@@ -52,12 +52,12 @@ def analyze_worst_images(results_json_path: str, image_dir: str, top_n: int = 10
         # Normalize boxes in case they are stored as JSON strings, bytes, tuples, or numpy arrays
         gt_boxes: Any = row.gt_bboxes
         det_boxes: Any = row.det_bboxes
-        if isinstance(gt_boxes, (str, bytes)):
+        if isinstance(gt_boxes, str | bytes):
             try:
                 gt_boxes = json.loads(gt_boxes)
             except Exception:
                 gt_boxes = []
-        if isinstance(det_boxes, (str, bytes)):
+        if isinstance(det_boxes, str | bytes):
             try:
                 det_boxes = json.loads(det_boxes)
             except Exception:
@@ -67,9 +67,9 @@ def analyze_worst_images(results_json_path: str, image_dir: str, top_n: int = 10
         if isinstance(det_boxes, np.ndarray):
             det_boxes = det_boxes.tolist()
         if not isinstance(gt_boxes, list):
-            gt_boxes = list(gt_boxes) if isinstance(gt_boxes, (tuple, set)) else []
+            gt_boxes = list(gt_boxes) if isinstance(gt_boxes, tuple | set) else []
         if not isinstance(det_boxes, list):
-            det_boxes = list(det_boxes) if isinstance(det_boxes, (tuple, set)) else []
+            det_boxes = list(det_boxes) if isinstance(det_boxes, tuple | set) else []
         vis_image = draw_bboxes_on_image(image, gt_boxes, det_boxes)
         ax = plt.subplot(top_n // 2 + 1, 2, i + 1)
         ax = plt.subplot(top_n // 2 + 1, 2, i + 1)

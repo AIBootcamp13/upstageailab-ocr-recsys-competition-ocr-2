@@ -62,7 +62,7 @@ def main():
     skipped_count = 0
     shorts_list = []
     for v in meta.values():
-        if "short" in v and isinstance(v["short"], (int, float)) and v["short"] > 0:
+        if "short" in v and isinstance(v["short"], int | float) and v["short"] > 0:
             shorts_list.append(v["short"])
         else:
             skipped_count += 1

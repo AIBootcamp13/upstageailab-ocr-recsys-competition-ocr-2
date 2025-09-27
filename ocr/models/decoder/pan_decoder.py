@@ -80,7 +80,10 @@ class PANDecoder(BaseDecoder):
         fused_features: list[torch.Tensor] = [top_down[0]]
         for idx, down_conv in enumerate(self.bottom_up, start=0):
             downsampled = F.max_pool2d(fused_features[-1], kernel_size=2, stride=2)
-            fused = down_conv(downsampled + top_down[idx + 1])
+            target = top_down[idx + 1]
+            if downsampled.shape[-2:] != target.shape[-2:]:
+                downsampled = F.interpolate(downsampled, size=target.shape[-2:], mode="nearest")
+            fused = down_conv(downsampled + target)
             fused_features.append(fused)
 
         base_size = fused_features[0].shape[-2:]

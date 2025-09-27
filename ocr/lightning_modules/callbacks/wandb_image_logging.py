@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from collections.abc import Iterable, Sequence
+
 import lightning.pytorch as pl
 import numpy as np
 from PIL import Image
 
+from ocr.datasets.base import OCRDataset
 from ocr.utils.wandb_utils import log_validation_images
 
 EXIF_ORIENTATION = 274  # Orientation Information: 274
@@ -13,90 +18,6 @@ class WandbImageLoggingCallback(pl.Callback):
     def __init__(self, log_every_n_epochs: int = 1, max_images: int = 8):
         self.log_every_n_epochs = log_every_n_epochs
         self.max_images = max_images
-
-    @staticmethod
-    def rotate_image(image, orientation):
-        """
-        Rotate image based on EXIF orientation.
-        Handles orientations 1-8 according to EXIF standard.
-        Orientation 1 (normal) requires no rotation.
-        """
-        if orientation == 2:
-            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 3:
-            image = image.rotate(180)
-        elif orientation == 4:
-            image = image.rotate(180).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 5:
-            image = image.rotate(-90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 6:
-            image = image.rotate(-90, expand=True)
-        elif orientation == 7:
-            image = image.rotate(90, expand=True).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        elif orientation == 8:
-            image = image.rotate(90, expand=True)
-        # Orientation 1 (normal) and any other values: no rotation needed
-        return image
-
-    @staticmethod
-    def transform_polygons_for_exif(polygons, orientation, image_size):
-        """
-        Transform polygons to match EXIF-rotated image coordinates.
-
-        Args:
-            polygons: List of 1D numpy arrays, each containing flattened coordinates [x1,y1,x2,y2,...]
-            orientation: EXIF orientation value
-            image_size: (width, height) of original image
-
-        Returns:
-            Transformed polygons in the same format
-        """
-        if not polygons or orientation == 1:  # No rotation needed
-            return polygons
-
-        width, height = image_size
-        transformed_polygons = []
-
-        for polygon_coords in polygons:
-            # polygon_coords is a 1D array like [x1,y1,x2,y2,x3,y3,x4,y4]
-            if not isinstance(polygon_coords, np.ndarray) or len(polygon_coords) % 2 != 0:
-                # Skip invalid polygons
-                transformed_polygons.append(polygon_coords)
-                continue
-
-            # Reshape to (N, 2) where N is number of points
-            points = polygon_coords.reshape(-1, 2)
-            transformed_points = []
-
-            for x, y in points:
-                if orientation == 2:  # Flip left-right
-                    new_x, new_y = width - x, y
-                elif orientation == 3:  # 180 degrees
-                    new_x, new_y = width - x, height - y
-                elif orientation == 4:  # 180 + flip left-right
-                    new_x, new_y = x, height - y
-                elif orientation == 5:  # -90 + flip left-right
-                    # -90 degrees counter-clockwise, then flip left-right
-                    new_x, new_y = height - y, width - x
-                    new_x, new_y = width - new_x, new_y  # flip left-right
-                elif orientation == 6:  # -90 degrees (90 clockwise)
-                    # Rotate 90 degrees clockwise: (x,y) -> (y, width - x)
-                    new_x, new_y = y, width - x
-                elif orientation == 7:  # 90 + flip left-right
-                    # 90 degrees counter-clockwise, then flip left-right
-                    new_x, new_y = height - y, x
-                    new_x, new_y = width - new_x, new_y  # flip left-right
-                elif orientation == 8:  # 90 degrees (90 counter-clockwise)
-                    # Rotate 90 degrees counter-clockwise: (x,y) -> (height - y, x)
-                    new_x, new_y = height - y, x
-                else:
-                    new_x, new_y = x, y
-
-                transformed_points.extend([new_x, new_y])
-
-            transformed_polygons.append(np.array(transformed_points))
-
-        return transformed_polygons
 
     def on_validation_epoch_end(self, trainer, pl_module):
         # Only log every N epochs to avoid too much data
@@ -127,17 +48,8 @@ class WandbImageLoggingCallback(pl.Callback):
 
             # Get ground truth boxes
             gt_boxes = val_dataset.anns[filename]  # type: ignore
-            if gt_boxes is None:
-                gt_quads = []
-            elif isinstance(gt_boxes, (list, tuple)):
-                try:
-                    gt_quads = [item.squeeze().reshape(-1) for item in gt_boxes]
-                except Exception as e:
-                    print(f"Warning: Failed to process gt_boxes for {filename}: {e}, gt_boxes={gt_boxes}")
-                    gt_quads = []
-            else:
-                print(f"Warning: Unexpected gt_boxes type for {filename}: {type(gt_boxes)}, value={gt_boxes}")
-                gt_quads = []
+            gt_quads = self._normalise_polygons(gt_boxes)
+            pred_quads = self._normalise_polygons(pred_boxes)
 
             # Get image directly from filesystem (similar to dataset loading)
             try:
@@ -149,15 +61,17 @@ class WandbImageLoggingCallback(pl.Callback):
                 original_size = image.size
                 if exif and EXIF_ORIENTATION in exif:
                     orientation = exif[EXIF_ORIENTATION]
-                    image = self.rotate_image(image, orientation)
-                    # Transform ground truth polygons to match rotated image
-                    gt_quads = self.transform_polygons_for_exif(gt_quads, orientation, original_size)
-                    # Transform prediction polygons to match rotated image
-                    pred_boxes = self.transform_polygons_for_exif(pred_boxes, orientation, original_size)
+                    image = OCRDataset.rotate_image(image, orientation)
+                    # Transform polygons to match rotated image
+                    gt_quads = OCRDataset.transform_polygons_for_exif(gt_quads, orientation, original_size)
+                    pred_quads = OCRDataset.transform_polygons_for_exif(pred_quads, orientation, original_size)
+
+                gt_quads = self._postprocess_polygons(gt_quads, image.size)
+                pred_quads = self._postprocess_polygons(pred_quads, image.size)
 
                 images.append(image)
                 gt_bboxes.append(gt_quads)
-                pred_bboxes.append(pred_boxes)
+                pred_bboxes.append(pred_quads)
                 filenames.append((filename, image.size[0], image.size[1]))  # (filename, width, height)
                 count += 1
 
@@ -182,3 +96,36 @@ class WandbImageLoggingCallback(pl.Callback):
             except Exception as e:
                 # Log error but don't crash training
                 print(f"Warning: Failed to log validation images to WandB: {e}")
+
+    @staticmethod
+    def _normalise_polygons(polygons: Sequence | Iterable | None) -> list[np.ndarray]:
+        if not polygons:
+            return []
+
+        normalised: list[np.ndarray] = []
+        for polygon in polygons:  # type: ignore[arg-type]
+            try:
+                polygon_array = OCRDataset._ensure_polygon_array(polygon)  # type: ignore[arg-type]
+            except ValueError as exc:
+                print(f"Warning: Skipping polygon due to shape error: {exc}")
+                continue
+
+            if polygon_array is None or polygon_array.size == 0:
+                continue
+
+            normalised.append(np.array(polygon_array, copy=True))
+
+        return normalised
+
+    @staticmethod
+    def _postprocess_polygons(polygons: Sequence[np.ndarray] | None, image_size: tuple[int, int]) -> list[np.ndarray]:
+        if not polygons:
+            return []
+
+        processed = [np.array(polygon, copy=True) for polygon in polygons if polygon.size > 0]
+        if not processed:
+            return []
+
+        width, height = image_size
+        OCRDataset._clip_polygons_in_place(processed, width, height)
+        return OCRDataset._filter_degenerate_polygons(processed)

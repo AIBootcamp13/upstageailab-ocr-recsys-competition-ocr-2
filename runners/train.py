@@ -153,7 +153,7 @@ def train(config):
             item_attr = getattr(final_loss, "item", None)
             if callable(item_attr):
                 item_val = item_attr()
-                final_loss = float(item_val) if isinstance(item_val, (int, float)) else float(final_loss)
+                final_loss = float(item_val) if isinstance(item_val, int | float) else float(final_loss)
             else:
                 final_loss = float(final_loss)
         except (ValueError, TypeError):
