@@ -12,9 +12,17 @@ EXIF_ORIENTATION = 274  # Orientation Information: 274
 
 
 class OCRDataset(Dataset):
-    def __init__(self, image_path, annotation_path, transform):
+    DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".webp"]
+
+    def __init__(self, image_path, annotation_path, transform, image_extensions=None):
         self.image_path = Path(image_path)
         self.transform = transform
+
+        # Allow configurable image extensions, fallback to default if not provided
+        if image_extensions is None:
+            self.image_extensions = self.DEFAULT_IMAGE_EXTENSIONS
+        else:
+            self.image_extensions = [ext.lower() for ext in image_extensions]
 
         self.anns = OrderedDict()
 
@@ -22,7 +30,7 @@ class OCRDataset(Dataset):
         if annotation_path is None:
             for file in self.image_path.glob("*"):
                 # Ensure file is a file (not a directory) and has a valid image extension
-                if file.is_file() and file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+                if file.is_file() and file.suffix.lower() in self.image_extensions:
                     self.anns[file.name] = None
             return
 

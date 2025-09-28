@@ -1,36 +1,41 @@
-# DBNet OCR Project - Copilot Instructions
+<!-- This is a Markdown file for GitHub Copilot instructions -->
 
-## Project Overview
-Receipt text detection using DBNet architecture with PyTorch Lightning. Modular design supporting plug-and-play architectures for experimentation.
+# Co-Instructions for AI Agents
 
-## Key Guidelines
-- **Configuration**: Use Hydra for all configurations
-- **Dependencies**: Use UV for dependency management
-- **Architecture**: Follow modular encoder/decoder/head/loss pattern
-- **Code Style**: Type hints, docstrings, snake_case naming
-- **Testing**: Comprehensive unit tests with pytest
+## Primary Directive
+**Start here for all tasks:** Navigate to `docs/ai_handbook/index.md` for the complete, authoritative knowledge base.
 
-## Development Workflow
-1. Check `docs/maintenance/project-state.md` for current status
-2. Review active plans in `docs/plans/`
-3. Include relevant context files for your task
-4. Follow coding standards from `docs/development/`
-5. Update project state after significant changes
+## Quick Context
+This is an OCR project using DBNet architecture for receipt text detection. The system is built with PyTorch Lightning and Hydra for modular experimentation.
 
-## Context Files
-- `docs/copilot/context.md` - Core project understanding
-- `docs/copilot/data-context.md` - Data processing and evaluation
-- `docs/copilot/quick-reference.md` - Common patterns, utilities, and reusable scripts
-- `docs/maintenance/project-state.md` - Current project status
+## Key Principles
+- **Single Source of Truth:** All documentation lives in `docs/ai_handbook/`
+- **Modular Architecture:** Plug-and-play components (encoders, decoders, heads, losses)
+- **Configuration-Driven:** Use Hydra configs for all instantiations
+- **UV Package Management:** Never use pip/conda directly
+- **Type Hints Required:** All public APIs must have complete type annotations
 
-## Architecture Patterns
-- Use factory functions for component instantiation
-- Implement abstract base classes for extensibility
-- Separate configuration from implementation
-- Use registry pattern for plug-and-play architectures
+## Essential Starting Points
+1. **New to Project:** Read `docs/ai_handbook/01_onboarding/01_setup_and_tooling.md`
+2. **Adding Features:** Follow `docs/ai_handbook/02_protocols/01_coding_standards.md`
+3. **Debugging Issues:** Use `docs/ai_handbook/02_protocols/03_debugging_workflow.md`
+4. **Architecture Questions:** Check `docs/ai_handbook/03_references/01_architecture.md`
+
+## Safe Operations
+- Use `uv run` prefix for all Python commands
+- Refer to `docs/ai_handbook/02_protocols/02_command_registry.md` for approved scripts
+- Update `docs/ai_handbook/05_changelog/` after significant changes
+
+## Context Bundles for Common Tasks
+- **Model Development:** Architecture + Coding Standards + Hydra Registry
+- **Data Pipeline:** Data Overview + Evaluation Metrics
+- **Experimentation:** Experiment Template + Debugging Workflow
 
 ## Quality Standards
-- All public functions need type hints and docstrings
-- Unit test coverage for core components
-- Integration tests for end-to-end pipelines
-- Use icecream for debugging, rich for console output
+- Ruff for formatting and linting
+- Pytest for testing with coverage
+- Pre-commit hooks for automated quality checks
+- Comprehensive docstrings and type hints
+
+## Emergency Contacts
+If stuck, reference the Command Registry or create an issue with full context from the handbook.

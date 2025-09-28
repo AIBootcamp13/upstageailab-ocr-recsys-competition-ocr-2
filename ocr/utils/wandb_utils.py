@@ -3,7 +3,10 @@
 
 import hashlib
 import os
+import re
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -21,32 +24,162 @@ def load_env_variables():
             with open(env_file) as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith("#"):
-                        if "=" in line:
-                            key, value = line.split("=", 1)
-                            key = key.strip()
-                            value = value.strip().strip('"').strip("'")  # Remove quotes
-                            os.environ[key] = value
-                            # Auto-login to WandB if API key is provided
-                            if key == "WANDB_API_KEY" and value:
-                                try:
-                                    import wandb
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")  # Remove quotes
+                        os.environ[key] = value
+                        # Auto-login to WandB if API key is provided
+                        if key == "WANDB_API_KEY" and value:
+                            try:
+                                import wandb
 
-                                    wandb.login(key=value)
-                                except Exception as e:
-                                    print(f"Warning: Failed to login to WandB: {e}")
+                                wandb.login(key=value)
+                            except Exception as e:
+                                print(f"Warning: Failed to login to WandB: {e}")
         except Exception as e:
             print(f"Warning: Failed to load .env file: {e}")
 
 
-def generate_run_name(cfg: DictConfig) -> str:
-    """Generate a descriptive, stable run name.
+_NAME_SANITIZE_PATTERN = re.compile(r"[^0-9a-zA-Z]+")
+_MAX_RUN_NAME_LENGTH = 120
 
-    Format (when experiment_tag present):
-        <user>_<tag>_<model>-b<bs>-lr<lr>_SCORE_PLACEHOLDER
-    Else:
-        <user>_<model>-b<bs>-lr<lr>_SCORE_PLACEHOLDER
-    """
+
+def _select(config: Any, path: Sequence[str], default: Any | None = None) -> Any | None:
+    """Safely retrieve a nested value from a DictConfig or mapping."""
+
+    current = config
+    for key in path:
+        if current is None:
+            return default
+        if isinstance(current, DictConfig):
+            if key in current:
+                current = current.get(key)
+            elif hasattr(current, key):
+                current = getattr(current, key)
+            else:
+                return default
+        elif isinstance(current, dict):
+            if key in current:
+                current = current[key]
+            else:
+                return default
+        else:
+            current = getattr(current, key, default)
+    return current if current is not None else default
+
+
+def _sanitize_token(value: Any | None) -> str:
+    """Convert a value into a lowercase token composed of safe characters."""
+
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    sanitized = _NAME_SANITIZE_PATTERN.sub("-", text)
+    sanitized = sanitized.strip("-")
+    return sanitized.lower()
+
+
+def _format_lr_token(value: Any | None) -> str:
+    """Format a learning rate value into a compact token."""
+
+    if value is None:
+        return ""
+    try:
+        lr_value = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if lr_value == 0:
+        return "lr0"
+    if abs(lr_value) >= 1e-2:
+        lr_str = f"{lr_value:g}"
+    else:
+        lr_str = f"{lr_value:.0e}".replace("e-0", "e-").replace("e+0", "e")
+    lr_token = _sanitize_token(lr_str)
+    return f"lr{lr_token}" if lr_token else ""
+
+
+def _format_batch_token(value: Any | None) -> str:
+    """Format batch size information into a token."""
+
+    if value is None:
+        return ""
+    try:
+        batch_int = int(value)
+    except (TypeError, ValueError):
+        batch_int = None
+    if batch_int is not None and batch_int > 0:
+        return f"bs{batch_int}"
+    batch_token = _sanitize_token(value)
+    return f"bs{batch_token}" if batch_token else ""
+
+
+def _deduplicate_labeled_tokens(tokens: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    seen: set[str] = set()
+    result: list[tuple[str, str]] = []
+    for label, token in tokens:
+        if token and token not in seen:
+            seen.add(token)
+            result.append((label, token))
+    return result
+
+
+def _architecture_default_component(architecture_name: str | None, component: str) -> str:
+    if not architecture_name:
+        return ""
+    try:
+        from ocr.models.core import registry as _registry
+
+        mapping = _registry.get_architecture(str(architecture_name))
+    except Exception:
+        return ""
+    return _sanitize_token(mapping.get(component)) if mapping and component in mapping else ""
+
+
+def _extract_component_token(
+    model_cfg: Any,
+    component: str,
+    architecture_name: str | None,
+    preference_keys: Sequence[str],
+    fallback_keys: Sequence[str] = (),
+) -> str:
+    """Collect a representative token for a model component."""
+
+    overrides = _select(model_cfg, ("component_overrides", component))
+
+    def _pick_token(config_section: Any) -> str:
+        if config_section is None:
+            return ""
+        for key in preference_keys:
+            value = _select(config_section, (key,))
+            if value is not None:
+                token = _sanitize_token(value)
+                if token:
+                    return token
+        for key in fallback_keys:
+            value = _select(config_section, (key,))
+            if value is not None:
+                token = _sanitize_token(value)
+                if token:
+                    return token
+        value = _select(config_section, ("_target_",))
+        if value:
+            return _sanitize_token(str(value).split(".")[-1])
+        return ""
+
+    candidate = _pick_token(overrides)
+    if not candidate:
+        component_cfg = _select(model_cfg, (component,))
+        candidate = _pick_token(component_cfg)
+    if not candidate:
+        candidate = _architecture_default_component(architecture_name, component)
+    return candidate
+
+
+def generate_run_name(cfg: DictConfig) -> str:
+    """Generate a descriptive, stable run name summarizing key components."""
     # Handle case where wandb config might not exist
     if hasattr(cfg, "wandb") and isinstance(cfg.wandb, bool):
         wandb_config: dict = {}
@@ -56,38 +189,131 @@ def generate_run_name(cfg: DictConfig) -> str:
         wandb_config = {}
 
     # Get user prefix from environment variable or config
-    user_prefix = os.environ.get("WANDB_USER", wandb_config.get("user_prefix", "user"))
-
-    # Get model name and make it concise
-    model_name = getattr(cfg, "model", {}).get("encoder", {}).get("model_name", "model") if hasattr(cfg, "model") else "model"
-    # Extract concise model name (remove common prefixes/suffixes)
-    model_name = model_name.replace("model_", "").replace("_model", "").replace("encoder_", "").replace("_encoder", "")
-    model_name = model_name.replace("_", "-")
-
-    batch_size = (
-        cfg.dataloaders.train_dataloader.get("batch_size", "N/A")
-        if hasattr(cfg, "dataloaders") and hasattr(cfg.dataloaders, "train_dataloader")
-        else "N/A"
-    )
-    lr_float = getattr(cfg, "model", {}).get("optimizer", {}).get("lr", 0) if hasattr(cfg, "model") else 0
-    lr_str = f"{lr_float:.0e}".replace("e-0", "e")
+    user_prefix = _sanitize_token(os.environ.get("WANDB_USER", wandb_config.get("user_prefix", "user"))) or "user"
 
     # Prefer wandb.experiment_tag; fall back to top-level or data tag
-    # Get experiment tag from various possible locations
     tag = wandb_config.get("experiment_tag")
     if hasattr(cfg, "experiment_tag"):
         tag = tag or cfg.experiment_tag
-    if tag:
-        tag = str(tag).strip().replace(" ", "-").replace("/", "-")[:40]
+    tag_token = _sanitize_token(tag)[:40] if tag else ""
 
-    model_details_parts = [model_name, f"b{batch_size}", f"lr{lr_str}"]
-    model_details = "-".join(filter(None, model_details_parts))
+    model_cfg = getattr(cfg, "model", None)
+    architecture_name = None
+    if model_cfg is not None:
+        architecture_name = _select(model_cfg, ("architecture_name",))
+    architecture_token = _sanitize_token(architecture_name)
 
-    if tag:
-        core = f"{user_prefix}_{tag}_{model_details}"
-    else:
-        core = f"{user_prefix}_{model_details}"
-    return f"{core}_SCORE_PLACEHOLDER"
+    encoder_token = ""
+    decoder_token = ""
+    head_token = ""
+    loss_token = ""
+    if model_cfg is not None:
+        encoder_token = _extract_component_token(
+            model_cfg,
+            "encoder",
+            architecture_name,
+            ("name", "model_name", "backbone", "type"),
+            ("variant",),
+        )
+        decoder_token = _extract_component_token(
+            model_cfg,
+            "decoder",
+            architecture_name,
+            ("name", "decoder_name", "type", "variant"),
+        )
+        head_token = _extract_component_token(
+            model_cfg,
+            "head",
+            architecture_name,
+            ("name", "head_name", "type"),
+        )
+        loss_token = _extract_component_token(
+            model_cfg,
+            "loss",
+            architecture_name,
+            ("name", "loss_name", "type"),
+        )
+
+    batch_size = None
+    if hasattr(cfg, "dataloaders") and hasattr(cfg.dataloaders, "train_dataloader"):
+        batch_size = _select(cfg.dataloaders, ("train_dataloader", "batch_size"))
+    if batch_size is None and hasattr(cfg, "data"):
+        batch_size = _select(cfg, ("data", "batch_size"))
+
+    batch_token = _format_batch_token(batch_size)
+
+    lr_value = None
+    if model_cfg is not None:
+        lr_value = _select(model_cfg, ("optimizer", "lr"))
+    lr_token = _format_lr_token(lr_value)
+
+    hyper_tokens = [token for token in (batch_token, lr_token) if token]
+
+    prefix_parts = [user_prefix]
+    if tag_token:
+        prefix_parts.append(tag_token)
+    prefix = "_".join(filter(None, prefix_parts))
+
+    component_tokens = _deduplicate_labeled_tokens(
+        [
+            ("arch", architecture_token),
+            ("encoder", encoder_token),
+            ("decoder", decoder_token),
+            ("head", head_token),
+            ("loss", loss_token),
+        ]
+    )
+
+    labeled_tokens: list[tuple[str, str]] = list(component_tokens)
+
+    for token in hyper_tokens:
+        if token.startswith("bs"):
+            labeled_tokens.append(("batch", token))
+        elif token.startswith("lr"):
+            labeled_tokens.append(("lr", token))
+
+    descriptor = "-".join(token for _, token in labeled_tokens)
+    name_without_suffix = prefix
+    if descriptor:
+        name_without_suffix = f"{prefix}_{descriptor}" if prefix else descriptor
+
+    suffix = "_SCORE_PLACEHOLDER"
+    run_name = f"{name_without_suffix}{suffix}"
+
+    removal_priority = ["loss", "head", "lr", "batch", "decoder", "encoder", "arch"]
+
+    def _rebuild(tokens: list[tuple[str, str]]) -> str:
+        descriptor_part = "-".join(token for _, token in tokens if token)
+        body = prefix
+        if descriptor_part:
+            body = f"{prefix}_{descriptor_part}" if prefix else descriptor_part
+        return f"{body}{suffix}"
+
+    while len(run_name) > _MAX_RUN_NAME_LENGTH:
+        removed = False
+        for label in removal_priority:
+            for idx, (tok_label, _) in enumerate(labeled_tokens):
+                if tok_label == label:
+                    labeled_tokens.pop(idx)
+                    run_name = _rebuild(labeled_tokens)
+                    removed = True
+                    break
+            if removed:
+                break
+        if not removed:
+            descriptor_fallback = "-".join(token for _, token in labeled_tokens)
+            digest_source = descriptor_fallback or prefix or "run"
+            digest = hashlib.sha1(digest_source.encode("utf-8")).hexdigest()[:8]
+            core_tokens = [token for _, token in labeled_tokens[:2]]
+            core_tokens.append(digest)
+            descriptor_part = "-".join(token for token in core_tokens if token)
+            body = prefix
+            if descriptor_part:
+                body = f"{prefix}_{descriptor_part}" if prefix else descriptor_part
+            run_name = f"{body}{suffix}"
+            break
+
+    return run_name
 
 
 def finalize_run(final_loss: float):
