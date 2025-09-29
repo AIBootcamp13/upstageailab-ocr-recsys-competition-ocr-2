@@ -15,6 +15,11 @@ This is an OCR project using DBNet architecture for receipt text detection. The 
 - **UV Package Management:** Never use pip/conda directly
 - **Type Hints Required:** All public APIs must have complete type annotations
 
+### AI Cue Markers
+- Protocol files may include HTML comments such as `<!-- ai_cue:priority=high -->` or `<!-- ai_cue:use_when=debugging -->`.
+- Treat `priority` as the relative importance for triage; `use_when` lists scenarios that should trigger loading that document first.
+- When scanning docs, prioritise sections with `priority=high` before moving to medium/low markers.
+
 ## Essential Starting Points
 1. **New to Project:** Read `docs/ai_handbook/01_onboarding/01_setup_and_tooling.md`
 2. **Adding Features:** Follow `docs/ai_handbook/02_protocols/01_coding_standards.md`

@@ -99,7 +99,7 @@ def apply_sorting_filtering(df: pd.DataFrame, sort_by: str, sort_order: str, fil
     if filter_metric == "high_confidence":
         filtered_df = df[df["avg_confidence"] > 0.8]
     elif filter_metric == "low_confidence":
-        filtered_df = df[df["avg_confidence"] <= 0.8]
+        filtered_df = df[df["avg_confidence"] < 0.5]
     elif filter_metric == "many_predictions":
         filtered_df = df[df["prediction_count"] > df["prediction_count"].median()]
     elif filter_metric == "few_predictions":

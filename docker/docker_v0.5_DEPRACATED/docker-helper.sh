@@ -5,14 +5,7 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-# Default to repo-root compose file, but fall back to docker/docker-compose.yml
 DOCKER_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
-if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then
-    ALT="$PROJECT_DIR/docker/docker-compose.yml"
-    if [ -f "$ALT" ]; then
-        DOCKER_COMPOSE_FILE="$ALT"
-    fi
-fi
 
 # Enhanced Colors for output
 RED='\033[0;31m'
@@ -77,13 +70,13 @@ print_service_status() {
 
     case $status in
         "running"|"healthy")
-            echo -e "${GREEN}${CHECK}${NC} ${WHITE}${service}${NC} ${GREEN}running${NC} on port ${CYAN}${port}${NC}"
+            echo -e "${GREEN}${CHECK}${NC} ${WHITE}${service}${NC} ${GREEN}running${NC} on port ${CYAN}${port}${NC"
             ;;
         "starting"|"unhealthy")
-            echo -e "${YELLOW}${GEAR}${NC} ${WHITE}${service}${NC} ${YELLOW}starting${NC} on port ${CYAN}${port}${NC}"
+            echo -e "${YELLOW}${GEAR}${NC} ${WHITE}${service}${NC} ${YELLOW}starting${NC} on port ${CYAN}${port}${NC"
             ;;
         "exited"|"stopped")
-            echo -e "${RED}${CROSS}${NC} ${WHITE}${service}${NC} ${RED}stopped${NC}"
+            echo -e "${RED}${CROSS}${NC} ${WHITE}${service}${NC} ${RED}stopped${NC"
             ;;
         *)
             echo -e "${YELLOW}${WARNING}${NC} ${WHITE}${service}${NC} ${YELLOW}unknown${NC} (${status})"
@@ -166,6 +159,7 @@ start_services() {
     fix_permissions
 
     log_docker "Starting all services..."
+    echo -e "${YELLOW}This may take a few minutes for Elasticsearch to initialize...${NC}"
 
     if docker-compose -f "$DOCKER_COMPOSE_FILE" up -d; then
         log_success "Services started successfully!"
@@ -204,9 +198,10 @@ show_status() {
     log_docker "Service Status:"
     docker-compose -f "$DOCKER_COMPOSE_FILE" ps
 
-    # No external service health checks required for this project
     log_docker "Service Health:"
-    echo "No additional external services are required for this project."
+    echo "Elasticsearch: $(curl -s http://localhost:9200/_cluster/health | jq -r '.status' 2>/dev/null || echo 'Not accessible')"
+    echo "Kibana: $(curl -s http://localhost:5601/api/status | jq -r '.status.overall.level' 2>/dev/null || echo 'Not accessible')"
+    echo "Redis: $(redis-cli -p 6379 ping 2>/dev/null || echo 'Not accessible')"
 }
 
 # Show logs
@@ -247,11 +242,14 @@ show_help() {
     echo -e "  ${WHITE}help${NC}        ${WHITE}Show this colorful help${NC}"
     echo ""
     echo -e "${WHITE}${BOLD}Available Services:${NC}"
+    echo -e "  ${DOCKER} ${WHITE}elasticsearch${NC} (port 9200)"
+    echo -e "  ${DOCKER} ${WHITE}kibana${NC}        (port 5601)"
+    echo -e "  ${DOCKER} ${WHITE}redis${NC}         (port 6379)"
     echo -e "  ${DOCKER} ${WHITE}dev-container${NC} (port 2222)"
     echo ""
     echo -e "${WHITE}${BOLD}Examples:${NC}"
     echo -e "  ${CYAN}$0 start${NC}"
-    echo -e "  ${CYAN}$0 logs <service>${NC}"
+    echo -e "  ${CYAN}$0 logs kibana${NC}"
     echo -e "  ${CYAN}$0 status${NC}"
     echo -e "  ${CYAN}$0 shell${NC}"
     echo ""

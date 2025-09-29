@@ -1,6 +1,8 @@
 # Makefile for OCR Project Development
 
-.PHONY: help install dev-install test lint format quality-check clean docs serve-ui
+PORT ?= 8501
+
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor serve-test-viewer pre-commit setup-dev ci
 
 # Default target
 help:
@@ -75,19 +77,19 @@ docs:
 
 # UI
 serve-ui:
-	uv run streamlit run ui/command_builder.py
+	uv run streamlit run ui/command_builder.py --server.port=$(PORT)
 
 serve-evaluation-ui:
-	uv run streamlit run ui/evaluation_viewer.py
+	uv run streamlit run ui/evaluation_viewer.py --server.port=$(PORT)
 
 serve-inference-ui:
-	uv run streamlit run ui/inference_ui.py
+	uv run streamlit run ui/inference_ui.py --server.port=$(PORT)
 
 serve-resource-monitor:
-	uv run streamlit run ui/resource_monitor.py
+	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)
 
 serve-test-viewer:
-	uv run streamlit run ui/test_viewer.py
+	uv run streamlit run ui/test_viewer.py --server.port=$(PORT)
 
 # Development workflow
 setup-dev: dev-install pre-commit

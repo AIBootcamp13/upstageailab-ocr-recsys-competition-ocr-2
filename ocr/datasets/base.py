@@ -2,6 +2,7 @@ import json
 from collections import OrderedDict
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -111,30 +112,37 @@ class OCRDataset(Dataset):
         Handles orientations 1-8 according to EXIF standard.
         Orientation 1 (normal) requires no rotation.
         """
-        # Set interpolation and fill color for rotation
-        rotate_kwargs = {
-            "resample": Image.BICUBIC,
-        }
-        # If image has alpha channel, use transparent fill, else white
+
+        try:
+            bicubic = Image.Resampling.BICUBIC  # type: ignore[attr-defined]
+        except AttributeError:  # pragma: no cover - Pillow<9 fallback
+            bicubic = Image.BICUBIC  # type: ignore[attr-defined]
+
+        fillcolor: tuple[int, ...]
         if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
-            rotate_kwargs["fillcolor"] = (0, 0, 0, 0)
+            fillcolor = (0, 0, 0, 0)
         else:
-            rotate_kwargs["fillcolor"] = (255, 255, 255)
+            fillcolor = (255, 255, 255)
+
+        rotate_kwargs: dict[str, Any] = {
+            "resample": bicubic,
+            "fillcolor": fillcolor,
+        }
 
         if orientation == 2:
             image = image.transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 3:
-            image = image.rotate(180)
+            image = image.rotate(180, **rotate_kwargs)
         elif orientation == 4:
-            image = image.rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(180, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 5:
-            image = image.rotate(-90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(-90, expand=True, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 6:
-            image = image.rotate(-90, expand=True)
+            image = image.rotate(-90, expand=True, **rotate_kwargs)
         elif orientation == 7:
-            image = image.rotate(90, expand=True).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(90, expand=True, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
         elif orientation == 8:
-            image = image.rotate(90, expand=True)
+            image = image.rotate(90, expand=True, **rotate_kwargs)
         # Orientation 1 (normal) and any other values: no rotation needed
         return image
 
@@ -161,16 +169,6 @@ class OCRDataset(Dataset):
         ]
 
         width, height = image_size
-        transformers = {
-            2: lambda x, y: (width - 1 - x, y),
-            3: lambda x, y: (width - 1 - x, height - 1 - y),
-            4: lambda x, y: (x, height - 1 - y),
-            5: lambda x, y: (y, x),
-            6: lambda x, y: (height - 1 - y, x),
-            7: lambda x, y: (height - 1 - y, width - 1 - x),
-            8: lambda x, y: (y, width - 1 - x),
-        }
-
         if orientation in {5, 6, 7, 8}:
             new_width, new_height = height, width
         else:
@@ -187,27 +185,38 @@ class OCRDataset(Dataset):
         if skip_transform:
             transformed = [np.array(polygon, copy=True) for polygon in normalised_polygons]
         else:
-            transform_point = transformers.get(orientation)
-            if transform_point is None:
-                transformed = [np.array(polygon, copy=True) for polygon in normalised_polygons]
-            else:
-                for polygon_array in normalised_polygons:
-                    if not hasattr(polygon_array, "reshape"):
-                        polygon_array = np.asarray(polygon_array, dtype=np.float32)
-                    else:
-                        polygon_array = np.asarray(polygon_array)
-
-                    if polygon_array.dtype == np.dtype("O"):
-                        polygon_array = polygon_array.astype(np.float32, copy=False)
-
-                    normalised_shape = polygon_array.shape
-                    points = polygon_array.reshape(-1, 2)
-                    rotated_points = np.array([transform_point(float(x), float(y)) for x, y in points], dtype=np.float32)
-                    rotated_points = rotated_points.astype(polygon_array.dtype, copy=False)
-                    transformed.append(rotated_points.reshape(normalised_shape))
+            for polygon_array in normalised_polygons:
+                normalised_shape = polygon_array.shape
+                reshaped = np.asarray(polygon_array, dtype=np.float32).reshape(-1, 2)
+                rotated_points = OCRDataset._apply_orientation_transform(
+                    reshaped,
+                    orientation=orientation,
+                    width=width,
+                    height=height,
+                )
+                transformed.append(rotated_points.astype(polygon_array.dtype, copy=False).reshape(normalised_shape))
 
         OCRDataset._clip_polygons_in_place(transformed, new_width, new_height)
         return OCRDataset._filter_degenerate_polygons(transformed)
+
+    @staticmethod
+    def _apply_orientation_transform(points: np.ndarray, orientation: int, width: int, height: int) -> np.ndarray:
+        """Vectorised orientation transform for polygon points."""
+        if orientation == 2:
+            return np.stack((width - 1 - points[:, 0], points[:, 1]), axis=-1)
+        if orientation == 3:
+            return np.stack((width - 1 - points[:, 0], height - 1 - points[:, 1]), axis=-1)
+        if orientation == 4:
+            return np.stack((points[:, 0], height - 1 - points[:, 1]), axis=-1)
+        if orientation == 5:
+            return np.stack((points[:, 1], points[:, 0]), axis=-1)
+        if orientation == 6:
+            return np.stack((height - 1 - points[:, 1], points[:, 0]), axis=-1)
+        if orientation == 7:
+            return np.stack((height - 1 - points[:, 1], width - 1 - points[:, 0]), axis=-1)
+        if orientation == 8:
+            return np.stack((points[:, 1], width - 1 - points[:, 0]), axis=-1)
+        return np.array(points, copy=True)
 
     @staticmethod
     def _ensure_polygon_array(polygon: np.ndarray | Sequence | None) -> np.ndarray | None:

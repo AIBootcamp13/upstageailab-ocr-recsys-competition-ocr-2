@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for development and production
-FROM nvidia/cuda:12.8-devel-ubuntu22.04 AS base
+FROM nvidia/cuda:12.8.1-devel-ubuntu22.04 AS base
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,6 +16,17 @@ RUN apt-get update && apt-get install -y \
     git \
     openssh-server \
     build-essential \
+    python3-dev \
+    libpython3-dev \
+    cmake \
+    pkg-config \
+    libjpeg-dev \
+    libpng-dev \
+    libsndfile1-dev \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libgl1-mesa-glx \
     libssl-dev \
     zlib1g-dev \
     libbz2-dev \
@@ -78,9 +89,17 @@ WORKDIR /workspaces
 
 # Copy dependency files first for better caching
 COPY --chown=vscode:vscode pyproject.toml uv.lock ./
+# Ensure README.md is present for build metadata
+COPY --chown=vscode:vscode README.md ./
 
-# Install Python dependencies
-RUN uv sync --frozen
+# Install Python dependencies if `uv` is available; otherwise skip (will be handled at runtime)
+RUN if [ -x "/home/vscode/.cargo/bin/uv" ]; then \
+      /home/vscode/.cargo/bin/uv sync --frozen; \
+    elif [ -x "/home/vscode/.local/bin/uv" ]; then \
+      /home/vscode/.local/bin/uv sync --frozen; \
+    else \
+      echo "uv not found during build; skipping dependency sync (will attempt at container runtime)"; \
+    fi
 
 # Copy source code
 COPY --chown=vscode:vscode . .

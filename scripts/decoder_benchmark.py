@@ -289,7 +289,7 @@ def _initialise_wandb_logger(
     max_images = int(logger_cfg.get("image_log_max_images", 8))
     if image_log_every > 0 and max_images > 0:
         try:
-            from ocr.lightning_modules.callbacks.wandb_image_logging import (  # noqa: WPS433
+            from ocr.lightning_modules.callbacks.wandb_image_logging import (
                 WandbImageLoggingCallback,
             )
 

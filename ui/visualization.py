@@ -10,6 +10,23 @@ import plotly.express as px
 import streamlit as st
 from PIL import Image, ImageDraw
 
+# Import data utilities
+try:
+    from .data_utils import (
+        apply_sorting_filtering,
+        calculate_image_differences,
+        calculate_prediction_metrics,
+        prepare_export_data,
+    )
+except ImportError:
+    # Fallback for direct execution
+    from data_utils import (
+        apply_sorting_filtering,
+        calculate_image_differences,
+        calculate_prediction_metrics,
+        prepare_export_data,
+    )
+
 
 def display_dataset_overview(df: pd.DataFrame):
     """Display basic dataset overview with key metrics."""
@@ -599,3 +616,247 @@ def draw_predictions_on_image(image: Image.Image, polygons_str: str, color: tupl
             draw.polygon(points, outline=color + (255,), fill=color + (50,), width=2)
 
     return image
+
+
+def display_advanced_analysis(df: pd.DataFrame, image_dir: Path):
+    """Renders advanced analysis features like sorting, filtering, and exporting."""
+    st.subheader("🔬 Advanced Analysis Tools")
+
+    # Initialize session state for pagination
+    if "advanced_page" not in st.session_state:
+        st.session_state.advanced_page = 0
+
+    try:
+        df_metrics = calculate_prediction_metrics(df)
+    except Exception as e:
+        st.error(f"Error calculating prediction metrics: {e}")
+        return
+
+    st.markdown("### Performance Sorting & Filtering")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        sort_by = st.selectbox(
+            "Sort by",
+            ["prediction_count", "total_area", "avg_confidence", "aspect_ratio"],
+            help="Sort images by different calculated metrics.",
+        )
+    with col2:
+        sort_order = st.selectbox("Order", ["descending", "ascending"])
+    with col3:
+        filter_metric = st.selectbox(
+            "Filter by",
+            [
+                "all",
+                "high_confidence",
+                "low_confidence",
+                "many_predictions",
+                "few_predictions",
+            ],
+        )
+
+    sorted_df = apply_sorting_filtering(df_metrics, sort_by, sort_order, filter_metric)
+
+    # Pagination controls
+    images_per_page = st.slider("Images per page", 5, 25, 10, key="advanced_images_per_page")
+    total_images = len(sorted_df)
+    total_pages = (total_images + images_per_page - 1) // images_per_page
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col1:
+        if st.button(
+            "⬅️ Previous",
+            key="advanced_prev",
+            disabled=st.session_state.advanced_page == 0,
+        ):
+            st.session_state.advanced_page -= 1
+
+    with col2:
+        current_page = st.session_state.advanced_page
+        start_idx = current_page * images_per_page
+        end_idx = min(start_idx + images_per_page, total_images)
+        st.markdown(f"**Showing {start_idx + 1}-{end_idx} of {total_images} images**")
+
+    with col3:
+        if st.button("Next ➡️", key="advanced_next", disabled=current_page >= total_pages - 1):
+            st.session_state.advanced_page += 1
+
+    # Display paginated image grid
+    display_image_grid(sorted_df, str(image_dir), sort_by, images_per_page, start_idx)
+
+    st.markdown("---")
+    display_statistical_summary(df_metrics)
+
+    st.markdown("---")
+    export_results(df_metrics, sorted_df)
+
+
+def export_results(original_df: pd.DataFrame, sorted_df: pd.DataFrame):
+    """Provides download buttons for exporting analysis results."""
+    st.markdown("### Export Results")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button(
+            label="📥 Download Sorted Results (CSV)",
+            data=sorted_df.to_csv(index=False),
+            file_name="sorted_predictions.csv",
+            mime="text/csv",
+        )
+    with col2:
+        df_export, summary_stats = prepare_export_data(original_df)
+        summary_csv = pd.DataFrame([summary_stats]).to_csv(index=False)
+        st.download_button(
+            label="📊 Download Summary Stats (CSV)",
+            data=summary_csv,
+            file_name="summary_statistics.csv",
+            mime="text/csv",
+        )
+
+
+def display_model_differences(df_a: pd.DataFrame, df_b: pd.DataFrame):
+    """Calculates and displays the differences between two models' predictions."""
+    st.subheader("Prediction Differences")
+
+    # Initialize session state for pagination
+    if "pred_page" not in st.session_state:
+        st.session_state.pred_page = 0
+    if "area_page" not in st.session_state:
+        st.session_state.area_page = 0
+    if "conf_page" not in st.session_state:
+        st.session_state.conf_page = 0
+
+    try:
+        diff_df = calculate_image_differences(df_a, df_b)
+    except Exception as e:
+        st.error(f"Error calculating prediction differences: {e}")
+        return
+
+    if diff_df.empty:
+        st.warning("No common images found to compare between the two models.")
+        return
+
+    # Pagination settings
+    items_per_page = 20
+
+    # Prediction Count Differences
+    st.markdown("#### Top Differences in Prediction Count")
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        pred_order = st.radio("Order", ["Largest", "Smallest"], key="pred_order", horizontal=True)
+
+    with col2:
+        if st.button("⬅️ Previous", key="pred_prev", disabled=st.session_state.pred_page == 0):
+            st.session_state.pred_page -= 1
+
+    with col3:
+        total_pred_pages = (len(diff_df) + items_per_page - 1) // items_per_page
+        if st.button(
+            "Next ➡️",
+            key="pred_next",
+            disabled=st.session_state.pred_page >= total_pred_pages - 1,
+        ):
+            st.session_state.pred_page += 1
+
+    # Display prediction count differences
+    ascending = pred_order == "Smallest"
+    sorted_pred = diff_df.sort_values("abs_pred_diff", ascending=ascending)
+    start_idx = st.session_state.pred_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(sorted_pred))
+
+    st.dataframe(sorted_pred.iloc[start_idx:end_idx][["filename", "pred_a", "pred_b", "pred_diff"]])
+
+    # Prediction Area Differences
+    st.markdown("#### Top Differences in Total Prediction Area")
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        area_order = st.radio("Order", ["Largest", "Smallest"], key="area_order", horizontal=True)
+
+    with col2:
+        if st.button("⬅️ Previous", key="area_prev", disabled=st.session_state.area_page == 0):
+            st.session_state.area_page -= 1
+
+    with col3:
+        total_area_pages = (len(diff_df) + items_per_page - 1) // items_per_page
+        if st.button(
+            "Next ➡️",
+            key="area_next",
+            disabled=st.session_state.area_page >= total_area_pages - 1,
+        ):
+            st.session_state.area_page += 1
+
+    # Display area differences
+    ascending = area_order == "Smallest"
+    sorted_area = diff_df.sort_values("abs_area_diff", ascending=ascending)
+    start_idx = st.session_state.area_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(sorted_area))
+
+    st.dataframe(sorted_area.iloc[start_idx:end_idx][["filename", "area_a", "area_b", "area_diff"]])
+
+    # Prediction Confidence Differences
+    st.markdown("#### Top Differences in Prediction Confidence")
+    col1, col2, col3 = st.columns([2, 1, 1])
+
+    with col1:
+        conf_order = st.radio("Order", ["Largest", "Smallest"], key="conf_order", horizontal=True)
+
+    with col2:
+        if st.button("⬅️ Previous", key="conf_prev", disabled=st.session_state.conf_page == 0):
+            st.session_state.conf_page -= 1
+
+    with col3:
+        total_conf_pages = (len(diff_df) + items_per_page - 1) // items_per_page
+        if st.button(
+            "Next ➡️",
+            key="conf_next",
+            disabled=st.session_state.conf_page >= total_conf_pages - 1,
+        ):
+            st.session_state.conf_page += 1
+
+    # Display confidence differences
+    ascending = conf_order == "Smallest"
+    sorted_conf = diff_df.sort_values("abs_conf_diff", ascending=ascending)
+    start_idx = st.session_state.conf_page * items_per_page
+    end_idx = min(start_idx + items_per_page, len(sorted_conf))
+
+    st.dataframe(sorted_conf.iloc[start_idx:end_idx][["filename", "conf_a", "conf_b", "conf_diff"]])
+
+
+def render_low_confidence_analysis(df: pd.DataFrame):
+    """Render specialized analysis for low confidence predictions."""
+    st.markdown("### ⚠️ Low Confidence Analysis")
+
+    # Summary statistics
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Low Confidence Images", len(df))
+
+    with col2:
+        avg_conf = df["avg_confidence"].mean()
+        st.metric("Average Confidence", f"{avg_conf:.3f}")
+
+    with col3:
+        avg_preds = df["prediction_count"].mean()
+        st.metric("Avg Predictions", f"{avg_preds:.1f}")
+
+    # Confidence distribution
+    st.markdown("#### Confidence Distribution")
+    fig = px.histogram(df, x="avg_confidence", nbins=20, title="Low Confidence Distribution")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Top issues
+    st.markdown("#### Images with Lowest Confidence")
+    lowest_conf = df.nsmallest(10, "avg_confidence")[["filename", "avg_confidence", "prediction_count"]]
+    st.dataframe(lowest_conf)
+
+    # Correlation analysis
+    st.markdown("#### Correlation Analysis")
+    corr_data = df[["avg_confidence", "prediction_count", "total_area"]].corr()
+    fig = px.imshow(
+        corr_data,
+        text_auto=True,
+        title="Correlation between Confidence and Other Metrics",
+    )
+    st.plotly_chart(fig, use_container_width=True)

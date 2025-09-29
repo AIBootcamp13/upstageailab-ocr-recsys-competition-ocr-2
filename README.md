@@ -511,7 +511,7 @@ uv run python ocr/utils/convert_submission.py --json_path outputs/ocr_training/s
 
 ```bash
 # 자동 환경 설정 (권장)
-./setup-environment.sh
+./scripts/setup/00_setup-environment.sh
 
 # 또는 수동으로:
 # 1. 의존성 설치

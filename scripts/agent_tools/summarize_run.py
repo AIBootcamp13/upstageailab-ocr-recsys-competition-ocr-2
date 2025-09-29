@@ -3,44 +3,21 @@
 import argparse
 import datetime
 import json
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+from openai import OpenAI
 
-# --- Placeholder for your LLM API call ---
-# You would replace this with your actual client, e.g., from openai, anthropic, or a custom library.
+load_dotenv()
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
 def call_llm_for_summary(text_content: str) -> str:
-    """
-    Placeholder function to simulate calling a Large Language Model.
-    In a real implementation, this would make an API call to a model
-    to generate a summary of the provided text.
-    """
-    print("--- SIMULATING LLM CALL ---")
-    # In a real scenario, you would construct a prompt and send `text_content` to the LLM.
-    # For example:
-    # prompt = f"Please summarize the following agent run log into a concise, human-readable report... {text_content}"
-    # response = your_llm_client.generate(prompt)
-    # return response.text
-    summary = (
-        "# Agent Run Summary\n\n"
-        "## Objective\n"
-        "The agent attempted to debug a CUDA out-of-memory error.\n\n"
-        "## Key Actions\n"
-        "- **Hypothesis 1:** The UNet decoder channel mismatch was the root cause.\n"
-        "- **Test:** Modified `unet.yaml` to set `output_channels: 256`.\n"
-        "- **Observation:** This fixed the channel error but introduced a new CUDA memory error.\n"
-        "- **Hypothesis 2:** The batch size was too large for the corrected feature maps.\n"
-        "- **Test:** Reduced `data.batch_size` from 16 to 8.\n"
-        "- **Observation:** The training run completed successfully.\n\n"
-        "## Conclusion\n"
-        "The root cause was a combination of an incorrect channel configuration and an overly large batch size for the resulting feature map dimensions. The issue is now resolved.\n\n"
-        "## Status\n"
-        "Completed"
+    response = client.chat.completions.create(
+        model="gpt-4o-mini", messages=[{"role": "user", "content": f"Summarize the following agent run log:\n\n{text_content}"}]
     )
-    print("--- SIMULATION COMPLETE ---")
-    return summary
-
-
-# -----------------------------------------
+    return response.choices[0].message.content
 
 
 def summarize_log_file(log_path: Path):

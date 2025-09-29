@@ -100,14 +100,23 @@ uv run streamlit run ui/inference_ui.py
 **Demo Mode:**
 If no trained models are available, the UI automatically switches to demo mode with mock predictions, allowing you to test the interface and workflow before training models.
 
-### Evaluation Viewer (`evaluation_viewer.py`) - ✅ Implemented
-An interface for viewing and analyzing OCR evaluation results.
+### Evaluation Viewer (`ui/evaluation/`) - ✅ Implemented
+A modular interface for viewing and analyzing OCR evaluation results.
+
+**Architecture:**
+- `ui/evaluation/app.py` - Main application entry point
+- `ui/evaluation/single_run.py` - Single model analysis view
+- `ui/evaluation/comparison.py` - Model comparison view
+- `ui/evaluation/gallery.py` - Image gallery with filtering
+- `ui/evaluation/__init__.py` - Package initialization
 
 **주요 기능:**
 - 예측 결과 CSV 파일 로드 및 분석
 - 데이터셋 통계 및 분포 차트 표시
 - 예측 분석 (바운딩 박스 면적, 종횡비 등)
 - 이미지별 예측 결과 시각화 (바운딩 박스 오버레이)
+- 모델 간 비교 및 차이 분석
+- 이미지 갤러리 with 필터링 (높은 신뢰도, 낮은 신뢰도 등)
 - 대화형 차트 및 통계 테이블
 
 **사용법:**
@@ -182,7 +191,13 @@ The UI is built with a modular design:
 ```
 ui/
 ├── command_builder.py          # Main command builder app
-├── evaluation_viewer.py        # Evaluation results viewer (planned)
+├── evaluation/                 # Evaluation results viewer (modular)
+│   ├── __init__.py
+│   ├── app.py                  # Main application
+│   ├── single_run.py           # Single model analysis
+│   ├── comparison.py           # Model comparison
+│   └── gallery.py              # Image gallery
+├── evaluation_viewer.py        # Legacy wrapper for evaluation/
 ├── inference_ui.py            # Real-time inference interface
 ├── resource_monitor.py         # System resource and process monitor
 ├── components/                 # Reusable UI components
