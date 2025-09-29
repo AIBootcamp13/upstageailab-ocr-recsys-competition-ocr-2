@@ -5,12 +5,14 @@ name: CI & Auto-format
 on:
   push:
     branches:
-      - main
-      - '01_refactor/config' # Adjust to your development branches
+        - '*'
+      # - main
+      # - '01_refactor/config' # Adjust to your development branches
   pull_request:
     branches:
-      - main
-      - '01_refactor/config' # Adjust to your base branches
+        - '*'
+      # - main
+      # - '01_refactor/config' # Adjust to your base branches
 
 # Grant permissions for the workflow to write commit statuses and push code.
 permissions:
