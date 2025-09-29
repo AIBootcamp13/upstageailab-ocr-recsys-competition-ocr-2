@@ -6,13 +6,20 @@ on:
   push:
     branches:
         - '*'
-      # - main
-      # - '01_refactor/config' # Adjust to your development branches
+    paths: &ci_paths
+      - 'ocr/**'
+      - 'runners/**'
+      - 'ui/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'setup.cfg'
+      - 'pytest.ini'
+      - '.github/workflows/ci.yml'
+      - 'Makefile'
   pull_request:
     branches:
         - '*'
-      # - main
-      # - '01_refactor/config' # Adjust to your base branches
+    paths: *ci_paths
 
 # Grant permissions for the workflow to write commit statuses and push code.
 permissions:
@@ -52,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
+      # Step 5.5: Ensure ruff is installed
+      - name: Install ruff
+        run: uv run pip install ruff
+
       # Step 6: Run Ruff to automatically fix linting and formatting issues
       - name: Auto-fix with Ruff
         id: ruff_fix
@@ -68,6 +79,36 @@ jobs:
             echo "Linting and formatting changes were applied."
             echo "changes=true" >> $GITHUB_OUTPUT
           fi
+
+      # Step 7: Verify that all issues are resolved after auto-fixing.
+      # If this step fails, it means there are errors that Ruff cannot fix automatically,
+      # and they require manual intervention.
+      - name: Verify code quality after auto-fix
+        run: |
+          echo "Verifying all linting issues are resolved..."
+          uv run ruff check .
+          echo "Verifying all formatting issues are resolved..."
+          uv run ruff format . --check
+          echo "✅ All quality checks passed."
+
+      # Step 8: Commit the automated fixes back to the pull request branch
+      - name: Commit and Push Fixes
+        if: ${{ steps.ruff_fix.outputs.changes == 'true' && github.event_name == 'pull_request' }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "🤖 [CI] Auto-fix code style with Ruff"
+          # Push the changes to the head branch of the pull request
+          git push origin ${{ github.head_ref }}
+
+      # Step 9: Run Mypy for static type checking
+      - name: Run Mypy Static Type Checking
+        run: uv run mypy .
+
+      # Step 10: Run the test suite with pytest
+      - name: Run tests with pytest
+        run: uv run pytest tests/ -v
 
       # Step 7: Verify that all issues are resolved after auto-fixing.
       # If this step fails, it means there are errors that Ruff cannot fix automatically,
