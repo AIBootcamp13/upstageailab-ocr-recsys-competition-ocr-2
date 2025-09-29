@@ -247,7 +247,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
                     st.image(
                         image,
                         caption=f"Enlarged: {image_name}",
-                        use_container_width=True,
+                        width="stretch",
                     )
 
                 with col2:
@@ -280,7 +280,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
                     st.image(
                         image,
                         caption=f"Enlarged: {image_name}",
-                        use_container_width=True,
+                        width="stretch",
                     )
 
                 with col2:
@@ -844,7 +844,7 @@ def render_low_confidence_analysis(df: pd.DataFrame):
     # Confidence distribution
     st.markdown("#### Confidence Distribution")
     fig = px.histogram(df, x="avg_confidence", nbins=20, title="Low Confidence Distribution")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Top issues
     st.markdown("#### Images with Lowest Confidence")
@@ -859,4 +859,4 @@ def render_low_confidence_analysis(df: pd.DataFrame):
         text_auto=True,
         title="Correlation between Confidence and Other Metrics",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")

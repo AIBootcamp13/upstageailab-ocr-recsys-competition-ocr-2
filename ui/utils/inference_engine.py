@@ -32,9 +32,9 @@ try:
     import torch
     import torchvision.transforms as transforms
     import yaml
-    from omegaconf import DictConfig
+    from omegaconf import DictConfig, ListConfig
 
-    from ocr.lightning_modules import get_pl_modules_by_cfg
+    from ocr.models import get_model_by_cfg
 
     OCR_MODULES_AVAILABLE = True
 except ImportError as e:
@@ -43,6 +43,7 @@ except ImportError as e:
     # Define dummy classes to prevent NameErrors later
     torch = None
     DictConfig = dict
+    ListConfig = None
     pl = None
     yaml = None
     transforms = None
@@ -52,7 +53,7 @@ class InferenceEngine:
     """OCR Inference Engine for real-time predictions."""
 
     def __init__(self):
-        self.model_module = None
+        self.model = None
         self.trainer = None
         self.config = None
         self.device = "cuda" if torch is not None and torch.cuda.is_available() else "cpu"
@@ -112,10 +113,15 @@ class InferenceEngine:
         self._extract_config_parameters()
 
         # Initialize model
-        self.model_module, _ = get_pl_modules_by_cfg(self.config)
+        logging.info(f"Instantiating model with architecture: {self.config.model.get('architecture_name', 'custom')}")
+        self.model = get_model_by_cfg(self.config.model)
+        logging.info(f"Model instantiated with {sum(p.numel() for p in self.model.parameters())} parameters")
 
         # Load checkpoint
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = self._load_checkpoint(checkpoint_path)
+        if checkpoint is None:
+            logging.error("Failed to load checkpoint %s", checkpoint_path)
+            return False
 
         # Find the state dictionary in the checkpoint file
         state_dict = checkpoint.get("state_dict")
@@ -123,24 +129,75 @@ class InferenceEngine:
             # Add fallbacks for other common key names
             state_dict = checkpoint.get("model_state_dict", checkpoint.get("model", checkpoint))
 
-        # Filter out unnecessary keys (e.g., from the optimizer)
-        model_state_dict = self.model_module.state_dict()
-        filtered_state_dict = {k: v for k, v in state_dict.items() if k in model_state_dict}
+        # Filter out unnecessary keys (e.g., from the optimizer) and remove 'model.' prefix
+        model_state_dict = self.model.state_dict()
+        filtered_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("model."):
+                new_key = k[len("model.") :]
+                if new_key in model_state_dict:
+                    filtered_state_dict[new_key] = v
 
-        dropped_keys = set(state_dict.keys()) - set(model_state_dict.keys())
-        missing_keys = set(model_state_dict.keys()) - set(state_dict.keys())
+        dropped_keys = {k for k in state_dict if k.startswith("model.")} - {f"model.{k}" for k in filtered_state_dict}
+        missing_keys = set(model_state_dict) - set(filtered_state_dict)
 
         if dropped_keys:
             logging.warning(f"The following keys from the loaded state_dict were dropped and not loaded into the model: {dropped_keys}")
         if missing_keys:
             logging.warning(f"The following keys expected by the model are missing from the loaded state_dict: {missing_keys}")
 
-        self.model_module.load_state_dict(filtered_state_dict, strict=False)
-        self.model_module.to(self.device)
-        self.model_module.eval()
+        try:
+            self.model.load_state_dict(filtered_state_dict, strict=False)
+        except RuntimeError as e:
+            if "size mismatch" in str(e):
+                logging.error(
+                    f"Model architecture mismatch: The checkpoint was trained with a different model configuration. "
+                    f"Checkpoint: {checkpoint_path}, Config: {config_path}"
+                )
+                logging.error(f"Size mismatch details: {e}")
+                return False
+            else:
+                raise
+
+        self.model.to(self.device)
+        self.model.eval()
 
         logging.info("Model loaded successfully.")
         return True
+
+    def _load_checkpoint(self, checkpoint_path: str | Path) -> dict[str, Any] | None:
+        if torch is None:
+            return None
+
+        self._register_safe_globals()
+
+        try:
+            return torch.load(checkpoint_path, map_location=self.device)
+        except TypeError:
+            pass
+        except Exception as exc:  # noqa: BLE001
+            logging.debug("Initial torch.load failed for %s: %s", checkpoint_path, exc)
+
+        try:
+            return torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        except Exception as exc:  # noqa: BLE001
+            logging.error("Unable to load checkpoint %s: %s", checkpoint_path, exc)
+            return None
+
+    @staticmethod
+    def _register_safe_globals() -> None:
+        if torch is None or ListConfig is None:
+            return
+
+        try:
+            from torch.serialization import add_safe_globals
+        except (ImportError, AttributeError):
+            return
+
+        try:
+            add_safe_globals([ListConfig])
+        except Exception as exc:  # noqa: BLE001
+            logging.debug("Could not register ListConfig as a safe global: %s", exc)
 
     def _extract_config_parameters(self):
         """Extract preprocessing and postprocessing parameters from config."""
@@ -203,7 +260,53 @@ class InferenceEngine:
         except Exception as e:
             logging.warning(f"Could not extract config parameters, using defaults: {e}")
 
-    def predict_image(self, image_path: str) -> dict[str, Any] | None:
+    def update_postprocessor_params(
+        self,
+        binarization_thresh: float | None = None,
+        box_thresh: float | None = None,
+        max_candidates: int | None = None,
+        min_detection_size: int | None = None,
+    ):
+        """Update postprocessor parameters dynamically."""
+        if self.model is None:
+            logging.warning("Model not loaded, cannot update postprocessor parameters.")
+            return
+
+        # Try to update the model's postprocessor if it exists
+        if hasattr(self.model, "head") and hasattr(self.model.head, "postprocess"):
+            postprocess = self.model.head.postprocess
+            if binarization_thresh is not None and hasattr(postprocess, "thresh"):
+                postprocess.thresh = binarization_thresh
+                logging.info(f"Updated binarization threshold to: {binarization_thresh}")
+            if box_thresh is not None and hasattr(postprocess, "box_thresh"):
+                postprocess.box_thresh = box_thresh
+                logging.info(f"Updated box threshold to: {box_thresh}")
+            if max_candidates is not None and hasattr(postprocess, "max_candidates"):
+                postprocess.max_candidates = max_candidates
+                logging.info(f"Updated max candidates to: {max_candidates}")
+            if min_detection_size is not None and hasattr(postprocess, "min_size"):
+                postprocess.min_size = min_detection_size
+                logging.info(f"Updated min detection size to: {min_detection_size}")
+        else:
+            # Fallback to updating our own parameters
+            if binarization_thresh is not None:
+                self.binarization_thresh = binarization_thresh
+            if box_thresh is not None:
+                self.box_thresh = box_thresh
+            if max_candidates is not None:
+                self.max_candidates = max_candidates
+            if min_detection_size is not None:
+                self.min_detection_size = min_detection_size
+            logging.info("Updated inference engine parameters (model postprocessor not found)")
+
+    def predict_image(
+        self,
+        image_path: str,
+        binarization_thresh: float | None = None,
+        box_thresh: float | None = None,
+        max_candidates: int | None = None,
+        min_detection_size: int | None = None,
+    ) -> dict[str, Any] | None:
         """
         Run inference on a single image.
 
@@ -213,9 +316,13 @@ class InferenceEngine:
         Returns:
             dict: Prediction results or None if failed
         """
-        if self.model_module is None:
+        if self.model is None:
             logging.warning("Model not loaded. Returning mock predictions.")
             return self._get_mock_predictions()
+
+        # Update postprocessor parameters if provided
+        if binarization_thresh is not None or box_thresh is not None or max_candidates is not None or min_detection_size is not None:
+            self.update_postprocessor_params(binarization_thresh, box_thresh, max_candidates, min_detection_size)
 
         try:
             image = cv2.imread(image_path)
@@ -229,9 +336,50 @@ class InferenceEngine:
             # Run inference
             with torch.no_grad():
                 batch_input = {"images": processed_image.to(self.device)}
-                predictions = self.model_module(batch_input)
+                predictions = self.model(return_loss=False, **batch_input)
 
-            # Post-process predictions, passing the original image shape for scaling
+            # Try to use model's built-in postprocessor if available
+            if hasattr(self.model, "head") and hasattr(self.model.head, "get_polygons_from_maps"):
+                # Create batch dict for postprocessor
+                inverse_matrix = self._compute_inverse_matrix(processed_image, image.shape)
+                batch = {
+                    "images": processed_image,
+                    "shape": [image.shape],  # Original shape
+                    "filename": [image_path],
+                    "inverse_matrix": inverse_matrix,
+                }
+                polygons_result = self.model.head.get_polygons_from_maps(batch, predictions)
+
+                # Convert to expected format
+                if polygons_result:
+                    boxes_batch, scores_batch = polygons_result
+                    if boxes_batch:
+                        boxes = boxes_batch[0]
+                        scores = scores_batch[0] if scores_batch else []
+                        polygons: list[str] = []
+                        texts: list[str] = []
+                        confidences: list[float] = []
+
+                        for index, box in enumerate(boxes):
+                            if not box or len(box) < 4:
+                                continue
+                            xs = [point[0] for point in box]
+                            ys = [point[1] for point in box]
+                            x_min, x_max = min(xs), max(xs)
+                            y_min, y_max = min(ys), max(ys)
+                            polygon_coords = [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max]
+                            polygons.append(",".join(map(str, polygon_coords)))
+                            texts.append(f"Text_{index + 1}")
+                            confidence = float(scores[index]) if index < len(scores) else 0.0
+                            confidences.append(confidence)
+
+                        return {
+                            "polygons": "|".join(polygons) if polygons else "",
+                            "texts": texts,
+                            "confidences": confidences,
+                        }
+
+            # Fallback to custom postprocessing
             results = self._postprocess_predictions(predictions, image.shape)
             return results
 
@@ -239,7 +387,34 @@ class InferenceEngine:
             logging.error(f"Error during inference: {e}", exc_info=True)
             return None
 
-    def _preprocess_image(self, image: np.ndarray) -> "torch.Tensor":
+    @staticmethod
+    def _compute_inverse_matrix(processed_image: Any, original_shape: tuple[int, ...]) -> list[np.ndarray]:
+        """Return inverse affine matrices mapping model coords back to original image size."""
+
+        if torch is None:
+            return [np.eye(3, dtype=np.float32)]
+
+        model_height = int(processed_image.shape[-2])
+        model_width = int(processed_image.shape[-1])
+        original_height = int(original_shape[0])
+        original_width = int(original_shape[1])
+
+        if model_width == 0 or model_height == 0:
+            return [np.eye(3, dtype=np.float32)]
+
+        scale_x = original_width / model_width
+        scale_y = original_height / model_height
+        matrix = np.array(
+            [
+                [scale_x, 0.0, 0.0],
+                [0.0, scale_y, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+        return [matrix]
+
+    def _preprocess_image(self, image: np.ndarray) -> Any:
         """Preprocess image for model input."""
         # Convert BGR (OpenCV) to RGB
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -255,7 +430,7 @@ class InferenceEngine:
         )
         return transform(image_rgb).unsqueeze(0)
 
-    def _postprocess_predictions(self, predictions: Any, original_shape: tuple[int, int, int]) -> dict[str, Any]:
+    def _postprocess_predictions(self, predictions: Any, original_shape: tuple[int, ...]) -> dict[str, Any]:
         """
         Post-process model predictions, scaling them to the original image size.
         """
@@ -369,13 +544,24 @@ class InferenceEngine:
         return None
 
 
-def run_inference_on_image(image_path: str, checkpoint_path: str) -> dict[str, Any] | None:
+def run_inference_on_image(
+    image_path: str,
+    checkpoint_path: str,
+    binarization_thresh: float | None = None,
+    box_thresh: float | None = None,
+    max_candidates: int | None = None,
+    min_detection_size: int | None = None,
+) -> dict[str, Any] | None:
     """
     Convenience function to initialize the engine and run inference on a single image.
 
     Args:
         image_path: Path to the image
         checkpoint_path: Path to the model checkpoint
+        binarization_thresh: Threshold for binarization (0.0-1.0)
+        box_thresh: Threshold for text region proposals (0.0-1.0)
+        max_candidates: Maximum number of text region proposals
+        min_detection_size: Minimum size of text regions
 
     Returns:
         dict: Inference results or None on failure
@@ -384,7 +570,7 @@ def run_inference_on_image(image_path: str, checkpoint_path: str) -> dict[str, A
     if not engine.load_model(checkpoint_path):
         logging.error("Failed to load model in convenience function.")
         return None
-    return engine.predict_image(image_path)
+    return engine.predict_image(image_path, binarization_thresh, box_thresh, max_candidates, min_detection_size)
 
 
 def get_available_checkpoints() -> list[str]:

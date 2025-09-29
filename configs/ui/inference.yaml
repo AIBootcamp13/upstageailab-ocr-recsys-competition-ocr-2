@@ -1,0 +1,75 @@
+# Streamlit UI configuration for the Real-time OCR Inference app.
+# This file is intentionally simple and self-contained for loading without Hydra runtime.
+
+app:
+  title: "🔍 Real-time OCR Inference"
+  subtitle: "Upload images and get instant OCR predictions."
+  page_icon: "🔍"
+  layout: "wide"
+  initial_sidebar_state: "expanded"
+
+paths:
+  outputs_dir: "outputs"
+  hydra_config_filenames:
+    - config.yaml
+    - hparams.yaml
+    - train.yaml
+    - predict.yaml
+
+model_selector:
+  sort_by:
+    - architecture
+    - backbone
+    - epochs
+  demo_label: "No trained models found - using Demo Mode"
+  success_message: "✅ **Real Inference Available**: Using trained OCR model for predictions."
+  unavailable_message: "⚠️ **Inference Engine Not Available**: Using mock predictions for demonstration."
+  empty_message: "⚠️ **No Models Found**: Please train a model first or use demo mode."
+
+hyperparameters:
+  binarization_thresh:
+    label: "Binarization Threshold"
+    min: 0.0
+    max: 1.0
+    step: 0.05
+    default: 0.3
+    help: "Threshold for converting probability maps to binary text regions. Lower values detect more text."
+  box_thresh:
+    label: "Box Threshold"
+    min: 0.0
+    max: 1.0
+    step: 0.05
+    default: 0.4
+    help: "Threshold for filtering detected text boxes. Higher values are more strict."
+  max_candidates:
+    label: "Max Candidates"
+    min: 10
+    max: 1000
+    step: 10
+    default: 300
+    help: "Maximum number of text boxes to detect per image."
+  min_detection_size:
+    label: "Min Detection Size"
+    min: 1
+    max: 50
+    step: 1
+    default: 5
+    help: "Minimum pixel size for detected text regions."
+
+upload:
+  enabled_file_types:
+    - jpg
+    - jpeg
+    - png
+    - bmp
+  multi_file_selection: true
+  immediate_inference_for_single: true
+
+results:
+  expand_first_result: true
+  show_summary: true
+  show_raw_predictions: true
+  image_width: "stretch"
+
+notifications:
+  inference_complete_delay_seconds: 1.0

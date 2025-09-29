@@ -161,7 +161,7 @@ def display_process_table(processes: list[tuple[int, str, str]], title: str):
     df = pd.DataFrame(df_data)
 
     # Display table
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
     # Process management
     col1, col2, col3 = st.columns(3)
@@ -256,11 +256,11 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("🔍 Scan for Processes", use_container_width=True):
+        if st.button("🔍 Scan for Processes", width="stretch"):
             st.rerun()
 
     with col2:
-        if st.button("🧹 Clean All Processes", use_container_width=True, type="secondary"):
+        if st.button("🧹 Clean All Processes", width="stretch", type="secondary"):
             all_procs = training_procs + worker_procs
             if all_procs:
                 terminated = terminate_processes(all_procs, force=False)
@@ -271,7 +271,7 @@ def main():
                 st.info("No processes to clean")
 
     with col3:
-        if st.button("🚨 Emergency Stop", use_container_width=True, type="secondary"):
+        if st.button("🚨 Emergency Stop", width="stretch", type="secondary"):
             all_procs = training_procs + worker_procs
             if all_procs:
                 terminated = terminate_processes(all_procs, force=True)
@@ -282,7 +282,7 @@ def main():
                 st.info("No processes running")
 
     with col4:
-        if st.button("📋 View Logs", use_container_width=True):
+        if st.button("📋 View Logs", width="stretch"):
             st.info("Log viewer coming soon...")
 
     # Footer
