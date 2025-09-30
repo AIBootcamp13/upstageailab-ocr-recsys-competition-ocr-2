@@ -224,6 +224,22 @@ python ocr/utils/convert_submission.py --json_path outputs/ocr_training/submissi
 
 대회 리더보드는 공개 및 비공개 순위로 나뉩니다. 대회 기간 중에는 공개 세트에 대한 점수가 표시됩니다. 최종 우승자는 대회 종료 후 공개되는 비공개 테스트 세트에서의 모델 성능으로 결정됩니다. 테스트 데이터는 공개 및 비공개 세트 간에 동등하게(50/50) 분할됩니다.
 
+## **8. 문서 전처리 파이프라인 (모듈형)**
+
+`DocumentPreprocessor`가 기존 단일 파일 구현에서 모듈형 구조(`ocr/datasets/preprocessing/`)로 분리되었습니다. 각 단계는 독립적인 클래스로 구성되어 필요에 따라 켜고 끌 수 있으며, Hydra 설정에서도 동일한 옵션을 노출합니다.
+
+| 구성 요소 | Hydra 옵션 | 설명 |
+| --- | --- | --- |
+| `DocumentDetector` | `enable_document_detection`, `document_detection_min_area_ratio`, `document_detection_use_adaptive`, `document_detection_use_fallback_box` | 에지/적응형 임계값/바운딩박스 탐색을 조합하여 문서 영역을 찾습니다. |
+| `OrientationCorrector` | `enable_orientation_correction`, `orientation_angle_threshold`, `orientation_expand_canvas`, `orientation_preserve_original_shape` | docTR 회전 기능을 사용해 기울어진 문서를 바로 세우고, 필요 시 다시 탐지합니다. |
+| `PerspectiveCorrector` | `enable_perspective_correction`, `use_doctr_geometry`, `doctr_assume_horizontal` | docTR `extract_rcrops` 또는 OpenCV 투시 변환으로 기울어진 이미지를 정방향으로 보정합니다. |
+| `PaddingCleanup` | `enable_padding_cleanup` | docTR의 `remove_image_padding`으로 남은 여백을 제거합니다. |
+| `ImageEnhancer` | `enable_enhancement`, `enhancement_method` | 대비/노이즈/샤프닝 강화. `conservative`와 `office_lens` 두 가지 프로파일을 지원합니다. |
+| `TextEnhancer` | `enable_text_enhancement` | 텍스트 위주의 적응형 이진화 및 블렌딩으로 가독성을 높입니다. |
+| `FinalResizer` | `target_size`, `enable_final_resize` | 비율을 유지하면서 원하는 크기로 패딩 리사이즈합니다. |
+
+Hydra 프리셋(`configs/preset/datasets/preprocessing*.yaml`)에서는 위 플래그를 그대로 노출하므로, 원하는 단계만 활성화하거나 감도(threshold)를 조정해 손쉽게 실험할 수 있습니다.
+
 ## **참고 자료**
 
 - [DBNet](https://github.com/MhLiao/DB)

@@ -2,40 +2,34 @@
 # Microsoft Lens-style document preprocessing
 
 preprocessing:
-  # Document boundary detection
+  # --- DocumentDetector ---------------------------------------------------
   enable_document_detection: true
+  document_detection_min_area_ratio: 0.18
+  document_detection_use_adaptive: true
+  document_detection_use_fallback_box: true
 
-  # Perspective correction
+  # --- PerspectiveCorrector -----------------------------------------------
   enable_perspective_correction: true
+  use_doctr_geometry: false          # Switch to docTR rcrops when available
+  doctr_assume_horizontal: false
 
-  # General image enhancement (mild parameters)
-  enable_enhancement: true
-
-  # Enhancement method: "conservative" or "office_lens"
-  enhancement_method: "conservative"
-
-  # Text-specific enhancement (disabled by default as it can be destructive)
-  enable_text_enhancement: false
-
-  # Target size for processed images
-  target_size: [640, 640]
-  enable_final_resize: true
-
-  # docTR-powered orientation correction
+  # --- OrientationCorrector -----------------------------------------------
   enable_orientation_correction: false
   orientation_angle_threshold: 2.0
   orientation_expand_canvas: true
   orientation_preserve_original_shape: false
 
-  # docTR geometric warping options
-  use_doctr_geometry: false
-  doctr_assume_horizontal: false
-
-  # Clean up residual borders after warping
+  # --- PaddingCleanup -----------------------------------------------------
   enable_padding_cleanup: false
-  document_detection_min_area_ratio: 0.18
-  document_detection_use_adaptive: true
-  document_detection_use_fallback_box: true
+
+  # --- ImageEnhancer / TextEnhancer ---------------------------------------
+  enable_enhancement: true
+  enhancement_method: "conservative"  # "conservative" or "office_lens"
+  enable_text_enhancement: false
+
+  # --- FinalResizer -------------------------------------------------------
+  target_size: [640, 640]
+  enable_final_resize: true
 
 # Albumentations-compatible preprocessor
 lens_style_preprocessor:

@@ -1,0 +1,271 @@
+"""High-level document preprocessing pipeline."""
+
+from __future__ import annotations
+
+import logging
+
+import numpy as np
+
+from .config import DocumentPreprocessorConfig
+from .detector import DocumentDetector
+from .enhancement import ImageEnhancer, TextEnhancer
+from .external import DOCTR_AVAILABLE
+from .metadata import DocumentMetadata, PreprocessingState
+from .orientation import OrientationCorrector
+from .padding import PaddingCleanup
+from .perspective import PerspectiveCorrector
+from .resize import FinalResizer
+
+
+class DocumentPreprocessor:
+    """Microsoft Lens-style document preprocessing pipeline composed of modular steps."""
+
+    def __init__(
+        self,
+        enable_document_detection: bool = True,
+        enable_perspective_correction: bool = True,
+        enable_enhancement: bool = True,
+        enable_text_enhancement: bool = False,
+        enhancement_method: str = "conservative",
+        target_size: tuple[int, int] | None = (640, 640),
+        enable_final_resize: bool = True,
+        enable_orientation_correction: bool = False,
+        orientation_angle_threshold: float = 2.0,
+        orientation_expand_canvas: bool = True,
+        orientation_preserve_original_shape: bool = False,
+        use_doctr_geometry: bool = False,
+        doctr_assume_horizontal: bool = False,
+        enable_padding_cleanup: bool = False,
+        document_detection_min_area_ratio: float = 0.18,
+        document_detection_use_adaptive: bool = True,
+        document_detection_use_fallback_box: bool = True,
+    ) -> None:
+        self.logger = logging.getLogger(__name__)
+
+        config = DocumentPreprocessorConfig(
+            enable_document_detection=enable_document_detection,
+            enable_perspective_correction=enable_perspective_correction,
+            enable_enhancement=enable_enhancement,
+            enable_text_enhancement=enable_text_enhancement,
+            enhancement_method=enhancement_method,
+            target_size=target_size,
+            enable_final_resize=enable_final_resize,
+            enable_orientation_correction=enable_orientation_correction,
+            orientation_angle_threshold=orientation_angle_threshold,
+            orientation_expand_canvas=orientation_expand_canvas,
+            orientation_preserve_original_shape=orientation_preserve_original_shape,
+            use_doctr_geometry=use_doctr_geometry,
+            doctr_assume_horizontal=doctr_assume_horizontal,
+            enable_padding_cleanup=enable_padding_cleanup,
+            document_detection_min_area_ratio=document_detection_min_area_ratio,
+            document_detection_use_adaptive=document_detection_use_adaptive,
+            document_detection_use_fallback_box=document_detection_use_fallback_box,
+        )
+
+        if config.enhancement_method not in {"conservative", "office_lens"}:
+            raise ValueError(f"enhancement_method must be 'conservative' or 'office_lens', got '{config.enhancement_method}'")
+
+        self.config = config
+        self.doctr_available = DOCTR_AVAILABLE
+        self._warned_features: set[str] = set()
+
+        # Legacy attribute surface for backwards compatibility with configs/tests
+        self.enable_document_detection = self.config.enable_document_detection
+        self.enable_perspective_correction = self.config.enable_perspective_correction
+        self.enable_enhancement = self.config.enable_enhancement
+        self.enable_text_enhancement = self.config.enable_text_enhancement
+        self.enhancement_method = self.config.enhancement_method
+        self.target_size = self.config.target_size
+        self.enable_final_resize = self.config.enable_final_resize
+        self.enable_orientation_correction = self.config.enable_orientation_correction
+        self.orientation_angle_threshold = self.config.orientation_angle_threshold
+        self.orientation_expand_canvas = self.config.orientation_expand_canvas
+        self.orientation_preserve_original_shape = self.config.orientation_preserve_original_shape
+        self.use_doctr_geometry = self.config.use_doctr_geometry
+        self.doctr_assume_horizontal = self.config.doctr_assume_horizontal
+        self.enable_padding_cleanup = self.config.enable_padding_cleanup
+        self.document_detection_min_area_ratio = self.config.document_detection_min_area_ratio
+        self.document_detection_use_adaptive = self.config.document_detection_use_adaptive
+        self.document_detection_use_fallback_box = self.config.document_detection_use_fallback_box
+
+        self.detector = DocumentDetector(
+            logger=self.logger,
+            min_area_ratio=self.config.document_detection_min_area_ratio,
+            use_adaptive=self.config.document_detection_use_adaptive,
+            use_fallback=self.config.document_detection_use_fallback_box,
+        )
+        self.orientation_corrector = OrientationCorrector(
+            logger=self.logger,
+            ensure_doctr=self._ensure_doctr,
+            detector=self.detector,
+            angle_threshold=self.config.orientation_angle_threshold,
+            expand_canvas=self.config.orientation_expand_canvas,
+            preserve_origin_shape=self.config.orientation_preserve_original_shape,
+        )
+        self.perspective_corrector = PerspectiveCorrector(
+            logger=self.logger,
+            ensure_doctr=self._ensure_doctr,
+            use_doctr_geometry=self.config.use_doctr_geometry,
+            doctr_assume_horizontal=self.config.doctr_assume_horizontal,
+        )
+        self.padding_cleanup = PaddingCleanup(self._ensure_doctr)
+        self.image_enhancer = ImageEnhancer()
+        self.text_enhancer = TextEnhancer()
+        self.final_resizer = FinalResizer()
+
+    def __call__(self, image: np.ndarray) -> dict[str, np.ndarray | dict]:
+        if not isinstance(image, np.ndarray) or image.size == 0 or len(image.shape) < 2:
+            self.logger.warning("Invalid input image, using fallback processing")
+            width, height = self.config.target_size if self.config.target_size is not None else (256, 256)
+            fallback_image = np.full((height, width, 3), 128, dtype=np.uint8)
+            metadata = DocumentMetadata(original_shape=getattr(image, "shape", "invalid"))
+            metadata.processing_steps.append("fallback")
+            metadata.error = "Invalid input image"
+            metadata.final_shape = tuple(int(dim) for dim in fallback_image.shape)
+            return {"image": fallback_image, "metadata": metadata.to_dict()}
+
+        state = PreprocessingState(
+            image=image.copy(),
+            metadata=DocumentMetadata(original_shape=image.shape),
+        )
+
+        try:
+            if self.config.enable_document_detection:
+                corners, method = self._detect_document_boundaries_with_method(state.image)
+                state.corners = corners
+                state.metadata.document_detection_method = method
+                if corners is not None:
+                    state.metadata.document_corners = corners
+                    state.metadata.processing_steps.append("document_detection")
+                else:
+                    self.logger.warning("Document boundaries not detected; geometric corrections skipped")
+            else:
+                state.metadata.document_detection_method = "disabled"
+
+            if self.config.enable_orientation_correction and state.corners is not None:
+                corrected_image, corrected_corners, orientation_meta = self.orientation_corrector.correct(
+                    state.image,
+                    state.corners,
+                )
+                state.image = corrected_image
+                if corrected_corners is not None:
+                    state.corners = corrected_corners
+                    state.metadata.document_corners = corrected_corners
+                    if orientation_meta and orientation_meta.get("redetection_method"):
+                        state.metadata.document_detection_method = orientation_meta["redetection_method"]
+                if orientation_meta is not None:
+                    state.metadata.orientation = orientation_meta
+                    state.metadata.processing_steps.append("orientation_correction")
+
+            if self.config.enable_perspective_correction and state.corners is not None:
+                corrected, matrix, method = self.perspective_corrector.correct(state.image, state.corners)
+                state.image = corrected
+                state.metadata.perspective_matrix = matrix
+                state.metadata.perspective_method = method
+                state.metadata.processing_steps.append("perspective_correction")
+
+            if self.config.enable_padding_cleanup:
+                cleaned = self.padding_cleanup.cleanup(state.image)
+                if cleaned is not None:
+                    state.image = cleaned
+                    state.metadata.processing_steps.append("padding_cleanup")
+
+            if self.config.enable_enhancement:
+                enhanced, applied = self.image_enhancer.enhance(state.image, self.config.enhancement_method)
+                state.image = enhanced
+                state.metadata.enhancement_applied.extend(applied)
+                state.metadata.processing_steps.append("image_enhancement")
+
+            if self.config.enable_text_enhancement:
+                state.image = self.text_enhancer.enhance(state.image)
+                state.metadata.processing_steps.append("text_enhancement")
+
+            if self.config.enable_final_resize and self.config.target_size is not None:
+                state.image = self.final_resizer.resize(state.image, self.config.target_size)
+                state.metadata.processing_steps.append("resize_to_target")
+
+            state.update_final_shape()
+            return {"image": state.image, "metadata": state.metadata.to_dict()}
+
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            self.logger.error("Preprocessing failed: %s", exc, exc_info=True)
+            fallback_image = image.copy()
+            if self.config.enable_final_resize and self.config.target_size is not None:
+                fallback_image = self.final_resizer.resize(fallback_image, self.config.target_size)
+            state.metadata.error = str(exc)
+            state.metadata.processing_steps = ["fallback_resize"]
+            state.metadata.final_shape = tuple(int(dim) for dim in fallback_image.shape)
+            return {"image": fallback_image, "metadata": state.metadata.to_dict()}
+
+    def _ensure_doctr(self, feature: str) -> bool:
+        if self.doctr_available:
+            return True
+        if feature not in self._warned_features:
+            self.logger.warning(
+                "python-doctr is required for %s but is not installed; skipping this step.",
+                feature,
+            )
+            self._warned_features.add(feature)
+        return False
+
+    # ------------------------------------------------------------------
+    # Backwards compatibility helpers (legacy private API)
+    # ------------------------------------------------------------------
+
+    def _detect_document_boundaries_with_method(
+        self,
+        image: np.ndarray,
+    ) -> tuple[np.ndarray | None, str | None]:
+        """Detect document boundaries and return both corners and method."""
+
+        return self.detector.detect(image)
+
+    def _detect_document_boundaries(self, image: np.ndarray) -> np.ndarray | None:
+        """Compatibility wrapper returning only corners."""
+
+        corners, _ = self._detect_document_boundaries_with_method(image)
+        return corners
+
+    def _enhance_image(self, image: np.ndarray) -> tuple[np.ndarray, list[str]]:
+        """Compatibility wrapper for conservative enhancement."""
+
+        return self.image_enhancer._enhance_image(image)
+
+    def _enhance_image_office_lens(self, image: np.ndarray) -> tuple[np.ndarray, list[str]]:
+        """Compatibility wrapper for Office Lens-style enhancement."""
+
+        return self.image_enhancer._enhance_image_office_lens(image)
+
+    def _enhance_text_regions(self, image: np.ndarray) -> np.ndarray:
+        """Compatibility wrapper for text enhancement routine."""
+
+        return self.text_enhancer.enhance(image)
+
+    def _resize_to_target(self, image: np.ndarray) -> np.ndarray:
+        """Compatibility wrapper for resizing helper (uses configured target size)."""
+
+        if self.config.target_size is None:
+            return image
+        return self.final_resizer.resize(image, self.config.target_size)
+
+    def _order_corners(self, corners: np.ndarray) -> np.ndarray:
+        """Compatibility wrapper for corner ordering utility."""
+
+        return self.detector._order_corners(corners)
+
+
+class LensStylePreprocessorAlbumentations:
+    """Albumentations-compatible wrapper for the document preprocessor."""
+
+    def __init__(self, preprocessor: DocumentPreprocessor):
+        self.preprocessor = preprocessor
+
+    def __call__(self, image, **kwargs):  # type: ignore[override]
+        result = self.preprocessor(image)
+        return result["image"]
+
+    def get_transform_init_args_names(self):
+        return []
+
+
+__all__ = ["DocumentPreprocessor", "LensStylePreprocessorAlbumentations"]

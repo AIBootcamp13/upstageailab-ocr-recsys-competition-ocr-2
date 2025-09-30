@@ -107,3 +107,4 @@ data/pseudo_label/
 lightning_logs/*
 
 multirun/*
+*.ipynb

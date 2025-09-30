@@ -3,38 +3,55 @@ import multiprocessing as mp
 from collections import OrderedDict, defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
+from functools import partial
 from pathlib import Path
+from typing import Any
 
 import lightning.pytorch as pl
 import numpy as np
 from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ocr.metrics import CLEvalMetric
 
 
-def evaluate_single_sample(args):
+def evaluate_single_sample(det_quads, gt_quads, metric_kwargs=None):
     """Helper function for parallel evaluation of a single sample."""
-    det_quads, gt_quads = args
-    metric = CLEvalMetric()
+    metric_kwargs = metric_kwargs or {}
+    metric = CLEvalMetric(**metric_kwargs)
     metric(det_quads, gt_quads)
     result = metric.compute()
     return result["recall"].item(), result["precision"].item(), result["f1"].item()
 
 
 class OCRPLModule(pl.LightningModule):
-    def __init__(self, model, dataset, config):
+    def __init__(self, model, dataset, config, metric_cfg: DictConfig | None = None):
         super().__init__()
         self.model = model
         self.dataset = dataset
-        self.metric = CLEvalMetric()
+        self.metric_cfg = metric_cfg
+        self.metric_kwargs = self._extract_metric_kwargs(metric_cfg)
+        self.metric = instantiate(metric_cfg) if metric_cfg is not None else CLEvalMetric(**self.metric_kwargs)
         self.config = config
         self.lr_scheduler = None
 
-        self.validation_step_outputs = OrderedDict()
-        self.test_step_outputs = OrderedDict()
-        self.predict_step_outputs = OrderedDict()
+        self.validation_step_outputs: OrderedDict[str, Any] = OrderedDict()
+        self.test_step_outputs: OrderedDict[str, Any] = OrderedDict()
+        self.predict_step_outputs: OrderedDict[str, Any] = OrderedDict()
+
+    @staticmethod
+    def _extract_metric_kwargs(metric_cfg: DictConfig | None) -> dict:
+        if metric_cfg is None:
+            return {}
+
+        cfg_dict = OmegaConf.to_container(metric_cfg, resolve=True)
+        if not isinstance(cfg_dict, dict):
+            return {}
+
+        cfg_dict.pop("_target_", None)
+        return cfg_dict
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -83,8 +100,9 @@ class OCRPLModule(pl.LightningModule):
         # Parallel evaluation
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
+            worker = partial(evaluate_single_sample, metric_kwargs=self.metric_kwargs)
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
+                futures = [executor.submit(worker, det_quads, gt_quads) for det_quads, gt_quads in eval_tasks]
                 for future in tqdm(
                     as_completed(futures),
                     total=len(futures),
@@ -139,8 +157,9 @@ class OCRPLModule(pl.LightningModule):
         # Parallel evaluation
         if eval_tasks:
             num_workers = min(mp.cpu_count(), len(eval_tasks))
+            worker = partial(evaluate_single_sample, metric_kwargs=self.metric_kwargs)
             with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(evaluate_single_sample, task) for task in eval_tasks]
+                futures = [executor.submit(worker, det_quads, gt_quads) for det_quads, gt_quads in eval_tasks]
                 for future in tqdm(
                     as_completed(futures),
                     total=len(futures),

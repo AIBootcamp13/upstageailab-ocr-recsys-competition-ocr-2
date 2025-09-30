@@ -82,7 +82,11 @@ class TestDocumentPreprocessor:
             dtype=np.float32,
         )
 
-        monkeypatch.setattr(preprocessor, "_detect_document_boundaries", lambda img: rectangle)
+        monkeypatch.setattr(
+            preprocessor.detector,
+            "detect",
+            lambda _image: (rectangle, "mock"),
+        )
 
         result = preprocessor(sample_image)
         metadata = result["metadata"]
@@ -124,11 +128,13 @@ class TestDocumentPreprocessor:
 
         call_state = {"count": 0}
 
-        def fake_detect(_image: np.ndarray) -> np.ndarray:
+        def fake_detect(_image: np.ndarray) -> tuple[np.ndarray | None, str | None]:
             call_state["count"] += 1
-            return skewed_corners if call_state["count"] == 1 else axis_aligned
+            if call_state["count"] == 1:
+                return skewed_corners, "mock_initial"
+            return axis_aligned, "mock_redetect"
 
-        monkeypatch.setattr(preprocessor, "_detect_document_boundaries", fake_detect)
+        monkeypatch.setattr(preprocessor.detector, "detect", fake_detect)
 
         result = preprocessor(image)
         metadata = result["metadata"]
@@ -259,7 +265,9 @@ class TestPreprocessingIntegration:
 
         result = preprocessor(image)
 
-        assert result["image"].shape == (640, 640, 3)
+        processed = result["image"]
+        assert isinstance(processed, np.ndarray)
+        assert processed.shape == (640, 640, 3)
         assert "image_enhancement" in result["metadata"]["processing_steps"]
         assert "text_enhancement" in result["metadata"]["processing_steps"]
 

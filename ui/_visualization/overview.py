@@ -173,7 +173,7 @@ def render_low_confidence_analysis(df: pd.DataFrame) -> None:
         df,
         "avg_confidence",
         "Low Confidence Distribution",
-        use_container_width=True,
+        width="stretch",
     )
 
     st.markdown("#### Images with Lowest Confidence")
@@ -183,9 +183,9 @@ def render_low_confidence_analysis(df: pd.DataFrame) -> None:
     st.markdown("#### Correlation Analysis")
     corr_data = df[["avg_confidence", "prediction_count", "total_area"]].corr()
     fig = px.imshow(corr_data, text_auto=True, title="Correlation between Confidence and Other Metrics")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
-def _render_histogram(df: pd.DataFrame, column: str, title: str, use_container_width: bool = False) -> None:
+def _render_histogram(df: pd.DataFrame, column: str, title: str, width: str | None = None) -> None:
     fig = px.histogram(df, x=column, nbins=20, title=title)
-    st.plotly_chart(fig, use_container_width=use_container_width)
+    st.plotly_chart(fig, width=width)

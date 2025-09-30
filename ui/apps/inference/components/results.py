@@ -154,12 +154,12 @@ def _render_preprocessing_section(preprocessing: dict[str, Any], config: UIConfi
 
     if original_image is not None:
         overlay = _draw_document_overlay(original_image, metadata, config.preprocessing.show_corner_overlay)
-        col_raw.image(overlay, caption="Original Upload", use_container_width=True)
+        col_raw.image(overlay, caption="Original Upload", width="stretch")
     else:
         col_raw.info("Original image unavailable.")
 
     if processed_image is not None:
-        col_processed.image(processed_image, caption="After docTR Preprocessing", use_container_width=True)
+        col_processed.image(processed_image, caption="After docTR Preprocessing", width="stretch")
     else:
         col_processed.info("No preprocessed output available.")
 

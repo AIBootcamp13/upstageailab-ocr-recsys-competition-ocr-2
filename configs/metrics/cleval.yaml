@@ -1,0 +1,15 @@
+# @package _global_
+
+metrics:
+  eval:
+    _target_: ocr.metrics.cleval_metric.CLEvalMetric
+    dist_sync_on_step: false
+    case_sensitive: true
+    recall_gran_penalty: 1.0
+    precision_gran_penalty: 1.0
+    vertical_aspect_ratio_thresh: 0.5
+    ap_constraint: 0.3
+    scale_wise: false
+    scale_bins: [0.0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.1, 0.5, 1.0]
+    scale_range: [0.0, 1.0]
+    max_polygons: 500

@@ -6,6 +6,7 @@ defaults:
   - data: default
   - dataloaders: default
   - model: default
+  - metrics: cleval
   - paths: default
   - logger: default
   - trainer: default
