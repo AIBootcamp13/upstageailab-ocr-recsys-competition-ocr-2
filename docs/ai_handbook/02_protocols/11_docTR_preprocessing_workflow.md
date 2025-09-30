@@ -40,10 +40,24 @@ All entries live under `preprocessing:` in `configs/preset/datasets/preprocessin
 | `enable_enhancement` / `enhancement_method` | Choose conservative vs. “office lens” photometric enhancements. |
 | `enable_text_enhancement` | Apply morphological text cleanup when needed. |
 | `target_size` | Final padded resolution (width, height). |
+| `enable_final_resize` | Keep the rectified page at its native resolution when disabled. |
+| `document_detection_min_area_ratio` | Ignore small contours when hunting for page boundaries. |
+| `document_detection_use_adaptive` | Run an adaptive-threshold fallback when Canny misses the page. |
+| `document_detection_use_fallback_box` | Fall back to the largest bounding box of foreground pixels when contours fail. |
 
 ## Validating changes quickly
 - `uv run pytest tests/test_preprocessing.py`
 - Spin up the inference UI (`uv run streamlit run ui/inference_ui.py`) when experimenting with visual toggles; keep a note of which preset was active.
+- In the Streamlit sidebar, expand **docTR options** to tweak detection thresholds, orientation settings, and the new resize toggle without editing YAML.
+
+## Troubleshooting detection & scaling
+When docTR enhancements appear ineffective:
+
+1. **Inspect metadata in the UI.** The preprocessing panel now records `document_detection_method` (values like `canny_contour`, `adaptive_threshold`, `bounding_box`, or `failed`). If the method ends up as `failed`, docTR geometry never ran.
+2. **Check the Hydra overrides.** `document_detection_min_area_ratio`, `document_detection_use_adaptive`, and `document_detection_use_fallback_box` mirror the UI controls. Lower the area ratio for receipts or enable the adaptive/bounding-box fallbacks before rerunning.
+3. **Verify orientation toggles.** A low `orientation_angle_threshold` or disabling canvas expansion can leave rotated pages uncropped. Adjust these in the UI or preset and rerun.
+4. **Skip the final resize to compare scales.** Disable `enable_final_resize` in the UI to keep the rectified page in its native size. This is useful when you want W&B and local logs to match the uploaded resolution.
+5. **Check W&B logs after updates.** The validation logger now crops out black padding before uploading, so images should no longer appear 3× larger. If you still see magnified results, confirm that `enable_final_resize` is off for the run and that the inference UI metadata shows the expected `final_shape`.
 
 ## Streamlit inference UI integration
 - The sidebar now exposes a **docTR preprocessing** checkbox sourced from `configs/ui/inference.yaml`. Toggle it to run the preprocessing stack before inference and surface metadata/visuals per image.

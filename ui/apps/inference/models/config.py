@@ -97,6 +97,7 @@ class PreprocessingConfig:
     enhancement_method: str = "office_lens"
     enable_text_enhancement: bool = True
     target_size: tuple[int, int] = (640, 640)
+    enable_final_resize: bool = True
     enable_orientation_correction: bool = True
     orientation_angle_threshold: float = 1.0
     orientation_expand_canvas: bool = True
@@ -106,6 +107,9 @@ class PreprocessingConfig:
     enable_padding_cleanup: bool = True
     show_metadata: bool = True
     show_corner_overlay: bool = True
+    document_detection_min_area_ratio: float = 0.18
+    document_detection_use_adaptive: bool = True
+    document_detection_use_fallback_box: bool = True
 
     def to_kwargs(self) -> dict[str, Any]:
         return {
@@ -115,6 +119,7 @@ class PreprocessingConfig:
             "enhancement_method": self.enhancement_method,
             "enable_text_enhancement": self.enable_text_enhancement,
             "target_size": self.target_size,
+            "enable_final_resize": self.enable_final_resize,
             "enable_orientation_correction": self.enable_orientation_correction,
             "orientation_angle_threshold": self.orientation_angle_threshold,
             "orientation_expand_canvas": self.orientation_expand_canvas,
@@ -122,6 +127,9 @@ class PreprocessingConfig:
             "use_doctr_geometry": self.use_doctr_geometry,
             "doctr_assume_horizontal": self.doctr_assume_horizontal,
             "enable_padding_cleanup": self.enable_padding_cleanup,
+            "document_detection_min_area_ratio": self.document_detection_min_area_ratio,
+            "document_detection_use_adaptive": self.document_detection_use_adaptive,
+            "document_detection_use_fallback_box": self.document_detection_use_fallback_box,
         }
 
 

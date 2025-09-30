@@ -12,6 +12,7 @@ preprocessing:
   enhancement_method: "office_lens"
   enable_text_enhancement: true
   target_size: [640, 640]
+  enable_final_resize: false
 
   enable_orientation_correction: true
   orientation_angle_threshold: 1.0
@@ -22,6 +23,9 @@ preprocessing:
   doctr_assume_horizontal: false
 
   enable_padding_cleanup: true
+  document_detection_min_area_ratio: 0.12
+  document_detection_use_adaptive: true
+  document_detection_use_fallback_box: true
 
 lens_style_preprocessor:
   _target_: ${dataset_path}.LensStylePreprocessorAlbumentations
@@ -33,6 +37,7 @@ lens_style_preprocessor:
     enhancement_method: ${preprocessing.enhancement_method}
     enable_text_enhancement: ${preprocessing.enable_text_enhancement}
     target_size: ${preprocessing.target_size}
+    enable_final_resize: ${preprocessing.enable_final_resize}
     enable_orientation_correction: ${preprocessing.enable_orientation_correction}
     orientation_angle_threshold: ${preprocessing.orientation_angle_threshold}
     orientation_expand_canvas: ${preprocessing.orientation_expand_canvas}
@@ -40,6 +45,9 @@ lens_style_preprocessor:
     use_doctr_geometry: ${preprocessing.use_doctr_geometry}
     doctr_assume_horizontal: ${preprocessing.doctr_assume_horizontal}
     enable_padding_cleanup: ${preprocessing.enable_padding_cleanup}
+    document_detection_min_area_ratio: ${preprocessing.document_detection_min_area_ratio}
+    document_detection_use_adaptive: ${preprocessing.document_detection_use_adaptive}
+    document_detection_use_fallback_box: ${preprocessing.document_detection_use_fallback_box}
 
 # Reuse the enhanced transform definitions from the base preset but hook in the
 # docTR preprocessor first so Albumentations sees rectified images.

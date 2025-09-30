@@ -132,6 +132,105 @@ def _render_preprocessing_controls(state: InferenceState, config: UIConfig) -> N
                 icon="⚠️",
             )
 
+        overrides = state.preprocessing_overrides
+        base = config.preprocessing
+        with st.expander("docTR options", expanded=False):
+            st.caption("Tune docTR preprocessing before running inference. These values apply per session.")
+
+            enable_orientation = st.checkbox(
+                "Enable orientation correction",
+                value=overrides.get("enable_orientation_correction", base.enable_orientation_correction),
+                help="Rotate pages using docTR's angle estimate before rectifying corners.",
+            )
+            state.update_preprocessing_override("enable_orientation_correction", enable_orientation)
+
+            angle_threshold = st.slider(
+                "Orientation threshold (degrees)",
+                min_value=0.1,
+                max_value=15.0,
+                step=0.1,
+                value=float(overrides.get("orientation_angle_threshold", base.orientation_angle_threshold)),
+            )
+            state.update_preprocessing_override("orientation_angle_threshold", float(angle_threshold))
+
+            expand_canvas = st.checkbox(
+                "Allow canvas expansion while rotating",
+                value=overrides.get("orientation_expand_canvas", base.orientation_expand_canvas),
+            )
+            preserve_shape = st.checkbox(
+                "Preserve original shape after rotation",
+                value=overrides.get("orientation_preserve_original_shape", base.orientation_preserve_original_shape),
+            )
+            state.update_preprocessing_override("orientation_expand_canvas", expand_canvas)
+            state.update_preprocessing_override("orientation_preserve_original_shape", preserve_shape)
+
+            use_doctr_geometry = st.checkbox(
+                "Use docTR rcrop geometry",
+                value=overrides.get("use_doctr_geometry", base.use_doctr_geometry),
+                help="Prefer docTR's perspective correction before falling back to OpenCV.",
+            )
+            state.update_preprocessing_override("use_doctr_geometry", use_doctr_geometry)
+
+            padding_cleanup = st.checkbox(
+                "Remove padding after warp",
+                value=overrides.get("enable_padding_cleanup", base.enable_padding_cleanup),
+            )
+            state.update_preprocessing_override("enable_padding_cleanup", padding_cleanup)
+
+            document_detection_min_area = st.slider(
+                "Minimum document area (ratio)",
+                min_value=0.05,
+                max_value=0.6,
+                step=0.01,
+                value=float(
+                    overrides.get(
+                        "document_detection_min_area_ratio",
+                        base.document_detection_min_area_ratio,
+                    )
+                ),
+                help="Ignore contours smaller than this fraction of the image when hunting for page boundaries.",
+            )
+            state.update_preprocessing_override("document_detection_min_area_ratio", float(document_detection_min_area))
+
+            detection_use_adaptive = st.checkbox(
+                "Use adaptive threshold fallback",
+                value=overrides.get("document_detection_use_adaptive", base.document_detection_use_adaptive),
+                help="Apply adaptive thresholding when the primary edge detector misses the page.",
+            )
+            detection_use_box = st.checkbox(
+                "Use bounding-box fallback",
+                value=overrides.get("document_detection_use_fallback_box", base.document_detection_use_fallback_box),
+                help="Fallback to the largest content bounding box if no contour is found.",
+            )
+            state.update_preprocessing_override("document_detection_use_adaptive", detection_use_adaptive)
+            state.update_preprocessing_override("document_detection_use_fallback_box", detection_use_box)
+
+            enhancement_enabled = st.checkbox(
+                "Enable photometric enhancement",
+                value=overrides.get("enable_enhancement", base.enable_enhancement),
+            )
+            state.update_preprocessing_override("enable_enhancement", enhancement_enabled)
+
+            enhancement_method = st.selectbox(
+                "Enhancement method",
+                options=["conservative", "office_lens"],
+                index=["conservative", "office_lens"].index(overrides.get("enhancement_method", base.enhancement_method)),
+            )
+            state.update_preprocessing_override("enhancement_method", enhancement_method)
+
+            text_enhancement = st.checkbox(
+                "Enable text enhancement",
+                value=overrides.get("enable_text_enhancement", base.enable_text_enhancement),
+            )
+            state.update_preprocessing_override("enable_text_enhancement", text_enhancement)
+
+            final_resize = st.checkbox(
+                "Resize output to target canvas",
+                value=overrides.get("enable_final_resize", base.enable_final_resize),
+                help="When disabled, docTR returns the rectified page at its native resolution instead of padding to 640×640.",
+            )
+            state.update_preprocessing_override("enable_final_resize", final_resize)
+
 
 def _slider(slider_cfg: SliderConfig, default_value: float | int) -> float:
     kwargs = {
@@ -180,7 +279,7 @@ def _render_upload_section(
                 files=[file],
                 model_path=str(metadata.checkpoint_path),
                 use_preprocessing=state.preprocessing_enabled,
-                preprocessing_config=config.preprocessing,
+                preprocessing_config=state.build_preprocessing_config(config.preprocessing),
             )
         return None
 
@@ -196,7 +295,7 @@ def _render_upload_section(
                 files=selected_files,
                 model_path=str(metadata.checkpoint_path),
                 use_preprocessing=state.preprocessing_enabled,
-                preprocessing_config=config.preprocessing,
+                preprocessing_config=state.build_preprocessing_config(config.preprocessing),
             )
     else:
         st.warning("⚠️ No images selected for inference")

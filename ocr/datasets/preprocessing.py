@@ -6,7 +6,7 @@ focusing on perspective correction and image enhancement for optimal OCR perform
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import cv2
@@ -79,7 +79,8 @@ class DocumentPreprocessor:
         enable_enhancement: bool = True,
         enable_text_enhancement: bool = False,  # Disabled by default as it can be destructive
         enhancement_method: str = "conservative",  # "conservative" or "office_lens"
-        target_size: tuple[int, int] = (640, 640),
+        target_size: tuple[int, int] | None = (640, 640),
+        enable_final_resize: bool = True,
         enable_orientation_correction: bool = False,
         orientation_angle_threshold: float = 2.0,
         orientation_expand_canvas: bool = True,
@@ -87,6 +88,9 @@ class DocumentPreprocessor:
         use_doctr_geometry: bool = False,
         doctr_assume_horizontal: bool = False,
         enable_padding_cleanup: bool = False,
+        document_detection_min_area_ratio: float = 0.18,
+        document_detection_use_adaptive: bool = True,
+        document_detection_use_fallback_box: bool = True,
     ):
         """
         Initialize the document preprocessor.
@@ -104,7 +108,8 @@ class DocumentPreprocessor:
         self.enable_enhancement = enable_enhancement
         self.enable_text_enhancement = enable_text_enhancement
         self.enhancement_method = enhancement_method
-        self.target_size = target_size
+        self.target_size = tuple(target_size) if target_size is not None else None
+        self.enable_final_resize = enable_final_resize
         self.enable_orientation_correction = enable_orientation_correction
         self.orientation_angle_threshold = float(orientation_angle_threshold)
         self.orientation_expand_canvas = orientation_expand_canvas
@@ -114,6 +119,10 @@ class DocumentPreprocessor:
         self.enable_padding_cleanup = enable_padding_cleanup
         self.doctr_available = DOCTR_AVAILABLE
         self._warned_features: set[str] = set()
+        self.document_detection_min_area_ratio = float(max(0.0, min(document_detection_min_area_ratio, 1.0)))
+        self.document_detection_use_adaptive = document_detection_use_adaptive
+        self.document_detection_use_fallback_box = document_detection_use_fallback_box
+        self._last_detection_method: str | None = None
 
         # Validate enhancement method
         if enhancement_method not in ["conservative", "office_lens"]:
@@ -140,7 +149,8 @@ class DocumentPreprocessor:
         if not isinstance(image, np.ndarray) or image.size == 0 or len(image.shape) < 2:
             self.logger.warning("Invalid input image, using fallback processing")
             # Create a minimal valid image for fallback
-            fallback_image = np.full((self.target_size[1], self.target_size[0], 3), 128, dtype=np.uint8)
+            fallback_width, fallback_height = self.target_size if self.target_size is not None else (256, 256)
+            fallback_image = np.full((fallback_height, fallback_width, 3), 128, dtype=np.uint8)
             return {
                 "image": fallback_image,
                 "metadata": {
@@ -167,9 +177,11 @@ class DocumentPreprocessor:
                 corners = self._detect_document_boundaries(image)
                 if corners is not None:
                     metadata["document_corners"] = corners
+                    metadata["document_detection_method"] = self._last_detection_method
                     metadata["processing_steps"].append("document_detection")
                 else:
                     self.logger.warning("Document boundaries not detected; geometric corrections skipped")
+                    metadata["document_detection_method"] = self._last_detection_method or "unavailable"
             else:
                 metadata["document_corners"] = None
 
@@ -210,17 +222,23 @@ class DocumentPreprocessor:
                 image = self._enhance_text_regions(image)
                 metadata["processing_steps"].append("text_enhancement")
 
-            # Step 7: Resize to target size
-            image = self._resize_to_target(image)
+            # Step 7: Resize to target size (optional)
+            if self.enable_final_resize and self.target_size is not None:
+                image = self._resize_to_target(image)
+                metadata["processing_steps"].append("resize_to_target")
 
             metadata["final_shape"] = image.shape
 
         except Exception as e:
             self.logger.error(f"Preprocessing failed: {e}")
             # Return original image if processing fails
-            image = self._resize_to_target(original_image)
+            if self.enable_final_resize and self.target_size is not None:
+                image = self._resize_to_target(original_image)
+            else:
+                image = original_image
             metadata["error"] = str(e)
             metadata["processing_steps"] = ["fallback_resize"]
+            metadata["final_shape"] = image.shape
 
         return {"image": image, "metadata": metadata}
 
@@ -367,7 +385,7 @@ class DocumentPreprocessor:
 
     def _detect_document_boundaries(self, image: np.ndarray) -> np.ndarray | None:
         """
-        Detect document boundaries using edge detection and contour analysis.
+        Detect document boundaries using layered fallbacks so docTR geometry can run.
 
         Args:
             image: Input image
@@ -375,57 +393,121 @@ class DocumentPreprocessor:
         Returns:
             Corner coordinates of detected document (4x2 array) or None
         """
-        # Convert to grayscale
+        self._last_detection_method = None
+
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        height, width = gray.shape[:2]
+        min_area = self.document_detection_min_area_ratio * float(height * width)
 
-        # Apply Gaussian blur to reduce noise
+        corners = self._detect_document_from_edges(gray, min_area)
+        if corners is not None:
+            self._last_detection_method = "canny_contour"
+            return corners
+
+        if self.document_detection_use_adaptive:
+            corners = self._detect_document_with_adaptive(gray, min_area)
+            if corners is not None:
+                self._last_detection_method = "adaptive_threshold"
+                return corners
+
+        if self.document_detection_use_fallback_box:
+            corners = self._fallback_document_bounding_box(gray, min_area)
+            if corners is not None:
+                self._last_detection_method = "bounding_box"
+                return corners
+
+        self._last_detection_method = "failed"
+        return None
+
+    def _detect_document_from_edges(self, gray: np.ndarray, min_area: float) -> np.ndarray | None:
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-        # Edge detection using Canny
         edges = cv2.Canny(blurred, 50, 150)
-
-        # Dilate edges to connect broken contours
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         dilated = cv2.dilate(edges, kernel, iterations=2)
+        return self._extract_corners_from_binary(dilated, min_area)
 
-        # Find contours
-        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    def _detect_document_with_adaptive(self, gray: np.ndarray, min_area: float) -> np.ndarray | None:
+        # Invert adaptive threshold so document regions become foreground
+        adaptive = cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            25,
+            15,
+        )
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        closed = cv2.morphologyEx(adaptive, cv2.MORPH_CLOSE, kernel, iterations=2)
+        return self._extract_corners_from_binary(closed, min_area)
 
+    def _extract_corners_from_binary(self, binary: np.ndarray, min_area: float) -> np.ndarray | None:
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return None
 
-        # Find the largest contour (assumed to be the document)
-        largest_contour = max(contours, key=cv2.contourArea)
+        contour = self._select_document_contour(contours, min_area)
+        if contour is None:
+            return None
 
-        # Approximate the contour to a quadrilateral
-        perimeter = cv2.arcLength(largest_contour, True)
-        approx = cv2.approxPolyDP(largest_contour, 0.02 * perimeter, True)
+        corners = self._approximate_corners(contour)
+        if corners is not None:
+            return self._order_corners(corners)
+        return None
 
-        corners = None  # suggestion(edge_case_not_handled): The check for exactly 4 points in contour approximation may miss slightly distorted documents.
-        # For cases where more than 4 points are detected, implement a fallback to select the 4 most relevant points or simplify the contour, ensuring better handling of imperfect or skewed documents.
-        if len(approx) == 4:
-            # Sort corners in consistent order (top-left, top-right, bottom-right, bottom-left)
-            corners = approx.reshape(4, 2)
-        else:
-            # Try to approximate the contour to 4 points using convex hull and further approximation
-            hull = cv2.convexHull(largest_contour)
+    def _select_document_contour(self, contours: Sequence[np.ndarray], min_area: float) -> np.ndarray | None:
+        valid_contours = [cnt for cnt in contours if cv2.contourArea(cnt) >= max(min_area, 1.0)]
+        if not valid_contours:
+            return None
+        return max(valid_contours, key=cv2.contourArea)
+
+    def _approximate_corners(self, contour: np.ndarray) -> np.ndarray | None:
+        perimeter = cv2.arcLength(contour, True)
+        if perimeter <= 0:
+            return None
+
+        approximations = [0.02, 0.03, 0.04, 0.05]
+        for epsilon_factor in approximations:
+            approx = cv2.approxPolyDP(contour, epsilon_factor * perimeter, True)
+            if approx.shape[0] == 4:
+                return approx.reshape(4, 2)
+
+        hull = cv2.convexHull(contour)
+        if hull is not None and hull.shape[0] >= 4:
             hull_perimeter = cv2.arcLength(hull, True)
-            hull_approx = cv2.approxPolyDP(hull, 0.02 * hull_perimeter, True)
-            if len(hull_approx) == 4:
-                corners = hull_approx.reshape(4, 2)
-            else:
-                # Try with a higher epsilon to simplify the contour more aggressively
-                for epsilon_factor in [0.03, 0.04, 0.05]:
-                    approx_more = cv2.approxPolyDP(largest_contour, epsilon_factor * perimeter, True)
-                    if len(approx_more) == 4:
-                        corners = approx_more.reshape(4, 2)
-                        break
-
-        if corners is not None and corners.shape == (4, 2):
-            corners = self._order_corners(corners)
-            return corners
+            if hull_perimeter > 0:
+                for epsilon_factor in approximations:
+                    approx = cv2.approxPolyDP(hull, epsilon_factor * hull_perimeter, True)
+                    if approx.shape[0] == 4:
+                        return approx.reshape(4, 2)
 
         return None
+
+    def _fallback_document_bounding_box(self, gray: np.ndarray, min_area: float) -> np.ndarray | None:
+        # Use Otsu threshold to find foreground content; invert to treat text as foreground
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        cleaned = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+        coords = cv2.findNonZero(cleaned)
+        if coords is None:
+            return None
+
+        x, y, w, h = cv2.boundingRect(coords)
+        if w <= 10 or h <= 10:
+            return None
+
+        if float(w * h) < max(min_area * 0.6, 1.0):
+            return None
+
+        corners = np.array(
+            [
+                [x, y],
+                [x + w - 1, y],
+                [x + w - 1, y + h - 1],
+                [x, y + h - 1],
+            ],
+            dtype=np.float32,
+        )
+        return corners
 
     def _order_corners(self, corners: np.ndarray) -> np.ndarray:
         """
@@ -613,6 +695,9 @@ class DocumentPreprocessor:
         Returns:
             Resized image
         """
+        if self.target_size is None:
+            return image
+
         target_width, target_height = self.target_size
 
         # Use longest max size approach (similar to current transforms)

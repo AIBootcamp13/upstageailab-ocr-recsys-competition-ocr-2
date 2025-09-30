@@ -131,6 +131,24 @@ def _deduplicate_labeled_tokens(tokens: list[tuple[str, str]]) -> list[tuple[str
     return result
 
 
+def _crop_to_content(image: np.ndarray, threshold: int = 4) -> np.ndarray:
+    if image.size == 0:
+        return image
+
+    if image.ndim == 2:
+        mask = image > threshold
+    else:
+        mask = np.max(image, axis=2) > threshold
+
+    if not np.any(mask):
+        return image
+
+    coords = np.argwhere(mask)
+    top, left = coords.min(axis=0)
+    bottom, right = coords.max(axis=0) + 1
+    return image[top:bottom, left:right]
+
+
 def _architecture_default_component(architecture_name: str | None, component: str) -> str:
     if not architecture_name:
         return ""
@@ -473,8 +491,9 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
 
         # Ensure image is uint8 and in [0,255] range
         img_uint8 = np.clip(img_to_draw, 0, 255).astype(np.uint8)
-        drawn_images.append(img_uint8)
-        sizes.append(img_uint8.shape[:2])  # (H, W)
+        cropped = _crop_to_content(img_uint8)
+        drawn_images.append(cropped)
+        sizes.append(cropped.shape[:2])  # (H, W)
         # Filename & original dims if provided.
         # NOTE: Use original sampled index `i` (not the display ordering `rank`).
         # Previous implementation used `rank`, which reorders images by
@@ -491,7 +510,7 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
         captions.append(caption)
         if os.environ.get("LOG_VAL_IMAGE_TABLE", "0") == "1":
             # Lightweight perceptual fingerprint: SHA1 of raw bytes
-            img_hash = hashlib.sha1(img_uint8.tobytes()).hexdigest()[:12]
+            img_hash = hashlib.sha1(cropped.tobytes()).hexdigest()[:12]
             table_rows.append(
                 [
                     rank,  # display order
@@ -501,8 +520,8 @@ def log_validation_images(images, gt_bboxes, pred_bboxes, epoch, limit=8, seed: 
                     orig_h if (filenames and i < len(filenames)) else -1,
                     g,
                     p,
-                    img_uint8.shape[1],
-                    img_uint8.shape[0],  # logged W,H
+                    cropped.shape[1],
+                    cropped.shape[0],  # logged W,H
                     img_hash,
                     caption,
                 ]

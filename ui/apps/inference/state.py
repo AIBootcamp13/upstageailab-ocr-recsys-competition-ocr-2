@@ -7,7 +7,7 @@ and the guidance in ``docs/ai_handbook/02_protocols``. Update those sources
 first, then reflect changes here to avoid divergent behaviour across apps.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import streamlit as st
@@ -23,6 +23,7 @@ SESSION_KEYS = {
     "previous_uploaded_files": set,
     "preprocessing_enabled": lambda: False,
     "preprocessing_default_initialized": lambda: False,
+    "preprocessing_overrides": dict,
 }
 
 
@@ -34,6 +35,7 @@ class InferenceState:
     selected_model: str | None = None
     hyperparams: dict[str, float] = field(default_factory=dict)
     preprocessing_enabled: bool = False
+    preprocessing_overrides: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_session(cls) -> InferenceState:
@@ -55,6 +57,7 @@ class InferenceState:
             selected_model=state.selected_model,
             hyperparams=dict(state.hyperparams or {}),
             preprocessing_enabled=preprocessing_enabled,
+            preprocessing_overrides=dict(state.preprocessing_overrides or {}),
         )
 
     def persist(self) -> None:
@@ -66,6 +69,7 @@ class InferenceState:
         st.session_state.selected_model = self.selected_model
         st.session_state.hyperparams = dict(self.hyperparams)
         st.session_state.preprocessing_enabled = bool(self.preprocessing_enabled)
+        st.session_state.preprocessing_overrides = dict(self.preprocessing_overrides)
 
     def update_hyperparameter(self, key: str, value: float) -> None:
         self.hyperparams[key] = value
@@ -80,6 +84,14 @@ class InferenceState:
             if self.selected_model is not None:
                 self.processed_images.pop(self.selected_model, None)
             self.selected_model = model_path
+
+    def update_preprocessing_override(self, key: str, value: Any) -> None:
+        self.preprocessing_overrides[key] = value
+
+    def build_preprocessing_config(self, base: PreprocessingConfig) -> PreprocessingConfig:
+        if not self.preprocessing_overrides:
+            return base
+        return replace(base, **self.preprocessing_overrides)
 
 
 def ensure_session_defaults() -> None:
