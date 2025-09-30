@@ -1,6 +1,6 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.1 (2025-09-30)",
+  "version": "1.3 (2025-09-30)",
   "generated_at": "2025-09-30T00:00:00Z",
   "entries": [
     {
@@ -13,7 +13,7 @@
       "summary": "Notes the removal of legacy Streamlit viewers and related handbook updates.",
       "last_reviewed": "2025-09-29",
       "owner": "documentation",
-      "bundles": ["streamlit-maintenance"]
+  "bundles": ["streamlit-maintenance", "documentation-history"]
     },
     {
       "id": "coding-standards",
@@ -194,6 +194,126 @@
       "last_reviewed": "2025-09-28",
       "owner": "data-team",
       "bundles": ["onboarding"]
+    },
+    {
+      "id": "iterative-debugging",
+      "title": "Iterative Debugging & RCA",
+      "path": "./02_protocols/07_iterative_debugging.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["debugging", "workflow"],
+      "priority": "high",
+      "summary": "Structured process for bisecting regressions, logging hypotheses, and producing root cause summaries.",
+      "last_reviewed": "2025-09-30",
+      "owner": "automation",
+      "bundles": ["debugging", "context-management"]
+    },
+    {
+      "id": "refactoring-guide-redirect",
+      "title": "Refactoring Guide (Redirect)",
+      "path": "./02_protocols/10_refactoring_guide.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["refactor"],
+      "priority": "low",
+      "summary": "Deprecated stub pointing readers to the consolidated modular refactor protocol.",
+      "last_reviewed": "2025-09-30",
+      "owner": "documentation",
+      "bundles": ["refactor"]
+    },
+    {
+      "id": "doctr-preprocessing-workflow",
+      "title": "docTR Preprocessing Workflow",
+      "path": "./02_protocols/11_docTR_preprocessing_workflow.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["preprocessing", "docTR", "ui"],
+      "priority": "high",
+      "summary": "End-to-end checklist for enabling docTR-powered preprocessing, configs, tests, and UI integrations.",
+      "last_reviewed": "2025-09-30",
+      "owner": "ml-platform",
+      "bundles": ["streamlit-maintenance", "new-feature"]
+    },
+    {
+      "id": "streamlit-refactor-protocol",
+      "title": "Streamlit Refactoring Protocol",
+      "path": "./02_protocols/12_streamlit_refactoring_protocol.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["ui", "streamlit", "refactor"],
+      "priority": "high",
+      "summary": "Playbook for structural Streamlit changes covering architecture constraints, configs, and testing.",
+      "last_reviewed": "2025-09-30",
+      "owner": "ui-team",
+      "bundles": ["streamlit-maintenance", "refactor"]
+    },
+    {
+      "id": "doctr-preprocessing-checkpoint-20250930",
+      "title": "docTR Preprocessing Continuation Checkpoint (2025-09-30)",
+      "path": "./02_protocols/outputs/doctr_preprocessing/continuation_checkpoint_2025-09-30.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["context", "docTR"],
+      "priority": "low",
+      "summary": "Context checkpoint capturing current docTR preprocessing progress and next actions for continuation.",
+      "last_reviewed": "2025-09-30",
+      "owner": "automation",
+      "bundles": ["context-management"]
+    },
+    {
+      "id": "experiment-log-template",
+      "title": "Experiment Log Template",
+      "path": "./04_experiments/TEMPLATE.md",
+      "section": "04. Experiments",
+      "tags": ["experiments"],
+      "priority": "medium",
+      "summary": "Markdown template for recording experiment goals, setups, observations, and follow-ups.",
+      "last_reviewed": "2025-09-30",
+      "owner": "core-team",
+      "bundles": ["experiments"]
+    },
+    {
+      "id": "changelog-doc-refactor",
+      "title": "2025-09-28 Documentation Refactor Complete",
+      "path": "./05_changelog/2025-09-28_documentation-refactor-complete.md",
+      "section": "05. Changelog",
+      "tags": ["changelog"],
+      "priority": "low",
+      "summary": "Details the creation of the structured AI handbook and supporting automation tooling.",
+      "last_reviewed": "2025-09-30",
+      "owner": "documentation",
+      "bundles": ["documentation-history"]
+    },
+    {
+      "id": "changelog-initial-state",
+      "title": "2025-09-28 Initial State & Architecture Refactor",
+      "path": "./05_changelog/2025-09-28_initial_state.md",
+      "section": "05. Changelog",
+      "tags": ["changelog"],
+      "priority": "medium",
+      "summary": "Captures the baseline OCR architecture, automation, and process state at handbook inception.",
+      "last_reviewed": "2025-09-30",
+      "owner": "core-team",
+      "bundles": ["documentation-history"]
+    },
+    {
+      "id": "changelog-evaluation-viewer",
+      "title": "2025-09-29 Evaluation Viewer Modular Refactor",
+      "path": "./05_changelog/2025-09-29_evaluation_viewer_modular_refactor.md",
+      "section": "05. Changelog",
+      "tags": ["changelog", "streamlit"],
+      "priority": "medium",
+      "summary": "Notes the modularization of the evaluation Streamlit UI and related improvements.",
+      "last_reviewed": "2025-09-30",
+      "owner": "ui-team",
+      "bundles": ["streamlit-maintenance", "documentation-history"]
+    },
+    {
+      "id": "handbook-index",
+      "title": "AI Agent Handbook Landing Page",
+      "path": "./index.md",
+      "section": "00. Overview",
+      "tags": ["overview", "navigation"],
+      "priority": "high",
+      "summary": "Front-door guide with quick links, bundles, and table of contents for the AI handbook.",
+      "last_reviewed": "2025-09-30",
+      "owner": "documentation",
+      "bundles": ["onboarding", "documentation-history"]
     }
   ],
   "bundles": {
@@ -202,10 +322,13 @@
       "description": "Use when editing Streamlit apps or inference services.",
       "entries": [
         "streamlit-maintenance",
+        "streamlit-refactor-protocol",
         "modular-refactor",
         "command-registry",
+        "doctr-preprocessing-workflow",
         "context-checkpointing",
-        "changelog-latest"
+        "changelog-latest",
+        "changelog-evaluation-viewer"
       ]
     },
     "new-feature": {
@@ -216,7 +339,8 @@
         "architecture",
         "hydra-registry",
         "utility-adoption",
-        "utility-functions"
+        "utility-functions",
+        "doctr-preprocessing-workflow"
       ]
     },
     "refactor": {
@@ -226,7 +350,9 @@
         "modular-refactor",
         "hydra-config-refactor",
         "coding-standards",
-        "architecture"
+        "architecture",
+        "streamlit-refactor-protocol",
+        "refactoring-guide-redirect"
       ]
     },
     "debugging": {
@@ -235,7 +361,8 @@
       "entries": [
         "debugging-workflow",
         "command-registry",
-        "evaluation-metrics"
+        "evaluation-metrics",
+        "iterative-debugging"
       ]
     },
     "context-management": {
@@ -243,16 +370,37 @@
       "description": "Keep long-running efforts safe for agents.",
       "entries": [
         "context-logging",
-        "context-checkpointing"
+        "context-checkpointing",
+        "iterative-debugging",
+        "doctr-preprocessing-checkpoint-20250930"
       ]
     },
     "onboarding": {
       "title": "New contributor starter pack",
       "description": "Quick links for first-time contributors.",
       "entries": [
+        "handbook-index",
         "project-setup",
         "data-overview",
         "coding-standards"
+      ]
+    },
+    "documentation-history": {
+      "title": "Handbook changelog",
+      "description": "Chronological updates to handbook structure and UI maintenance work.",
+      "entries": [
+        "changelog-initial-state",
+        "changelog-doc-refactor",
+        "changelog-evaluation-viewer",
+        "changelog-latest",
+        "handbook-index"
+      ]
+    },
+    "experiments": {
+      "title": "Experiment logging support",
+      "description": "Assets for capturing experiment context and results.",
+      "entries": [
+        "experiment-log-template"
       ]
     }
   },

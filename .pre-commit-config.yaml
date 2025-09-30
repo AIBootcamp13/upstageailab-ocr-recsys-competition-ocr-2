@@ -28,3 +28,11 @@ repos:
         # You can customize args and dependencies to match your project's needs
         additional_dependencies: [types-Pillow, types-tqdm, types-PyYAML, types-shapely]
         files: ^ocr/
+
+  - repo: local
+    hooks:
+      - id: validate-handbook-manifest
+        name: validate-handbook-manifest
+        entry: uv run python scripts/agent_tools/validate_manifest.py
+        language: system
+        pass_filenames: false
