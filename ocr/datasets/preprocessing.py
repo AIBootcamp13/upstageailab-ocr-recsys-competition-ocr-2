@@ -6,10 +6,24 @@ focusing on perspective correction and image enhancement for optimal OCR perform
 """
 
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    # Type declarations for optional doctr imports
+    estimate_page_angle: Callable[[np.ndarray], float] | None
+    extract_rcrops: Callable[[np.ndarray, np.ndarray], list[np.ndarray]] | None
+    doctr_remove_image_padding: Callable[[np.ndarray], np.ndarray] | None
+    doctr_rotate_image: Callable[[np.ndarray, float, bool, bool], np.ndarray] | None
+
+# Optional doctr imports
+estimate_page_angle = None
+extract_rcrops = None
+doctr_remove_image_padding = None
+doctr_rotate_image = None
 
 try:
     import albumentations as A
@@ -18,6 +32,33 @@ try:
 except ImportError:
     ALBUMENTATIONS_AVAILABLE = False
     A = None
+
+try:
+    from doctr.utils.geometry import (
+        estimate_page_angle as _estimate_page_angle,
+    )
+    from doctr.utils.geometry import (
+        extract_rcrops as _extract_rcrops,
+    )
+    from doctr.utils.geometry import (
+        remove_image_padding as _doctr_remove_image_padding,
+    )
+    from doctr.utils.geometry import (
+        rotate_image as _doctr_rotate_image,
+    )
+
+    estimate_page_angle = _estimate_page_angle
+    extract_rcrops = _extract_rcrops
+    doctr_remove_image_padding = _doctr_remove_image_padding
+    doctr_rotate_image = _doctr_rotate_image
+
+    DOCTR_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency guard
+    DOCTR_AVAILABLE = False
+    estimate_page_angle = None
+    extract_rcrops = None
+    doctr_remove_image_padding = None
+    doctr_rotate_image = None
 
 
 class DocumentPreprocessor:
@@ -39,6 +80,13 @@ class DocumentPreprocessor:
         enable_text_enhancement: bool = False,  # Disabled by default as it can be destructive
         enhancement_method: str = "conservative",  # "conservative" or "office_lens"
         target_size: tuple[int, int] = (640, 640),
+        enable_orientation_correction: bool = False,
+        orientation_angle_threshold: float = 2.0,
+        orientation_expand_canvas: bool = True,
+        orientation_preserve_original_shape: bool = False,
+        use_doctr_geometry: bool = False,
+        doctr_assume_horizontal: bool = False,
+        enable_padding_cleanup: bool = False,
     ):
         """
         Initialize the document preprocessor.
@@ -57,6 +105,15 @@ class DocumentPreprocessor:
         self.enable_text_enhancement = enable_text_enhancement
         self.enhancement_method = enhancement_method
         self.target_size = target_size
+        self.enable_orientation_correction = enable_orientation_correction
+        self.orientation_angle_threshold = float(orientation_angle_threshold)
+        self.orientation_expand_canvas = orientation_expand_canvas
+        self.orientation_preserve_original_shape = orientation_preserve_original_shape
+        self.use_doctr_geometry = use_doctr_geometry
+        self.doctr_assume_horizontal = doctr_assume_horizontal
+        self.enable_padding_cleanup = enable_padding_cleanup
+        self.doctr_available = DOCTR_AVAILABLE
+        self._warned_features: set[str] = set()
 
         # Validate enhancement method
         if enhancement_method not in ["conservative", "office_lens"]:
@@ -77,6 +134,8 @@ class DocumentPreprocessor:
             - 'image': Processed image
             - 'metadata': Processing metadata (corners, transforms, etc.)
         """
+        # suggestion(bug_risk): The fallback for invalid images always returns a gray image, which may mask upstream issues.
+        # Consider raising an exception or returning an explicit error instead to prevent silent failures and make upstream issues more visible.
         # Validate input image
         if not isinstance(image, np.ndarray) or image.size == 0 or len(image.shape) < 2:
             self.logger.warning("Invalid input image, using fallback processing")
@@ -101,6 +160,8 @@ class DocumentPreprocessor:
         }
 
         try:
+            corners: np.ndarray | None = None
+
             # Step 1: Document Detection
             if self.enable_document_detection:
                 corners = self._detect_document_boundaries(image)
@@ -108,16 +169,34 @@ class DocumentPreprocessor:
                     metadata["document_corners"] = corners
                     metadata["processing_steps"].append("document_detection")
                 else:
-                    self.logger.warning("Document boundaries not detected, skipping perspective correction")
-                    self.enable_perspective_correction = False
+                    self.logger.warning("Document boundaries not detected; geometric corrections skipped")
+            else:
+                metadata["document_corners"] = None
 
-            # Step 2: Perspective Correction
+            # Step 2: Optional orientation correction (doctr geometry)
+            if self.enable_orientation_correction and metadata["document_corners"] is not None:
+                image, corners, orientation_meta = self._apply_orientation_correction(image, metadata["document_corners"])
+                if corners is not None:
+                    metadata["document_corners"] = corners
+                if orientation_meta is not None:
+                    metadata["orientation"] = orientation_meta
+                    metadata["processing_steps"].append("orientation_correction")
+
+            # Step 3: Perspective Correction
             if self.enable_perspective_correction and metadata["document_corners"] is not None:
-                image, perspective_matrix = self._correct_perspective(image, metadata["document_corners"])
+                image, perspective_matrix, method = self._correct_perspective(image, metadata["document_corners"])
                 metadata["perspective_matrix"] = perspective_matrix
+                metadata["perspective_method"] = method
                 metadata["processing_steps"].append("perspective_correction")
 
-            # Step 3: General Image Enhancement
+            # Step 4: Optional padding cleanup
+            if self.enable_padding_cleanup:
+                cleaned = self._apply_padding_cleanup(image)
+                if cleaned is not None:
+                    image = cleaned
+                    metadata["processing_steps"].append("padding_cleanup")
+
+            # Step 5: General Image Enhancement
             if self.enable_enhancement:
                 if self.enhancement_method == "office_lens":
                     image, enhancements = self._enhance_image_office_lens(image)
@@ -126,12 +205,12 @@ class DocumentPreprocessor:
                 metadata["enhancement_applied"].extend(enhancements)
                 metadata["processing_steps"].append("image_enhancement")
 
-            # Step 4: Text-Specific Enhancement
+            # Step 6: Text-Specific Enhancement
             if self.enable_text_enhancement:
                 image = self._enhance_text_regions(image)
                 metadata["processing_steps"].append("text_enhancement")
 
-            # Step 5: Resize to target size
+            # Step 7: Resize to target size
             image = self._resize_to_target(image)
 
             metadata["final_shape"] = image.shape
@@ -144,6 +223,147 @@ class DocumentPreprocessor:
             metadata["processing_steps"] = ["fallback_resize"]
 
         return {"image": image, "metadata": metadata}
+
+    def _ensure_doctr(self, feature: str) -> bool:
+        if self.doctr_available:
+            return True
+        if feature not in self._warned_features:
+            self.logger.warning("python-doctr is required for %s but is not installed; skipping this step.", feature)
+            self._warned_features.add(feature)
+        return False
+
+    def _apply_orientation_correction(
+        self,
+        image: np.ndarray,
+        corners: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray | None, dict[str, Any] | None]:
+        if not self._ensure_doctr("orientation_correction"):
+            return image, corners, None
+        if estimate_page_angle is None or doctr_rotate_image is None:
+            return image, corners, None
+        if corners.shape != (4, 2):
+            return image, corners, None
+
+        height, width = image.shape[:2]
+        rel_corners = corners.astype(np.float32).copy()
+        rel_corners[:, 0] /= max(width, 1)
+        rel_corners[:, 1] /= max(height, 1)
+
+        angle = float(estimate_page_angle(np.expand_dims(rel_corners, axis=0)))
+        if not np.isfinite(angle):
+            return image, corners, None
+
+        metadata: dict[str, Any] = {
+            "original_angle": angle,
+            "angle_correction": 0.0,
+        }
+
+        if abs(angle) < self.orientation_angle_threshold:
+            return image, corners, metadata
+
+        rotated = doctr_rotate_image(
+            image,
+            -angle,
+            expand=self.orientation_expand_canvas,
+            preserve_origin_shape=self.orientation_preserve_original_shape,
+        )  # type: ignore
+
+        new_corners = self._detect_document_boundaries(rotated)
+        if new_corners is None:
+            self.logger.debug(
+                "Orientation correction applied (angle=%.2f°) but redetection failed; keeping original corners.",
+                angle,
+            )
+            metadata["angle_correction"] = -angle
+            metadata["redetection_success"] = False
+            metadata["processed_shape"] = tuple(int(dim) for dim in rotated.shape)
+            return rotated, corners, metadata
+
+        metadata["angle_correction"] = -angle
+        metadata["redetection_success"] = True
+        metadata["processed_shape"] = tuple(int(dim) for dim in rotated.shape)
+        return rotated, new_corners, metadata
+
+    def _apply_padding_cleanup(self, image: np.ndarray) -> np.ndarray | None:
+        if not self._ensure_doctr("padding_cleanup"):
+            return None
+        if doctr_remove_image_padding is None:
+            return None
+        cleaned = doctr_remove_image_padding(image)
+        return cleaned if cleaned.size != 0 and cleaned.shape != image.shape else None
+
+    def _normalize_corners(self, corners: np.ndarray, image: np.ndarray) -> np.ndarray:
+        height, width = image.shape[:2]
+        norm_corners = corners.astype(np.float32).copy()
+        norm_corners[:, 0] /= max(width, 1)
+        norm_corners[:, 1] /= max(height, 1)
+        return norm_corners
+
+    def _compute_perspective_targets(
+        self,
+        corners: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[int, int], np.ndarray]:
+        tl, tr, br, bl = corners.astype(np.float32)
+
+        width_a = np.linalg.norm(br - bl)
+        width_b = np.linalg.norm(tr - tl)
+        max_width = max(int(round(width_a)), int(round(width_b)), 1)
+
+        height_a = np.linalg.norm(tr - br)
+        height_b = np.linalg.norm(tl - bl)
+        max_height = max(int(round(height_a)), int(round(height_b)), 1)
+
+        dst_points = np.array(
+            [
+                [0, 0],
+                [max_width - 1, 0],
+                [max_width - 1, max_height - 1],
+                [0, max_height - 1],
+            ],
+            dtype=np.float32,
+        )
+
+        src_points = np.array([tl, tr, br, bl], dtype=np.float32)
+        return src_points, (max_width, max_height), dst_points
+
+    def _doctr_perspective_correction(self, image: np.ndarray, corners: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        if not self._ensure_doctr("doctr_geometry"):
+            raise RuntimeError("docTR geometry helpers unavailable")
+        if extract_rcrops is None:
+            raise RuntimeError("docTR extract_rcrops not available")
+
+        norm_corners = self._normalize_corners(corners, image)
+        crops = extract_rcrops(
+            image,
+            np.expand_dims(norm_corners, axis=0),
+            assume_horizontal=self.doctr_assume_horizontal,
+        )  # type: ignore
+        if not crops:
+            raise RuntimeError("docTR extract_rcrops returned no crops")
+
+        corrected = crops[0]
+        src_points, (max_width, max_height), dst_points = self._compute_perspective_targets(corners)
+        perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+
+        if corrected.shape[0] != max_height or corrected.shape[1] != max_width:
+            corrected = cv2.resize(corrected, (max_width, max_height), interpolation=cv2.INTER_LINEAR)
+
+        return corrected, perspective_matrix
+
+    def _correct_perspective(
+        self,
+        image: np.ndarray,
+        corners: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, str]:
+        if self.use_doctr_geometry:
+            try:
+                corrected, matrix = self._doctr_perspective_correction(image, corners)
+                return corrected, matrix, "doctr_rcrop"
+            except Exception as error:  # pragma: no cover - best-effort fallback
+                self.logger.warning("docTR perspective correction failed (%s); falling back to OpenCV.", error)
+
+        corrected, matrix = self._opencv_perspective_correction(image, corners)
+        return corrected, matrix, "opencv"
 
     def _detect_document_boundaries(self, image: np.ndarray) -> np.ndarray | None:
         """
@@ -181,8 +401,8 @@ class DocumentPreprocessor:
         perimeter = cv2.arcLength(largest_contour, True)
         approx = cv2.approxPolyDP(largest_contour, 0.02 * perimeter, True)
 
-        corners = None
-
+        corners = None  # suggestion(edge_case_not_handled): The check for exactly 4 points in contour approximation may miss slightly distorted documents.
+        # For cases where more than 4 points are detected, implement a fallback to select the 4 most relevant points or simplify the contour, ensuring better handling of imperfect or skewed documents.
         if len(approx) == 4:
             # Sort corners in consistent order (top-left, top-right, bottom-right, bottom-left)
             corners = approx.reshape(4, 2)
@@ -242,10 +462,9 @@ class DocumentPreprocessor:
 
         return ordered_corners
 
-    def _correct_perspective(self, image: np.ndarray, corners: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _opencv_perspective_correction(self, image: np.ndarray, corners: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
-        Correct perspective distortion based on the detected corners' aspect ratio.
-        Preserves the document's natural dimensions instead of stretching to fill the frame.
+        Correct perspective distortion using OpenCV warpPerspective based on provided corners.
 
         Args:
             image: Input image
@@ -254,36 +473,10 @@ class DocumentPreprocessor:
         Returns:
             Tuple of (corrected_image, perspective_matrix)
         """
-        # Order of corners is [top-left, top-right, bottom-right, bottom-left]
-        (tl, tr, br, bl) = corners
-
-        # Calculate the width of the new image (maximum of top and bottom widths)
-        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
-        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
-        maxWidth = max(int(widthA), int(widthB))
-
-        # Calculate the height of the new image (maximum of left and right heights)
-        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-        maxHeight = max(int(heightA), int(heightB))
-
-        # Define destination points for the calculated document dimensions
-        dst_points = np.array(
-            [
-                [0, 0],  # top-left
-                [maxWidth - 1, 0],  # top-right
-                [maxWidth - 1, maxHeight - 1],  # bottom-right
-                [0, maxHeight - 1],  # bottom-left
-            ],
-            dtype=np.float32,
-        )
-
-        # Calculate perspective transform matrix
-        src_points = corners.astype(np.float32)
+        src_points, (max_width, max_height), dst_points = self._compute_perspective_targets(corners)
         perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
 
-        # Apply perspective correction with calculated dimensions
-        corrected = cv2.warpPerspective(image, perspective_matrix, (maxWidth, maxHeight), flags=cv2.INTER_LINEAR)
+        corrected = cv2.warpPerspective(image, perspective_matrix, (max_width, max_height), flags=cv2.INTER_LINEAR)
 
         return corrected, perspective_matrix
 

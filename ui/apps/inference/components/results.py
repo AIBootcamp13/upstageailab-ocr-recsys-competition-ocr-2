@@ -68,6 +68,9 @@ def _render_single_result(result: dict[str, Any], config: UIConfig) -> None:
     if "image" in result and predictions:
         _display_image_with_predictions(result["image"], predictions, config)
 
+    if preprocessing := result.get("preprocessing"):
+        _render_preprocessing_section(preprocessing, config)
+
     if config.results.show_raw_predictions and predictions:
         with st.expander("🔧 Raw Prediction Data"):
             st.json(predictions)
@@ -121,3 +124,86 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: dict[s
             width=width_setting,
         )
         raise exc from exc
+
+
+def _render_preprocessing_section(preprocessing: dict[str, Any], config: UIConfig) -> None:
+    if not preprocessing.get("enabled") and not preprocessing.get("processed"):
+        if error := preprocessing.get("error"):
+            st.warning(f"docTR preprocessing unavailable: {error}")
+        return
+
+    st.markdown("#### 🧪 docTR Preprocessing")
+
+    doctr_available = preprocessing.get("doctr_available", False)
+    if preprocessing.get("enabled") and not doctr_available:
+        st.warning("docTR geometry helpers are unavailable. Showing OpenCV-only preprocessing output.")
+
+    original_image = preprocessing.get("original")
+    processed_image = preprocessing.get("processed")
+    metadata = preprocessing.get("metadata") or {}
+
+    col_raw, col_processed = st.columns(2)
+
+    if original_image is not None:
+        overlay = _draw_document_overlay(original_image, metadata, config.preprocessing.show_corner_overlay)
+        col_raw.image(overlay, caption="Original Upload", use_column_width=True)
+    else:
+        col_raw.info("Original image unavailable.")
+
+    if processed_image is not None:
+        col_processed.image(processed_image, caption="After docTR Preprocessing", use_column_width=True)
+    else:
+        col_processed.info("No preprocessed output available.")
+
+    if config.preprocessing.show_metadata and metadata:
+        prepared = _prepare_metadata(metadata)
+        with st.expander("📋 Preprocessing Metadata", expanded=False):
+            st.json(prepared)
+
+
+def _draw_document_overlay(image_array: np.ndarray, metadata: dict[str, Any], show_overlay: bool) -> Image.Image:
+    base_image = Image.fromarray(image_array)
+    if not show_overlay:
+        return base_image
+
+    corners = metadata.get("document_corners")
+    if isinstance(corners, np.ndarray):
+        corners_array = corners
+    elif isinstance(corners, list):
+        corners_array = np.asarray(corners)
+    else:
+        corners_array = None
+
+    if corners_array is None or corners_array.size < 8:
+        return base_image
+
+    draw = ImageDraw.Draw(base_image, "RGBA")
+    points = [(float(x), float(y)) for x, y in corners_array]
+    draw.polygon(points, outline=(0, 255, 0, 255), fill=(0, 255, 0, 40))
+
+    center_x = sum(point[0] for point in points) / len(points)
+    center_y = sum(point[1] for point in points) / len(points)
+    draw.ellipse(
+        [
+            (center_x - 3, center_y - 3),
+            (center_x + 3, center_y + 3),
+        ],
+        fill=(0, 128, 0, 255),
+    )
+
+    return base_image
+
+
+def _prepare_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    def convert(value: Any) -> Any:
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        elif isinstance(value, np.floating | np.integer):
+            return float(value)
+        elif isinstance(value, dict):
+            return {key: convert(item) for key, item in value.items()}
+        elif isinstance(value, list):
+            return [convert(item) for item in value]
+        return value
+
+    return {key: convert(val) for key, val in metadata.items()}

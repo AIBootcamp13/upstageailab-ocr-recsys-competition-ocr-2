@@ -5,7 +5,7 @@ Tests for Microsoft Lens-style document preprocessing.
 import numpy as np
 import pytest
 
-from ocr.datasets.preprocessing import DocumentPreprocessor, LensStylePreprocessorAlbumentations
+from ocr.datasets.preprocessing import DOCTR_AVAILABLE, DocumentPreprocessor, LensStylePreprocessorAlbumentations
 
 
 class TestDocumentPreprocessor:
@@ -60,6 +60,104 @@ class TestDocumentPreprocessor:
         # For random noise image, detection might fail (which is expected)
         # We just check that the method doesn't crash
         assert corners is None or isinstance(corners, np.ndarray)
+
+    @pytest.mark.skipif(not DOCTR_AVAILABLE, reason="python-doctr not installed")
+    def test_doctr_perspective_toggle(self, sample_image, monkeypatch):
+        """Ensure docTR geometry is used when configured."""
+        preprocessor = DocumentPreprocessor(
+            enable_document_detection=True,
+            enable_perspective_correction=True,
+            enable_enhancement=False,
+            use_doctr_geometry=True,
+        )
+
+        height, width = sample_image.shape[:2]
+        rectangle = np.array(
+            [
+                [0, 0],
+                [width - 1, 0],
+                [width - 1, height - 1],
+                [0, height - 1],
+            ],
+            dtype=np.float32,
+        )
+
+        monkeypatch.setattr(preprocessor, "_detect_document_boundaries", lambda img: rectangle)
+
+        result = preprocessor(sample_image)
+        metadata = result["metadata"]
+        assert isinstance(metadata, dict)
+
+        assert metadata.get("perspective_method") == "doctr_rcrop"
+        assert "perspective_correction" in metadata.get("processing_steps", [])
+
+    @pytest.mark.skipif(not DOCTR_AVAILABLE, reason="python-doctr not installed")
+    def test_orientation_correction_metadata(self, monkeypatch):
+        """Orientation correction should log metadata when applied."""
+        image = np.full((256, 256, 3), 200, dtype=np.uint8)
+        skewed_corners = np.array(
+            [
+                [20, 40],
+                [220, 10],
+                [230, 210],
+                [15, 230],
+            ],
+            dtype=np.float32,
+        )
+        axis_aligned = np.array(
+            [
+                [0, 0],
+                [255, 0],
+                [255, 255],
+                [0, 255],
+            ],
+            dtype=np.float32,
+        )
+
+        preprocessor = DocumentPreprocessor(
+            enable_document_detection=True,
+            enable_perspective_correction=False,
+            enable_enhancement=False,
+            enable_orientation_correction=True,
+            orientation_angle_threshold=0.5,
+        )
+
+        call_state = {"count": 0}
+
+        def fake_detect(_image: np.ndarray) -> np.ndarray:
+            call_state["count"] += 1
+            return skewed_corners if call_state["count"] == 1 else axis_aligned
+
+        monkeypatch.setattr(preprocessor, "_detect_document_boundaries", fake_detect)
+
+        result = preprocessor(image)
+        metadata = result["metadata"]
+        assert isinstance(metadata, dict)
+        orientation_meta = metadata.get("orientation")
+
+        assert orientation_meta is not None
+        assert orientation_meta.get("redetection_success") is True
+        assert abs(orientation_meta.get("angle_correction", 0.0)) > 0
+        assert "orientation_correction" in metadata.get("processing_steps", [])
+
+    @pytest.mark.skipif(not DOCTR_AVAILABLE, reason="python-doctr not installed")
+    def test_padding_cleanup_step(self):
+        """Padding cleanup should be reflected in metadata when enabled."""
+        image = np.zeros((120, 120, 3), dtype=np.uint8)
+        image[20:100, 20:100] = 255
+
+        preprocessor = DocumentPreprocessor(
+            enable_document_detection=False,
+            enable_perspective_correction=False,
+            enable_enhancement=False,
+            enable_padding_cleanup=True,
+        )
+
+        result = preprocessor(image)
+        metadata = result["metadata"]
+        assert isinstance(metadata, dict)
+
+        assert "padding_cleanup" in metadata.get("processing_steps", [])
 
     def test_image_enhancement(self, preprocessor, sample_image):
         """Test image enhancement functionality."""

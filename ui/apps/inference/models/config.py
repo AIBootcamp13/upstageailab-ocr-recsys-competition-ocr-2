@@ -87,6 +87,45 @@ class PathConfig:
 
 
 @dataclass
+class PreprocessingConfig:
+    enable_label: str = "Enable docTR preprocessing"
+    enable_help: str = "Run docTR geometry (orientation, rcrops, padding cleanup) before inference and capture visuals."
+    default_enabled: bool = False
+    enable_document_detection: bool = True
+    enable_perspective_correction: bool = True
+    enable_enhancement: bool = True
+    enhancement_method: str = "office_lens"
+    enable_text_enhancement: bool = True
+    target_size: tuple[int, int] = (640, 640)
+    enable_orientation_correction: bool = True
+    orientation_angle_threshold: float = 1.0
+    orientation_expand_canvas: bool = True
+    orientation_preserve_original_shape: bool = False
+    use_doctr_geometry: bool = True
+    doctr_assume_horizontal: bool = False
+    enable_padding_cleanup: bool = True
+    show_metadata: bool = True
+    show_corner_overlay: bool = True
+
+    def to_kwargs(self) -> dict[str, Any]:
+        return {
+            "enable_document_detection": self.enable_document_detection,
+            "enable_perspective_correction": self.enable_perspective_correction,
+            "enable_enhancement": self.enable_enhancement,
+            "enhancement_method": self.enhancement_method,
+            "enable_text_enhancement": self.enable_text_enhancement,
+            "target_size": self.target_size,
+            "enable_orientation_correction": self.enable_orientation_correction,
+            "orientation_angle_threshold": self.orientation_angle_threshold,
+            "orientation_expand_canvas": self.orientation_expand_canvas,
+            "orientation_preserve_original_shape": self.orientation_preserve_original_shape,
+            "use_doctr_geometry": self.use_doctr_geometry,
+            "doctr_assume_horizontal": self.doctr_assume_horizontal,
+            "enable_padding_cleanup": self.enable_padding_cleanup,
+        }
+
+
+@dataclass
 class UIConfig:
     app: AppSection
     model_selector: ModelSelectorConfig
@@ -95,6 +134,7 @@ class UIConfig:
     results: ResultsConfig
     notifications: NotificationConfig
     paths: PathConfig
+    preprocessing: PreprocessingConfig
 
     def slider(self, key: str) -> SliderConfig:
         return self.hyperparameters[key]

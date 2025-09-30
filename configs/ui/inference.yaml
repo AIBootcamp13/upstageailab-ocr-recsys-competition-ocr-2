@@ -71,5 +71,25 @@ results:
   show_raw_predictions: true
   image_width: "stretch"
 
+preprocessing:
+  enable_label: "Enable docTR preprocessing"
+  enable_help: "Apply docTR geometry (orientation, rcrops, padding cleanup) before inference and preview the results."
+  default_enabled: false
+  enable_document_detection: true
+  enable_perspective_correction: true
+  enable_enhancement: true
+  enhancement_method: "office_lens"
+  enable_text_enhancement: true
+  target_size: [640, 640]
+  enable_orientation_correction: true
+  orientation_angle_threshold: 1.0
+  orientation_expand_canvas: true
+  orientation_preserve_original_shape: false
+  use_doctr_geometry: true
+  doctr_assume_horizontal: false
+  enable_padding_cleanup: true
+  show_metadata: true
+  show_corner_overlay: true
+
 notifications:
   inference_complete_delay_seconds: 1.0

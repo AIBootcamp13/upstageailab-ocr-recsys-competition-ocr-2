@@ -14,11 +14,13 @@ import tempfile
 import time
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import cv2
+import numpy as np
 import streamlit as st
 
+from ..models.config import PreprocessingConfig
 from ..models.ui_events import InferenceRequest
 from ..state import InferenceState
 
@@ -31,18 +33,40 @@ except ImportError:  # pragma: no cover - mocked in dev environments
 
 ENGINE_AVAILABLE = run_inference_on_image is not None
 
+try:
+    from ocr.datasets.preprocessing import (
+        DOCTR_AVAILABLE,
+        DocumentPreprocessor,
+    )
+except ImportError:  # pragma: no cover - optional dependency guard
+    DOCTR_AVAILABLE = False
+    DocumentPreprocessor = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:
+    from ocr.datasets.preprocessing import (
+        DocumentPreprocessor as DocumentPreprocessorType,
+    )
+else:  # pragma: no cover - runtime fallback for optional dependency
+    DocumentPreprocessorType = Any
+
 
 class InferenceService:
     def run(self, state: InferenceState, request: InferenceRequest, hyperparams: dict[str, float]) -> None:
-        state.ensure_processed_bucket(request.model_path)
+        mode_key = "docTR:on" if request.use_preprocessing else "docTR:off"
+        state.ensure_processed_bucket(request.model_path, mode_key)
         total_files = len(request.files)
         new_results: list[dict[str, Any]] = []
 
         progress = st.progress(0.0, text=f"Starting inference for {total_files} images...")
 
+        preprocessor = None
+        if request.use_preprocessing and DocumentPreprocessor is not None:
+            preprocessor = self._build_preprocessor(request.preprocessing_config)
+
         for index, uploaded_file in enumerate(request.files):
             filename = uploaded_file.name
-            if filename in state.processed_images[request.model_path]:
+            processed_bucket = state.processed_images[request.model_path][mode_key]
+            if filename in processed_bucket:
                 progress.progress(
                     (index + 1) / total_files,
                     text=f"Skipped {filename} (already processed)... ({index + 1}/{total_files})",
@@ -56,9 +80,16 @@ class InferenceService:
                 temp_path = Path(tmp_file.name)
 
             try:
-                result = self._perform_inference(temp_path, Path(request.model_path), filename, hyperparams)
+                result = self._perform_inference(
+                    temp_path,
+                    Path(request.model_path),
+                    filename,
+                    hyperparams,
+                    request.use_preprocessing,
+                    preprocessor,
+                )
                 new_results.append(result)
-                state.processed_images[request.model_path].add(filename)
+                processed_bucket.add(filename)
             finally:
                 if temp_path.exists():
                     temp_path.unlink()
@@ -76,7 +107,10 @@ class InferenceService:
         model_path: Path,
         filename: str,
         hyperparams: dict[str, float],
+        use_preprocessing: bool,
+        preprocessor: DocumentPreprocessorType | None,
     ) -> dict[str, Any]:
+        processed_temp_path: Path | None = None
         try:
             image = cv2.imread(str(image_path))
             if image is None:
@@ -84,12 +118,41 @@ class InferenceService:
 
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
+            inference_rgb = image_rgb
+            preprocessing_info: dict[str, Any] = {
+                "enabled": use_preprocessing,
+                "metadata": None,
+                "original": image_rgb,
+                "processed": None,
+                "doctr_available": DOCTR_AVAILABLE,
+                "mode": "docTR:on" if use_preprocessing else "docTR:off",
+            }
+            inference_target_path = image_path
+
+            if use_preprocessing and preprocessor is not None:
+                try:
+                    processed = preprocessor(image_rgb.copy())
+                    processed_image = processed.get("image")
+                    if processed_image is None:
+                        raise ValueError("DocumentPreprocessor returned no image result.")
+                    inference_rgb = np.asarray(processed_image)
+                    preprocessing_info["metadata"] = processed.get("metadata")
+                    preprocessing_info["processed"] = inference_rgb
+                    inference_target_path = self._write_temp_image(inference_rgb, suffix=image_path.suffix)
+                    processed_temp_path = inference_target_path
+                except Exception as exc:  # noqa: BLE001
+                    LOGGER.exception("docTR preprocessing failed for %s: %s", filename, exc)
+                    preprocessing_info["error"] = str(exc)
+                    preprocessing_info["enabled"] = False
+                    inference_rgb = image_rgb
+                    inference_target_path = image_path
+
             predictions = None
             if ENGINE_AVAILABLE and run_inference_on_image:
                 inference_fn = run_inference_on_image
                 try:
                     predictions = inference_fn(
-                        str(image_path),
+                        str(inference_target_path),
                         str(model_path),
                         hyperparams.get("binarization_thresh"),
                         hyperparams.get("box_thresh"),
@@ -104,17 +167,21 @@ class InferenceService:
                     predictions = None
 
             if predictions is None:
-                predictions = self._generate_mock_predictions(image_rgb.shape)
+                predictions = self._generate_mock_predictions(inference_rgb.shape)
 
             return {
                 "filename": filename,
                 "success": True,
-                "image": image_rgb,
+                "image": inference_rgb,
                 "predictions": predictions,
+                "preprocessing": preprocessing_info,
             }
         except Exception as exc:  # noqa: BLE001
             LOGGER.exception("Inference failed for %s", filename)
             return {"filename": filename, "success": False, "error": str(exc)}
+        finally:
+            if processed_temp_path and processed_temp_path.exists():
+                processed_temp_path.unlink()
 
     @staticmethod
     def _generate_mock_predictions(image_shape: Sequence[int]) -> dict[str, Any]:
@@ -129,3 +196,22 @@ class InferenceService:
             "texts": ["Sample Text 1", "Another Example", "Third Line"],
             "confidences": [0.95, 0.87, 0.92],
         }
+
+    @staticmethod
+    def _write_temp_image(image_rgb: np.ndarray, suffix: str) -> Path:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+            if not cv2.imwrite(tmp_file.name, image_bgr):
+                raise ValueError("Failed to serialize preprocessed image for inference.")
+            return Path(tmp_file.name)
+
+    @staticmethod
+    def _build_preprocessor(config: PreprocessingConfig | None) -> DocumentPreprocessorType | None:
+        if DocumentPreprocessor is None:
+            return None
+
+        if config is None:
+            return DocumentPreprocessor()
+
+        kwargs = config.to_kwargs()
+        return DocumentPreprocessor(**kwargs)

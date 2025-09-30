@@ -22,6 +22,7 @@ from ..models.config import (
     ModelSelectorConfig,
     NotificationConfig,
     PathConfig,
+    PreprocessingConfig,
     ResultsConfig,
     SliderConfig,
     UIConfig,
@@ -68,6 +69,12 @@ def load_ui_config(config_path: Path | None = None) -> UIConfig:
     hyperparameters_section = raw_config.get("hyperparameters", {})
     hyperparameters = {key: SliderConfig.from_mapping(key, value) for key, value in hyperparameters_section.items()}
 
+    preprocessing_section = dict(raw_config.get("preprocessing", {}))
+    target_size = preprocessing_section.get("target_size")
+    if isinstance(target_size, list | tuple) and len(target_size) == 2:
+        preprocessing_section["target_size"] = tuple(int(value) for value in target_size)
+    preprocessing = PreprocessingConfig(**preprocessing_section)
+
     return UIConfig(
         app=app_section,
         model_selector=model_selector,
@@ -76,4 +83,5 @@ def load_ui_config(config_path: Path | None = None) -> UIConfig:
         results=results,
         notifications=notifications,
         paths=paths,
+        preprocessing=preprocessing,
     )

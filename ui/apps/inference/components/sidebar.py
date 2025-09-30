@@ -17,7 +17,7 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 from ..models.checkpoint import CheckpointMetadata
 from ..models.config import SliderConfig, UIConfig
 from ..models.ui_events import InferenceRequest
-from ..state import InferenceState, init_hyperparameters
+from ..state import InferenceState, init_hyperparameters, init_preprocessing
 
 
 def render_controls(
@@ -26,10 +26,12 @@ def render_controls(
     checkpoints: Sequence[CheckpointMetadata],
 ) -> InferenceRequest | None:
     init_hyperparameters(config.hyperparameters)
+    init_preprocessing(config.preprocessing)
 
     selected_metadata = _render_model_selector(state, config, checkpoints)
     _render_model_status(selected_metadata, config)
     _render_hyperparameter_sliders(state, config)
+    _render_preprocessing_controls(state, config)
     inference_request = _render_upload_section(state, selected_metadata, config)
     _render_clear_results(state)
     state.persist()
@@ -106,6 +108,31 @@ def _render_hyperparameter_sliders(state: InferenceState, config: UIConfig) -> N
     state.persist()
 
 
+def _render_preprocessing_controls(state: InferenceState, config: UIConfig) -> None:
+    st.subheader("Preprocessing")
+    enabled = st.checkbox(
+        config.preprocessing.enable_label,
+        value=state.preprocessing_enabled,
+        help=config.preprocessing.enable_help,
+    )
+    state.preprocessing_enabled = bool(enabled)
+
+    if state.preprocessing_enabled:
+        try:
+            from ocr.datasets.preprocessing import DOCTR_AVAILABLE
+
+            if not DOCTR_AVAILABLE:
+                st.warning(
+                    "python-doctr is not installed. docTR preprocessing will fall back to OpenCV-only steps.",
+                    icon="⚠️",
+                )
+        except Exception:
+            st.warning(
+                "Unable to verify python-doctr availability. Ensure it is installed for docTR preprocessing.",
+                icon="⚠️",
+            )
+
+
 def _slider(slider_cfg: SliderConfig, default_value: float | int) -> float:
     kwargs = {
         "min_value": int(slider_cfg.min) if slider_cfg.is_integer_domain() else float(slider_cfg.min),
@@ -149,7 +176,12 @@ def _render_upload_section(
         file = uploaded_files[0]
         st.success("✅ 1 image uploaded and ready for inference")
         if st.button("🚀 Run Inference", width="stretch"):
-            return InferenceRequest(files=[file], model_path=str(metadata.checkpoint_path))
+            return InferenceRequest(
+                files=[file],
+                model_path=str(metadata.checkpoint_path),
+                use_preprocessing=state.preprocessing_enabled,
+                preprocessing_config=config.preprocessing,
+            )
         return None
 
     _update_selected_images(state, uploaded_files)
@@ -160,7 +192,12 @@ def _render_upload_section(
     if selected_files:
         st.success(f"✅ {len(selected_files)} of {len(uploaded_files)} images selected for inference")
         if st.button("🚀 Run Inference", width="stretch"):
-            return InferenceRequest(files=selected_files, model_path=str(metadata.checkpoint_path))
+            return InferenceRequest(
+                files=selected_files,
+                model_path=str(metadata.checkpoint_path),
+                use_preprocessing=state.preprocessing_enabled,
+                preprocessing_config=config.preprocessing,
+            )
     else:
         st.warning("⚠️ No images selected for inference")
 
