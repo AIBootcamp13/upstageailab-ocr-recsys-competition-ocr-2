@@ -59,7 +59,7 @@ All modular refactors follow the same four-phase loop. Each phase maps to the ch
 ### **Phase 4: Finalise & Document**
 
 1. **Update References & Configs:** Point Hydra configs, registries, and imports at the new modules.
-2. **Remove Dead Code:** Once the new path is stable, delete the superseded files/functions.
+2. **Remove Dead Code:** Once the new path is stable, delete the superseded files/functions. Treat thin compatibility wrappers (for example, the former `ui/visualization/*` shims) as temporary scaffolding—remove them once call sites consume the modular replacements or rely on a central alias.
 3. **Document the Change:** Update the AI Handbook references and add a `docs/ai_handbook/05_changelog/` entry summarising the refactor.
 
 ## **5. Refactoring Checklist**
@@ -74,3 +74,4 @@ Use this checklist as a readiness gate before you declare the refactor complete.
   - [ ] Hydra configs under `configs/` created or adjusted.
 - [ ] **Validation:** Unit tests / smoke tests (e.g., `trainer.fast_dev_run=true`) pass.
 - [ ] **Documentation:** Handbook + changelog updated, obsolete code removed.
+- [ ] **Compatibility:** Temporary adapters/aliases reviewed; only the minimal bridging layer (if any) remains.

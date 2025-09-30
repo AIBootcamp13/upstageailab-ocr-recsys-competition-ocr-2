@@ -53,3 +53,37 @@ This document lists approved, safe-to-run scripts for autonomous execution. All 
 	* `--mode both` before major data refactors to capture a complete baseline.
 * **Expected Output:** Orientation histogram, polygon audit summary (including drop counts and example file ids).
 * **Resources:** Low (CPU, < 15s)
+
+## **5. Streamlit UI Launchers**
+
+All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the commands below to launch the corresponding app without relying on deprecated monolithic scripts.
+
+### **Evaluation Viewer**
+
+* **Purpose:** Launch the modular evaluation results dashboard.
+* **Command:** `uv run python run_ui.py evaluation_viewer`
+* **Expected Output:** Streamlit UI served on the configured port (default 8501) showing comparison dashboards.
+* **Resources:** Medium (CPU/GPU as needed, keep < 1m startup).
+
+### **Inference Sandbox**
+
+* **Purpose:** Run the interactive inference UI with modular engine back-end.
+* **Command:** `uv run python run_ui.py inference`
+* **Expected Output:** Streamlit UI for uploading images, running inference, and visualizing predictions.
+* **Resources:** Medium (GPU optional; CPU inference available with lighter checkpoints).
+
+### **Command Builder**
+
+* **Purpose:** Generate hydra command strings using the modular workflow forms.
+* **Command:** `uv run python run_ui.py command_builder`
+* **Expected Output:** Streamlit UI with command presets and copy-to-clipboard helpers.
+* **Resources:** Low (CPU, < 10s startup).
+
+### **Resource Monitor**
+
+* **Purpose:** Monitor training/inference processes in real time.
+* **Command:** `uv run python run_ui.py resource_monitor`
+* **Expected Output:** Streamlit UI with system metrics, experiment status, and queue overview.
+* **Resources:** Low (CPU, < 10s startup).
+
+> **Note:** The legacy `ui/test_viewer.py` entrypoint has been removed. Use the commands above for all future UI access.

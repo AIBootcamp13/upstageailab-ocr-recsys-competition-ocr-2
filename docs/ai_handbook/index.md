@@ -2,8 +2,8 @@
 
 # **AI Agent Handbook: OCR Project**
 
-Version: 1.0 (2025-09-28)
-Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-09-28_documentation-refactor-complete.md).
+Version: 1.1 (2025-09-29)
+Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-09-29_legacy-ui-cleanup.md).
 
 ## **1. Project Overview**
 
@@ -31,6 +31,11 @@ Use these curated "context bundles" to load the most relevant files for common t
 
 1. **Protocol:** [Utility Adoption Guide](./02_protocols/04_utility_adoption.md)
 2. **Reference:** [Existing Utility Functions](./03_references/03_utility_functions.md)
+
+#### **For Launching Streamlit Apps:**
+
+1. **Protocol:** [Command Registry](./02_protocols/02_command_registry.md)
+2. **Runner:** [`run_ui.py`](../run_ui.py) commands `evaluation_viewer`, `inference`, `command_builder`, `resource_monitor`
 
 ## **3. 🤖 Command Registry**
 

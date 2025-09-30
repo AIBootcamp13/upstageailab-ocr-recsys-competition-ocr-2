@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor serve-test-viewer pre-commit setup-dev ci
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci
 
 # Default target
 help:
@@ -21,7 +21,6 @@ help:
 	@echo "  serve-evaluation-ui - Start Evaluation Results Viewer"
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
 	@echo "  serve-resource-monitor - Start Resource Monitor UI"
-	@echo "  serve-test-viewer   - Start Test Results Viewer"
 	@echo "  pre-commit          - Install and run pre-commit hooks"
 
 # Installation
@@ -87,9 +86,6 @@ serve-inference-ui:
 
 serve-resource-monitor:
 	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)
-
-serve-test-viewer:
-	uv run streamlit run ui/test_viewer.py --server.port=$(PORT)
 
 # Development workflow
 setup-dev: dev-install pre-commit

@@ -141,7 +141,7 @@ def _render_enlarge_toggle(
         col1, col2 = st.columns([4, 1])
 
         with col1:
-            st.image(image, caption=f"Enlarged: {image_name}", use_column_width=True)
+            st.image(image, caption=f"Enlarged: {image_name}", use_container_width=True)
 
         with col2:
             st.markdown("**Image Details:**")

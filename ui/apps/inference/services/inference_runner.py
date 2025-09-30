@@ -27,7 +27,7 @@ from ..state import InferenceState
 LOGGER = logging.getLogger(__name__)
 
 try:
-    from ui.utils.inference_engine import run_inference_on_image
+    from ui.utils.inference import run_inference_on_image
 except ImportError:  # pragma: no cover - mocked in dev environments
     run_inference_on_image = None
 
