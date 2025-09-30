@@ -1,0 +1,322 @@
+dataset_base_path: ${hydra:runtime.cwd}/data/datasets/
+datasets:
+  train_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/train
+    annotation_path: ${dataset_base_path}jsons/train.json
+    transform: ${transforms.train_transform}
+  val_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.val_transform}
+  test_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.test_transform}
+  predict_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/test
+    annotation_path: null
+    transform: ${transforms.test_transform}
+transforms:
+  train_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.HorizontalFlip
+      p: 0.5
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  val_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  test_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: xy
+      remove_invisible: true
+  predict_transform:
+    _target_: ${dataset_path}.DBTransforms
+    transforms:
+    - _target_: albumentations.LongestMaxSize
+      max_size: 640
+      p: 1.0
+    - _target_: albumentations.PadIfNeeded
+      min_width: 640
+      min_height: 640
+      border_mode: 0
+      p: 1.0
+    - _target_: albumentations.Normalize
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+    keypoint_params: null
+collate_fn:
+  _target_: ${dataset_path}.DBCollateFN
+  shrink_ratio: 0.4
+  thresh_min: 0.3
+  thresh_max: 0.7
+dataloaders:
+  train_dataloader:
+    batch_size: ${data.batch_size}
+    shuffle: true
+    num_workers: 8
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+  val_dataloader:
+    batch_size: ${data.batch_size}
+    shuffle: false
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+  test_dataloader:
+    batch_size: ${data.batch_size}
+    shuffle: false
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+  predict_dataloader:
+    batch_size: ${data.batch_size}
+    shuffle: false
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+model:
+  architecture_name: dbnet
+  component_overrides:
+    encoder:
+      model_name: resnet18
+      select_features:
+      - 1
+      - 2
+      - 3
+      - 4
+      pretrained: true
+    decoder:
+      name: unet
+      params:
+        inner_channels: 256
+        output_channels: 256
+        out_channels: 256
+    head:
+      k: 50
+    loss:
+      negative_ratio: 3.0
+      prob_map_loss_weight: 5.0
+      thresh_map_loss_weight: 10.0
+      binary_map_loss_weight: 1.0
+  optimizer:
+    _target_: torch.optim.Adam
+    lr: 0.001
+    betas:
+    - 0.9
+    - 0.999
+    eps: 1.0e-08
+    weight_decay: 0.0001
+  _target_: ocr.models.architecture.OCRModel
+  scheduler:
+    _target_: torch.optim.lr_scheduler.StepLR
+    step_size: 100
+    gamma: 0.1
+  encoder:
+    _target_: ${encoder_path}.TimmBackbone
+    model_name: resnet18
+    select_features:
+    - 1
+    - 2
+    - 3
+    - 4
+    pretrained: true
+  decoder:
+    _target_: ${decoder_path}.UNet
+    in_channels:
+    - 64
+    - 128
+    - 256
+    - 512
+    strides:
+    - 4
+    - 8
+    - 16
+    - 32
+    inner_channels: 256
+    output_channels: 256
+    bias: false
+  head:
+    _target_: ${head_path}.DBHead
+    in_channels: 256
+    upscale: 4
+    k: 50
+    bias: false
+    smooth: false
+    postprocess:
+      thresh: 0.3
+      box_thresh: 0.4
+      max_candidates: 300
+      use_polygon: false
+  loss:
+    _target_: ${loss_path}.DBLoss
+    negative_ratio: 3.0
+    eps: 1.0e-06
+    prob_map_loss_weight: 5.0
+    thresh_map_loss_weight: 10.0
+    binary_map_loss_weight: 1.0
+paths:
+  log_dir: outputs/${exp_name}/logs
+  checkpoint_dir: outputs/${exp_name}/checkpoints
+  submission_dir: outputs/${exp_name}/submissions
+logger:
+  wandb: false
+  project_name: decoder-benchmark
+  exp_version: v1.0
+trainer:
+  max_epochs: 1
+  num_sanity_val_steps: 1
+  log_every_n_steps: 10
+  check_val_every_n_epoch: 1
+  deterministic: false
+  accumulate_grad_batches: 1
+  precision: 32
+  benchmark: true
+  gradient_clip_val: 5.0
+  accelerator: gpu
+  devices: 1
+callbacks:
+  early_stopping:
+    enabled: true
+    patience: 5
+  checkpoint:
+    enabled: true
+    filename: epoch-{epoch}-step-{step}
+debug:
+  verbose: false
+  profiling: false
+dataset_path: ocr.datasets
+model_path: ocr.models
+encoder_path: ocr.models.encoder
+decoder_path: ocr.models.decoder
+head_path: ocr.models.head
+loss_path: ocr.models.loss
+lightning_path: ocr.lightning_modules
+data:
+  batch_size: 12
+modules:
+  lightning_module:
+    _target_: ${lightning_path}.OCRPLModule
+  lightning_data_module:
+    _target_: ${lightning_path}.OCRDataPLModule
+seed: 42
+exp_name: decoder_benchmark
+resume: null
+benchmark:
+  base_exp_name: decoder_benchmark
+  output_dir: outputs/decoder_benchmark
+  results_filename: decoder_benchmark_${now:%Y%m%d_%H%M%S}.csv
+  metric_key: val/hmean
+  evaluate_split: val
+  run_test: false
+  skip_training: false
+  resume_from_checkpoint: null
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  limit_test_batches: 1.0
+  decoders:
+  - key: unet
+    name: unet
+    params:
+      inner_channels: 256
+      output_channels: 256
+  - key: fpn
+    name: fpn_decoder
+    params:
+      inner_channels: 256
+      output_channels: 256
+  - key: pan
+    name: pan_decoder
+    params:
+      inner_channels: 256
+      output_channels: 256
+  trainer_overrides:
+    max_epochs: 3
+    accelerator: auto
+    devices: 1
+    precision: 16-mixed
+    enable_checkpointing: false
+    enable_model_summary: false
+    log_every_n_steps: 25
+    limit_train_batches: ${benchmark.limit_train_batches}
+    limit_val_batches: ${benchmark.limit_val_batches}
+    limit_test_batches: ${benchmark.limit_test_batches}
+  logger_overrides:
+    wandb: false
+    project_name: decoder-benchmark
+    exp_version: bench

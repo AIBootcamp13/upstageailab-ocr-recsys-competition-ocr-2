@@ -1,0 +1,152 @@
+{
+  "source": "docs/ai_handbook/index.md",
+  "version": "1.0 (2025-09-28)",
+  "generated_at": "2025-09-29T08:16:32.878141+00:00",
+  "entries": [
+    {
+      "title": "our most recent changelog entry",
+      "path": "./05_changelog/2025-09-28_documentation-refactor-complete.md",
+      "section": "Ungrouped"
+    },
+    {
+      "title": "Coding Standards & Workflow",
+      "path": "./02_protocols/01_coding_standards.md",
+      "section": "For a New Feature or Model Component:"
+    },
+    {
+      "title": "Architecture",
+      "path": "./03_references/01_architecture.md",
+      "section": "For a New Feature or Model Component:"
+    },
+    {
+      "title": "Hydra & Component Registry",
+      "path": "./03_references/02_hydra_and_registry.md",
+      "section": "For a New Feature or Model Component:"
+    },
+    {
+      "title": "Debugging Workflow",
+      "path": "./02_protocols/03_debugging_workflow.md",
+      "section": "For Debugging a Training Run:"
+    },
+    {
+      "title": "Command Registry",
+      "path": "./02_protocols/02_command_registry.md",
+      "section": "For Debugging a Training Run:"
+    },
+    {
+      "title": "Experiment Logs",
+      "path": "./04_experiments/",
+      "section": "For Debugging a Training Run:"
+    },
+    {
+      "title": "Utility Adoption Guide",
+      "path": "./02_protocols/04_utility_adoption.md",
+      "section": "For Adding a New Utility Function:"
+    },
+    {
+      "title": "Existing Utility Functions",
+      "path": "./03_references/03_utility_functions.md",
+      "section": "For Adding a New Utility Function:"
+    },
+    {
+      "title": "**Command Registry**",
+      "path": "./02_protocols/02_command_registry.md",
+      "section": "For Adding a New Utility Function:"
+    },
+    {
+      "title": "Project & Environment Setup",
+      "path": "./01_onboarding/01_setup_and_tooling.md",
+      "section": "01. Onboarding"
+    },
+    {
+      "title": "Data Overview",
+      "path": "./01_onboarding/02_data_overview.md",
+      "section": "01. Onboarding"
+    },
+    {
+      "title": "Coding Standards & Workflow",
+      "path": "./02_protocols/01_coding_standards.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "**Command Registry**",
+      "path": "./02_protocols/02_command_registry.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Debugging Workflow",
+      "path": "./02_protocols/03_debugging_workflow.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Utility Adoption Guide",
+      "path": "./02_protocols/04_utility_adoption.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Modular Refactoring Guide",
+      "path": "./02_protocols/05_modular_refactor.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Context Logging and Summarization",
+      "path": "./02_protocols/06_context_logging.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Iterative Debugging and Root Cause Analysis",
+      "path": "./02_protocols/07_iterative_debugging.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Context Checkpointing & Restoration",
+      "path": "./02_protocols/08_context_checkpointing.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Hydra Configuration Refactoring",
+      "path": "./02_protocols/09_hydra_config_refactoring.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Refactoring Guide (redirect)",
+      "path": "./02_protocols/10_refactoring_guide.md",
+      "section": "02. Protocols (How-To Guides)"
+    },
+    {
+      "title": "Architecture",
+      "path": "./03_references/01_architecture.md",
+      "section": "03. References (Factual Information)"
+    },
+    {
+      "title": "Hydra & Component Registry",
+      "path": "./03_references/02_hydra_and_registry.md",
+      "section": "03. References (Factual Information)"
+    },
+    {
+      "title": "Utility Functions",
+      "path": "./03_references/03_utility_functions.md",
+      "section": "03. References (Factual Information)"
+    },
+    {
+      "title": "Evaluation Metrics",
+      "path": "./03_references/04_evaluation_metrics.md",
+      "section": "03. References (Factual Information)"
+    },
+    {
+      "title": "Experiment Log Template",
+      "path": "./04_experiments/TEMPLATE.md",
+      "section": "04. Experiments"
+    },
+    {
+      "title": "View All Experiments",
+      "path": "./04_experiments/",
+      "section": "04. Experiments"
+    },
+    {
+      "title": "View Project Changelog",
+      "path": "./05_changelog/",
+      "section": "05. Changelog"
+    }
+  ]
+}

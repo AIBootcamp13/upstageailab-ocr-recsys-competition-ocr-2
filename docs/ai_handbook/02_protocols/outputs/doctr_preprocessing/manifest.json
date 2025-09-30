@@ -1,0 +1,154 @@
+{
+  "doctr": {
+    "metadata": {
+      "document_corners": [
+        [
+          123.0,
+          4.0
+        ],
+        [
+          827.0,
+          116.0
+        ],
+        [
+          749.0,
+          614.0
+        ],
+        [
+          44.0,
+          503.0
+        ]
+      ],
+      "enhancement_applied": [
+        "gamma_correction",
+        "clahe_lab",
+        "saturation_boost",
+        "sharpening",
+        "noise_reduction"
+      ],
+      "final_shape": [
+        640,
+        640,
+        3
+      ],
+      "orientation": {
+        "angle_correction": -9.166958808898926,
+        "original_angle": 9.166958808898926,
+        "processed_shape": [
+          621,
+          873,
+          3
+        ],
+        "redetection_success": true
+      },
+      "original_shape": [
+        512,
+        720,
+        3
+      ],
+      "perspective_matrix": [
+        [
+          0.9852493170941701,
+          0.15598135481049988,
+          -121.80959142182492
+        ],
+        [
+          -0.15685411945177102,
+          0.9859401794111321,
+          15.349295974923308
+        ],
+        [
+          -3.4976990206706598e-06,
+          1.7876468819122176e-06,
+          1.0
+        ]
+      ],
+      "perspective_method": "doctr_rcrop",
+      "processing_steps": [
+        "document_detection",
+        "orientation_correction",
+        "perspective_correction",
+        "image_enhancement",
+        "text_enhancement"
+      ]
+    },
+    "metadata_path": "docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/demo_doctr.metadata.json",
+    "path": "docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/demo_doctr.png"
+  },
+  "opencv": {
+    "metadata": {
+      "document_corners": [
+        [
+          442.0,
+          362.0
+        ],
+        [
+          625.0,
+          339.0
+        ],
+        [
+          637.0,
+          425.0
+        ],
+        [
+          454.0,
+          444.0
+        ]
+      ],
+      "enhancement_applied": [
+        "gamma_correction",
+        "clahe_lab",
+        "saturation_boost",
+        "sharpening",
+        "noise_reduction"
+      ],
+      "final_shape": [
+        640,
+        640,
+        3
+      ],
+      "original_shape": [
+        512,
+        720,
+        3
+      ],
+      "perspective_matrix": [
+        [
+          1.1251100768220637,
+          -0.16465025514469206,
+          -437.6952615929735
+        ],
+        [
+          0.14108163582153788,
+          1.122519102406148,
+          -468.7099981041453
+        ],
+        [
+          0.00027694457401291456,
+          -8.049125080132057e-05,
+          1.0
+        ]
+      ],
+      "perspective_method": "opencv",
+      "processing_steps": [
+        "document_detection",
+        "perspective_correction",
+        "image_enhancement",
+        "text_enhancement"
+      ]
+    },
+    "metadata_path": "docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/demo_opencv.metadata.json",
+    "path": "docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/demo_opencv.png"
+  },
+  "original": {
+    "metadata": {
+      "description": "Synthetic document used for docTR preprocessing demo",
+      "shape": [
+        512,
+        720,
+        3
+      ]
+    },
+    "path": "docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/demo_original.png"
+  }
+}
