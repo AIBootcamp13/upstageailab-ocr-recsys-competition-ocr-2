@@ -419,6 +419,16 @@
       "name": "Launch command builder UI",
       "command": "uv run python run_ui.py command_builder",
       "bundle": "streamlit-maintenance"
+    },
+    {
+      "name": "Start context log",
+      "command": "uv run python scripts/agent_tools/context_log.py start --label <short-label>",
+      "bundle": "context-management"
+    },
+    {
+      "name": "Summarize context log",
+      "command": "uv run python scripts/agent_tools/context_log.py summarize --log-file <path>",
+      "bundle": "context-management"
     }
   ]
 }

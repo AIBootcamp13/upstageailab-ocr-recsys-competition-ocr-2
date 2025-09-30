@@ -10,14 +10,21 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
 def call_llm_for_summary(text_content: str) -> str:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY environment variable is required to summarize logs.")
+
+    client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model="gpt-4o-mini", messages=[{"role": "user", "content": f"Summarize the following agent run log:\n\n{text_content}"}]
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+    if content is None:  # pragma: no cover - defensive guard for API changes
+        raise RuntimeError("LLM response did not contain summary content.")
+    return content
 
 
 def summarize_log_file(log_path: Path):

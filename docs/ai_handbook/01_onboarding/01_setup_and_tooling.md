@@ -40,6 +40,13 @@ Execute any Python script within the project's virtual environment.
 
 uv run python path/to/your/script.py
 
+## **4. Environment Variables & Secrets**
+
+- Copy `.env.template` to `.env.local` and populate API keys (OpenAI, Upstage, Weights & Biases, GitHub tokens, etc.).
+- Keep `.env` under version control; it only contains non-sensitive defaults such as `AGENT_CONTEXT_LOG_DIR` and an optional `AGENT_CONTEXT_LOG_LABEL`.
+- The context logging helpers automatically read `AGENT_CONTEXT_LOG_DIR` and `AGENT_CONTEXT_LOG_LABEL`. Override these in `.env.local` or export them in your shell before starting a session.
+- Never commit real API keys—`.env.local` is ignored by git.
+
 ## **3. VS Code Integration**
 
 The repository is pre-configured for a seamless experience in Visual Studio Code.

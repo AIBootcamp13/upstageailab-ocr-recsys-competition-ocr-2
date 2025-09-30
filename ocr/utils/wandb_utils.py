@@ -17,28 +17,33 @@ import wandb
 
 
 def load_env_variables():
-    """Load environment variables from .env file if it exists."""
-    env_file = Path(".env")
-    if env_file.exists():
+    """Load environment variables from .env/.env.local if present."""
+
+    def _load_file(env_file: Path) -> None:
         try:
-            with open(env_file) as f:
+            with env_file.open() as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        key = key.strip()
-                        value = value.strip().strip('"').strip("'")  # Remove quotes
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    if key:
                         os.environ[key] = value
-                        # Auto-login to WandB if API key is provided
                         if key == "WANDB_API_KEY" and value:
                             try:
                                 import wandb
 
                                 wandb.login(key=value)
-                            except Exception as e:
-                                print(f"Warning: Failed to login to WandB: {e}")
-        except Exception as e:
-            print(f"Warning: Failed to load .env file: {e}")
+                            except Exception as exc:
+                                print(f"Warning: Failed to login to WandB: {exc}")
+        except Exception as exc:
+            print(f"Warning: Failed to load {env_file}: {exc}")
+
+    for candidate in (Path(".env.local"), Path(".env")):
+        if candidate.exists():
+            _load_file(candidate)
 
 
 _NAME_SANITIZE_PATTERN = re.compile(r"[^0-9a-zA-Z]+")

@@ -92,7 +92,7 @@ def train(config):
 
         from ocr.utils.wandb_utils import generate_run_name, load_env_variables  # noqa: E402
 
-        # Load environment variables from .env file
+        # Load environment variables from .env.local/.env
         load_env_variables()
 
         run_name = generate_run_name(config)

@@ -93,17 +93,17 @@ else
     print_warning "GPU not available or PyTorch not properly installed"
 fi
 
-# Create .env file if it doesn't exist
-if [ ! -f .env ]; then
-    print_status "Creating .env file from template..."
-    cp .env.example .env 2>/dev/null || echo "# Add your API keys here" > .env
-    print_warning "Please edit .env file with your API keys"
+# Create .env.local file if it doesn't exist
+if [ ! -f .env.local ]; then
+    print_status "Creating .env.local file from template..."
+    cp .env.template .env.local 2>/dev/null || echo "# Add your API keys here" > .env.local
+    print_warning "Please edit .env.local with your API keys"
 fi
 
 print_success "🎉 Setup complete!"
 echo ""
 echo "Next steps:"
-echo "1. Edit .env file with your API keys (if needed)"
+echo "1. Edit .env.local with your API keys (if needed)"
 echo "2. Run training: python runners/train.py"
 echo "3. Run prediction: python runners/predict.py"
 echo "4. For development, use VS Code with the provided settings"

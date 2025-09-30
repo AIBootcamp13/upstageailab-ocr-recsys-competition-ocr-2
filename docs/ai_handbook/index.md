@@ -38,6 +38,12 @@ Use these curated "context bundles" to load the most relevant files for common t
 2. **Runner:** [`run_ui.py`](../run_ui.py) commands `evaluation_viewer`, `inference`, `command_builder`, `resource_monitor`
 3. **Doc Bundle:** `uv run python scripts/agent_tools/get_context.py --bundle streamlit-maintenance`
 
+#### **For Managing Agent Context Logs:**
+
+1. **Protocol:** [Context Logging & Summarization](./02_protocols/06_context_logging.md)
+2. **Start Log:** `make context-log-start LABEL="<task>"`
+3. **Summarize Log:** `make context-log-summarize LOG=logs/agent_runs/<file>.jsonl`
+
 #### **For Updating Handbook Metadata & Bundles:**
 
 1. **Manifest:** [`docs/ai_handbook/index.json`](./index.json)

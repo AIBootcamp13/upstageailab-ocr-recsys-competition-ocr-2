@@ -98,6 +98,22 @@ All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the c
 * **Expected Output:** Titles, paths, priorities, and tag summaries for each doc in the bundle.
 * **Resources:** Negligible.
 
+### **Start Context Log**
+
+* **Purpose:** Creates a timestamped JSONL log under `logs/agent_runs/` and prints its path for the current session.
+* **Command:** `uv run python scripts/agent_tools/context_log.py start --label <short-label>`
+* **Make Shortcut:** `make context-log-start LABEL="streamlit-maintenance"`
+* **Expected Output:** Absolute path to the log file that subsequent logging calls should append to.
+* **Resources:** Negligible.
+
+### **Summarize Context Log**
+
+* **Purpose:** Generates a Markdown summary from a structured context log using the LLM helper.
+* **Command:** `uv run python scripts/agent_tools/context_log.py summarize --log-file <path>`
+* **Make Shortcut:** `make context-log-summarize LOG=logs/agent_runs/<file>.jsonl`
+* **Expected Output:** Markdown file stored in `docs/ai_handbook/04_experiments/` and a success message containing the path.
+* **Resources:** Negligible beyond LLM call latency.
+
 ### **Validate Handbook Manifest**
 
 * **Purpose:** Ensures the handbook manifest stays consistent (unique IDs, valid paths, and bundle/command integrity).

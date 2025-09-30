@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize
 
 # Default target
 help:
@@ -21,6 +21,8 @@ help:
 	@echo "  serve-evaluation-ui - Start Evaluation Results Viewer"
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
 	@echo "  serve-resource-monitor - Start Resource Monitor UI"
+	@echo "  context-log-start   - Create a new context log JSONL file"
+	@echo "  context-log-summarize - Summarize a context log into Markdown"
 	@echo "  pre-commit          - Install and run pre-commit hooks"
 
 # Installation
@@ -86,6 +88,16 @@ serve-inference-ui:
 
 serve-resource-monitor:
 	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)
+
+context-log-start:
+	uv run python scripts/agent_tools/context_log.py start $(if $(LABEL),--label "$(LABEL)")
+
+context-log-summarize:
+	@if [ -z "$(LOG)" ]; then \
+		echo "Usage: make context-log-summarize LOG=logs/agent_runs/<file>.jsonl"; \
+		exit 1; \
+	fi
+	uv run python scripts/agent_tools/context_log.py summarize --log-file $(LOG)
 
 # Development workflow
 setup-dev: dev-install pre-commit
