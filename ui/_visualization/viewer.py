@@ -2,6 +2,13 @@ from __future__ import annotations
 
 """Image viewer utilities."""
 
+# AI_DOCS[
+#   bundle: streamlit-maintenance
+#   priority: medium
+#   path: docs/ai_handbook/02_protocols/11_streamlit_maintenance_protocol.md#5-maintenance-playbook
+#   path: docs/ai_handbook/02_protocols/05_modular_refactor.md#2-when-to-use-this-protocol
+# ]
+
 from pathlib import Path
 
 import pandas as pd

@@ -87,3 +87,31 @@ All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the c
 * **Resources:** Low (CPU, < 10s startup).
 
 > **Note:** The legacy `ui/test_viewer.py` entrypoint has been removed. Use the commands above for all future UI access.
+
+## **6. Documentation & Context Utilities**
+
+### **Doc Context Bundle Loader**
+
+* **Purpose:** Prints the recommended documentation bundle for a given task (as defined in `docs/ai_handbook/index.json`).
+* **Command:** `uv run python scripts/agent_tools/get_context.py --bundle <bundle-id>`
+* **Example:** `uv run python scripts/agent_tools/get_context.py --bundle streamlit-maintenance`
+* **Expected Output:** Titles, paths, priorities, and tag summaries for each doc in the bundle.
+* **Resources:** Negligible.
+
+### **Validate Handbook Manifest**
+
+* **Purpose:** Ensures the handbook manifest stays consistent (unique IDs, valid paths, and bundle/command integrity).
+* **Command:** `uv run python scripts/agent_tools/validate_manifest.py`
+* **Options:** `--allow-unbundled` downgrades warnings when intentionally leaving entries outside bundles.
+* **Expected Output:** `Manifest check: PASS` with optional warnings, or a detailed list of errors before exiting with status 1.
+* **Resources:** Negligible.
+
+### **Strip AI Documentation Markers**
+
+* **Purpose:** Removes `AI_DOCS` annotations from source files before sharing publicly (with an option to restore from snapshot).
+* **Command:**
+	* Dry run: `uv run python scripts/agent_tools/strip_doc_markers.py --dry-run`
+	* Apply: `uv run python scripts/agent_tools/strip_doc_markers.py --apply`
+	* Restore: `uv run python scripts/agent_tools/strip_doc_markers.py --restore`
+* **Expected Output:** Lists files containing markers, and when `--apply` is used, stores a snapshot to `tmp/ai_docs_markers.json` for later restoration.
+* **Resources:** Negligible.

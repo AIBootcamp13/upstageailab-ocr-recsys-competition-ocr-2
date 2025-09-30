@@ -107,6 +107,12 @@ Run this protocol whenever any of the following occur:
 2. Inspect logs for warnings (e.g., compatibility mismatches, missing configs, schema validation failures, torch load fallbacks).
 3. Run a targeted UI smoke test (if available) or manual QA with sample artifacts sourced from `ui_meta/`.
 
+### **Step 4 – Sync Documentation Hooks**
+
+1. Verify `AI_DOCS` markers in touched modules still cite the correct sections (search for `# AI_DOCS[`).
+2. Run `uv run python scripts/agent_tools/validate_manifest.py` after editing handbook bundles or commands to catch broken links early.
+3. If sharing code publicly, strip markers before publishing (`uv run python scripts/agent_tools/strip_doc_markers.py --apply`) and restore afterward.
+
 ### **Step 4 – Close the Loop**
 
 1. Capture results in commit message (`streamlit: <summary>`)

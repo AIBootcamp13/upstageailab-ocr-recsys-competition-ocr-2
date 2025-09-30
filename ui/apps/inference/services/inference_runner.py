@@ -9,6 +9,14 @@ and related schemas; keep them authoritative instead of adding ad-hoc logic
 here.
 """
 
+# AI_DOCS[
+#   bundle: streamlit-maintenance
+#   priority: high
+#   path: docs/ai_handbook/02_protocols/11_streamlit_maintenance_protocol.md#4-maintenance-checklist
+#   path: docs/ai_handbook/02_protocols/05_modular_refactor.md#phase-4-finalise--document
+#   path: docs/ai_handbook/02_protocols/08_context_checkpointing.md#how-to-create-a-checkpoint
+# ]
+
 import logging
 import tempfile
 import time

@@ -8,6 +8,14 @@ Before tweaking layout or copy, review the configs in
 refactor protocols documented in ``docs/ai_handbook/02_protocols``.
 """
 
+# AI_DOCS[
+#   bundle: streamlit-maintenance
+#   priority: high
+#   path: docs/ai_handbook/02_protocols/11_streamlit_maintenance_protocol.md#4-maintenance-checklist
+#   path: docs/ai_handbook/02_protocols/05_modular_refactor.md#5-refactoring-checklist
+#   path: docs/ai_handbook/02_protocols/02_command_registry.md#5-streamlit-ui-launchers
+# ]
+
 from typing import Any
 
 import numpy as np

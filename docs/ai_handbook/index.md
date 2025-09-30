@@ -2,7 +2,7 @@
 
 # **AI Agent Handbook: OCR Project**
 
-Version: 1.1 (2025-09-29)
+Version: 1.2 (2025-09-30)
 Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-09-29_legacy-ui-cleanup.md).
 
 ## **1. Project Overview**
@@ -36,6 +36,13 @@ Use these curated "context bundles" to load the most relevant files for common t
 
 1. **Protocol:** [Command Registry](./02_protocols/02_command_registry.md)
 2. **Runner:** [`run_ui.py`](../run_ui.py) commands `evaluation_viewer`, `inference`, `command_builder`, `resource_monitor`
+3. **Doc Bundle:** `uv run python scripts/agent_tools/get_context.py --bundle streamlit-maintenance`
+
+#### **For Updating Handbook Metadata & Bundles:**
+
+1. **Manifest:** [`docs/ai_handbook/index.json`](./index.json)
+2. **Validator:** `uv run python scripts/agent_tools/validate_manifest.py`
+3. **Bundle Preview:** `uv run python scripts/agent_tools/get_context.py --list-bundles`
 
 ## **3. 🤖 Command Registry**
 

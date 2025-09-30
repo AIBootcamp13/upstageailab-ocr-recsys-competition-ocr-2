@@ -1,152 +1,276 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.0 (2025-09-28)",
-  "generated_at": "2025-09-29T08:16:32.878141+00:00",
+  "version": "1.1 (2025-09-30)",
+  "generated_at": "2025-09-30T00:00:00Z",
   "entries": [
     {
-      "title": "our most recent changelog entry",
-      "path": "./05_changelog/2025-09-28_documentation-refactor-complete.md",
-      "section": "Ungrouped"
+      "id": "changelog-latest",
+      "title": "2025-09-29 Legacy UI Cleanup",
+      "path": "./05_changelog/2025-09-29_legacy-ui-cleanup.md",
+      "section": "05. Changelog",
+      "tags": ["changelog"],
+      "priority": "medium",
+      "summary": "Notes the removal of legacy Streamlit viewers and related handbook updates.",
+      "last_reviewed": "2025-09-29",
+      "owner": "documentation",
+      "bundles": ["streamlit-maintenance"]
     },
     {
+      "id": "coding-standards",
       "title": "Coding Standards & Workflow",
       "path": "./02_protocols/01_coding_standards.md",
-      "section": "For a New Feature or Model Component:"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["engineering", "workflow"],
+      "priority": "medium",
+      "summary": "Core conventions for code style, branching, reviews, and automation etiquette.",
+      "last_reviewed": "2025-09-28",
+      "owner": "core-team",
+      "bundles": ["new-feature", "refactor"]
     },
     {
+      "id": "architecture",
       "title": "Architecture",
       "path": "./03_references/01_architecture.md",
-      "section": "For a New Feature or Model Component:"
+      "section": "03. References (Factual Information)",
+      "tags": ["architecture", "models"],
+      "priority": "medium",
+      "summary": "System overview, component registries, and DBNet data flow diagrams.",
+      "last_reviewed": "2025-09-28",
+      "owner": "core-team",
+      "bundles": ["new-feature", "refactor"]
     },
     {
+      "id": "hydra-registry",
       "title": "Hydra & Component Registry",
       "path": "./03_references/02_hydra_and_registry.md",
-      "section": "For a New Feature or Model Component:"
+      "section": "03. References (Factual Information)",
+      "tags": ["hydra", "registry"],
+      "priority": "medium",
+      "summary": "Guidance for defining, registering, and configuring modular components.",
+      "last_reviewed": "2025-09-28",
+      "owner": "ml-platform",
+      "bundles": ["new-feature", "refactor"]
     },
     {
-      "title": "Debugging Workflow",
-      "path": "./02_protocols/03_debugging_workflow.md",
-      "section": "For Debugging a Training Run:"
-    },
-    {
+      "id": "command-registry",
       "title": "Command Registry",
       "path": "./02_protocols/02_command_registry.md",
-      "section": "For Debugging a Training Run:"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["automation", "commands"],
+      "priority": "high",
+      "summary": "Curated list of safe commands, including Streamlit launchers and validation utilities.",
+      "last_reviewed": "2025-09-29",
+      "owner": "automation",
+      "bundles": ["streamlit-maintenance", "debugging", "new-feature"]
     },
     {
-      "title": "Experiment Logs",
-      "path": "./04_experiments/",
-      "section": "For Debugging a Training Run:"
-    },
-    {
-      "title": "Utility Adoption Guide",
-      "path": "./02_protocols/04_utility_adoption.md",
-      "section": "For Adding a New Utility Function:"
-    },
-    {
-      "title": "Existing Utility Functions",
-      "path": "./03_references/03_utility_functions.md",
-      "section": "For Adding a New Utility Function:"
-    },
-    {
-      "title": "**Command Registry**",
-      "path": "./02_protocols/02_command_registry.md",
-      "section": "For Adding a New Utility Function:"
-    },
-    {
-      "title": "Project & Environment Setup",
-      "path": "./01_onboarding/01_setup_and_tooling.md",
-      "section": "01. Onboarding"
-    },
-    {
-      "title": "Data Overview",
-      "path": "./01_onboarding/02_data_overview.md",
-      "section": "01. Onboarding"
-    },
-    {
-      "title": "Coding Standards & Workflow",
-      "path": "./02_protocols/01_coding_standards.md",
-      "section": "02. Protocols (How-To Guides)"
-    },
-    {
-      "title": "**Command Registry**",
-      "path": "./02_protocols/02_command_registry.md",
-      "section": "02. Protocols (How-To Guides)"
-    },
-    {
+      "id": "debugging-workflow",
       "title": "Debugging Workflow",
       "path": "./02_protocols/03_debugging_workflow.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["debugging"],
+      "priority": "medium",
+      "summary": "Step-by-step flow for triaging failures across training, evaluation, and UI layers.",
+      "last_reviewed": "2025-09-28",
+      "owner": "core-team",
+      "bundles": ["debugging"]
     },
     {
+      "id": "utility-adoption",
       "title": "Utility Adoption Guide",
       "path": "./02_protocols/04_utility_adoption.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["utilities"],
+      "priority": "low",
+      "summary": "Checklist for integrating shared utilities safely and consistently.",
+      "last_reviewed": "2025-09-28",
+      "owner": "core-team",
+      "bundles": ["new-feature"]
     },
     {
+      "id": "modular-refactor",
       "title": "Modular Refactoring Guide",
       "path": "./02_protocols/05_modular_refactor.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["refactor", "architecture"],
+      "priority": "high",
+      "summary": "Four-phase playbook for extracting modular components with registry + config updates.",
+      "last_reviewed": "2025-09-29",
+      "owner": "architecture",
+      "bundles": ["refactor", "streamlit-maintenance"]
     },
     {
+      "id": "context-logging",
       "title": "Context Logging and Summarization",
       "path": "./02_protocols/06_context_logging.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["context", "logging"],
+      "priority": "medium",
+      "summary": "How to capture logs and summarize long-running tasks for agents.",
+      "last_reviewed": "2025-09-28",
+      "owner": "automation",
+      "bundles": ["context-management"]
     },
     {
-      "title": "Iterative Debugging and Root Cause Analysis",
-      "path": "./02_protocols/07_iterative_debugging.md",
-      "section": "02. Protocols (How-To Guides)"
-    },
-    {
+      "id": "context-checkpointing",
       "title": "Context Checkpointing & Restoration",
       "path": "./02_protocols/08_context_checkpointing.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["context", "checkpointing"],
+      "priority": "high",
+      "summary": "Procedure for pausing, summarizing, and resuming large tasks without context loss.",
+      "last_reviewed": "2025-09-29",
+      "owner": "automation",
+      "bundles": ["context-management", "streamlit-maintenance"]
     },
     {
+      "id": "hydra-config-refactor",
       "title": "Hydra Configuration Refactoring",
       "path": "./02_protocols/09_hydra_config_refactoring.md",
-      "section": "02. Protocols (How-To Guides)"
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["hydra", "refactor"],
+      "priority": "medium",
+      "summary": "Guidelines for restructuring Hydra configs while maintaining compatibility.",
+      "last_reviewed": "2025-09-28",
+      "owner": "ml-platform",
+      "bundles": ["refactor"]
     },
     {
-      "title": "Refactoring Guide (redirect)",
-      "path": "./02_protocols/10_refactoring_guide.md",
-      "section": "02. Protocols (How-To Guides)"
+      "id": "streamlit-maintenance",
+      "title": "Protocol: Streamlit Maintenance",
+      "path": "./02_protocols/11_streamlit_maintenance_protocol.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["ui", "streamlit", "maintenance"],
+      "priority": "high",
+      "summary": "Maintenance loop for Streamlit apps covering sanity checks, catalog health, and documentation.",
+      "last_reviewed": "2025-09-29",
+      "owner": "ui-team",
+      "bundles": ["streamlit-maintenance"]
     },
     {
-      "title": "Architecture",
-      "path": "./03_references/01_architecture.md",
-      "section": "03. References (Factual Information)"
-    },
-    {
-      "title": "Hydra & Component Registry",
-      "path": "./03_references/02_hydra_and_registry.md",
-      "section": "03. References (Factual Information)"
-    },
-    {
+      "id": "utility-functions",
       "title": "Utility Functions",
       "path": "./03_references/03_utility_functions.md",
-      "section": "03. References (Factual Information)"
+      "section": "03. References (Factual Information)",
+      "tags": ["utilities"],
+      "priority": "low",
+      "summary": "Catalogue of shared utility helpers and their intended use cases.",
+      "last_reviewed": "2025-09-28",
+      "owner": "core-team",
+      "bundles": ["new-feature"]
     },
     {
+      "id": "evaluation-metrics",
       "title": "Evaluation Metrics",
       "path": "./03_references/04_evaluation_metrics.md",
-      "section": "03. References (Factual Information)"
+      "section": "03. References (Factual Information)",
+      "tags": ["metrics", "evaluation"],
+      "priority": "medium",
+      "summary": "Descriptions of key OCR evaluation metrics and interpretation notes.",
+      "last_reviewed": "2025-09-28",
+      "owner": "ml-platform",
+      "bundles": ["debugging", "new-feature"]
     },
     {
-      "title": "Experiment Log Template",
-      "path": "./04_experiments/TEMPLATE.md",
-      "section": "04. Experiments"
+      "id": "project-setup",
+      "title": "Project & Environment Setup",
+      "path": "./01_onboarding/01_setup_and_tooling.md",
+      "section": "01. Onboarding",
+      "tags": ["onboarding"],
+      "priority": "medium",
+      "summary": "Environment provisioning, tooling expectations, and first-run checks.",
+      "last_reviewed": "2025-09-28",
+      "owner": "devrel",
+      "bundles": ["onboarding"]
     },
     {
-      "title": "View All Experiments",
-      "path": "./04_experiments/",
-      "section": "04. Experiments"
+      "id": "data-overview",
+      "title": "Data Overview",
+      "path": "./01_onboarding/02_data_overview.md",
+      "section": "01. Onboarding",
+      "tags": ["onboarding", "data"],
+      "priority": "medium",
+      "summary": "Summary of available datasets and labeling conventions.",
+      "last_reviewed": "2025-09-28",
+      "owner": "data-team",
+      "bundles": ["onboarding"]
+    }
+  ],
+  "bundles": {
+    "streamlit-maintenance": {
+      "title": "Streamlit maintenance workflow",
+      "description": "Use when editing Streamlit apps or inference services.",
+      "entries": [
+        "streamlit-maintenance",
+        "modular-refactor",
+        "command-registry",
+        "context-checkpointing",
+        "changelog-latest"
+      ]
+    },
+    "new-feature": {
+      "title": "Add a new feature or component",
+      "description": "Baseline docs for extending the OCR system.",
+      "entries": [
+        "coding-standards",
+        "architecture",
+        "hydra-registry",
+        "utility-adoption",
+        "utility-functions"
+      ]
+    },
+    "refactor": {
+      "title": "Modular refactor checklist",
+      "description": "Guidance for large code moves and cleanups.",
+      "entries": [
+        "modular-refactor",
+        "hydra-config-refactor",
+        "coding-standards",
+        "architecture"
+      ]
+    },
+    "debugging": {
+      "title": "Debugging toolkit",
+      "description": "Follow when diagnosing regressions or flaky runs.",
+      "entries": [
+        "debugging-workflow",
+        "command-registry",
+        "evaluation-metrics"
+      ]
+    },
+    "context-management": {
+      "title": "Context management protocols",
+      "description": "Keep long-running efforts safe for agents.",
+      "entries": [
+        "context-logging",
+        "context-checkpointing"
+      ]
+    },
+    "onboarding": {
+      "title": "New contributor starter pack",
+      "description": "Quick links for first-time contributors.",
+      "entries": [
+        "project-setup",
+        "data-overview",
+        "coding-standards"
+      ]
+    }
+  },
+  "commands": [
+    {
+      "name": "Launch inference UI",
+      "command": "uv run python run_ui.py inference",
+      "bundle": "streamlit-maintenance"
     },
     {
-      "title": "View Project Changelog",
-      "path": "./05_changelog/",
-      "section": "05. Changelog"
+      "name": "Launch evaluation viewer",
+      "command": "uv run python run_ui.py evaluation_viewer",
+      "bundle": "streamlit-maintenance"
+    },
+    {
+      "name": "Launch command builder UI",
+      "command": "uv run python run_ui.py command_builder",
+      "bundle": "streamlit-maintenance"
     }
   ]
 }
