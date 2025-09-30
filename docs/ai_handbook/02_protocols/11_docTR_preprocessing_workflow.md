@@ -56,13 +56,13 @@ To refresh the demo assets or re-run the visual regression locally:
 uv run python scripts/generate_doctr_demo.py
 ```
 
-This script renders synthetic document imagery, processes it with docTR on/off, and saves outputs under `docs/ai_handbook/02_protocols/outputs/doctr_preprocessing/` for inclusion in docs or presentations.
+This script renders synthetic document imagery, processes it with docTR on/off, and saves outputs under `outputs/protocols/doctr_preprocessing/` for inclusion in docs or presentations.
 
 ### Sample before/after
 
 | Original Upload | After docTR Preprocessing |
 | --- | --- |
-| ![Original synthetic document](outputs/doctr_preprocessing/demo_original.png) | ![docTR rectified output](outputs/doctr_preprocessing/demo_doctr.png) |
+| ![Original synthetic document](outputs/protocols/doctr_preprocessing/demo_original.png) | ![docTR rectified output](outputs/protocols/doctr_preprocessing/demo_doctr.png) |
 
 For a baseline comparison, `demo_opencv.png` showcases the OpenCV-only pathway when docTR features are disabled. Metadata exports (`*.metadata.json`) capture the processing steps and corner geometry used in the UI visualisations.
 

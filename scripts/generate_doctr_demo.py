@@ -5,7 +5,7 @@ from __future__ import annotations
 This utility synthesizes a simple document-style image, runs the
 DocumentPreprocessor with docTR features enabled and disabled, and
 exports before/after images alongside processing metadata. The outputs
-are stored under ``docs/ai_handbook/02_protocols/outputs/doctr_preprocessing``.
+are stored under ``outputs/protocols/doctr_preprocessing``.
 
 Run with:
     uv run python scripts/generate_doctr_demo.py
@@ -21,7 +21,7 @@ import numpy as np
 
 from ocr.datasets.preprocessing import DOCTR_AVAILABLE, DocumentPreprocessor
 
-OUTPUT_DIR = Path("docs/ai_handbook/02_protocols/outputs/doctr_preprocessing")
+OUTPUT_DIR = Path("outputs/protocols/doctr_preprocessing")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO)
