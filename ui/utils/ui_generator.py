@@ -9,6 +9,7 @@ overrides and constant overrides.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
@@ -53,6 +54,7 @@ def _get_options_from_source(source: str) -> list[str]:
         "models.backbones": "backbones",
         "models.encoders": "encoders",
         "models.decoders": "decoders",
+        "models.heads": "heads",
         "models.optimizers": "optimizers",
         "models.losses": "losses",
     }
@@ -147,6 +149,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
     optimizer_metadata = config_parser.get_optimizer_metadata()
 
     values: dict[str, Any] = {}
+    schema_prefix = Path(schema_path).stem.replace("-", "_")
 
     # First pass: render or compute defaults so visibility can reference earlier values
     for element in elements:
@@ -158,6 +161,8 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
         label_val = element.get("label")
         label = label_val if isinstance(label_val, str) and label_val else key
         visible_if = element.get("visible_if")
+
+        widget_key = f"{schema_prefix}__{key}"
 
         # Resolve base options
         options = element.get("options")
@@ -173,8 +178,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
         architecture_info = architecture_metadata.get(selected_arch or "", {})
         ui_meta = architecture_info.get("ui_metadata", {}) if architecture_info else {}
 
-        options_metadata_key = element.get("options_metadata_key")
-        if options_metadata_key:
+        if options_metadata_key := element.get("options_metadata_key"):
             meta_options = _resolve_metadata_value(ui_meta, options_metadata_key)
             if isinstance(meta_options, dict):
                 options = list(meta_options.keys())
@@ -188,13 +192,10 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
             allowed = _resolve_metadata_value(ui_meta, meta_filter_key)
             if isinstance(allowed, str):
                 allowed = [allowed]
-            if allowed:
-                filtered = [opt for opt in options if opt in allowed]
-                if filtered:
-                    options = filtered
+            if allowed and (filtered := [opt for opt in options if opt in allowed]):
+                options = filtered
 
-        meta_default_key = element.get("metadata_default_key")
-        if meta_default_key:
+        if meta_default_key := element.get("metadata_default_key"):
             meta_default = _resolve_metadata_value(ui_meta, meta_default_key)
             if meta_default is not None:
                 default = meta_default
@@ -213,20 +214,15 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
 
         # Build help text
         help_segments: list[str] = []
-        base_help = element.get("help")
-        if base_help:
+        if base_help := element.get("help"):
             help_segments.append(str(base_help))
 
-        meta_help_key = element.get("metadata_help_key")
-        if meta_help_key:
-            meta_help_val = _resolve_metadata_value(ui_meta, meta_help_key)
-            if meta_help_val:
+        if meta_help_key := element.get("metadata_help_key"):
+            if meta_help_val := _resolve_metadata_value(ui_meta, meta_help_key):
                 help_segments.append(_stringify_metadata_value(meta_help_val))
 
-        optimizer_help_key = element.get("optimizer_help_key")
-        if optimizer_help_key:
-            optimizer_help_val = _resolve_metadata_value(optimizer_ui_meta, optimizer_help_key)
-            if optimizer_help_val:
+        if optimizer_help_key := element.get("optimizer_help_key"):
+            if optimizer_help_val := _resolve_metadata_value(optimizer_ui_meta, optimizer_help_key):
                 help_segments.append(_stringify_metadata_value(optimizer_help_val))
 
         help_text = "\n".join(segment for segment in help_segments if segment) or None
@@ -249,7 +245,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                     step = meta_lr.get("step")
 
         if etype == "text_input":
-            values[key] = st.text_input(label, value=default or "", help=help_text)
+            values[key] = st.text_input(label, value=default or "", help=help_text, key=widget_key)
         elif etype == "number_input":
             kwargs: dict[str, Any] = {}
             if default is not None:
@@ -260,9 +256,9 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                 kwargs["max_value"] = element.get("max_value")
             if help_text:
                 kwargs["help"] = help_text
-            values[key] = st.number_input(label, **kwargs)
+            values[key] = st.number_input(label, key=widget_key, **kwargs)
         elif etype == "checkbox":
-            values[key] = st.checkbox(label, value=bool(default), help=help_text)
+            values[key] = st.checkbox(label, value=bool(default), help=help_text, key=widget_key)
         elif etype == "slider":
             if min_v is None or max_v is None:
                 st.warning(f"Missing min/max for slider '{label}'. Skipping.")
@@ -276,6 +272,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                     step=step,
                     format=fmt,
                     help=help_text,
+                    key=widget_key,
                 )
         elif etype == "info":
             info_key = element.get("metadata_info_key")
@@ -302,6 +299,7 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
                 opts,
                 index=index,
                 help=help_text,
+                key=widget_key,
             )
         else:
             st.warning(f"Unsupported UI element type: {etype}")

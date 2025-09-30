@@ -9,11 +9,44 @@ ui_metadata:
   default_optimizer: adam
   default_learning_rate: 0.0005
   default_decoder: craft_decoder
+  default_head: craft_head
+  default_loss: craft_loss
   compatible_decoders:
     - craft_decoder
   compatible_backbones:
     - vgg16_bn
     - vgg19_bn
+  compatible_heads:
+    - craft_head
+  compatible_losses:
+    - craft_loss
   recommended_optimizers:
     - adam
   notes: "CRAFT is optimized for high-resolution text detection with VGG-style encoders."
+  use_cases:
+    - id: documents_high_resolution
+      title: "Scanned documents · High resolution"
+      description: "Classic CRAFT pipeline for 300dpi scans with detailed glyph structure."
+      recommendations:
+        architecture: craft
+        encoder: vgg19_bn
+        decoder: craft_decoder
+        head: craft_head
+        loss: craft_loss
+        optimizer: adam
+        learning_rate: 0.0005
+        batch_size: 4
+        preprocessing_profile: none
+    - id: documents_speed
+      title: "Scanned documents · Faster training"
+      description: "VGG16 backbone with reduced batch size for limited GPU memory."
+      recommendations:
+        architecture: craft
+        encoder: vgg16_bn
+        decoder: craft_decoder
+        head: craft_head
+        loss: craft_loss
+        optimizer: adam
+        learning_rate: 0.0006
+        batch_size: 6
+        preprocessing_profile: none

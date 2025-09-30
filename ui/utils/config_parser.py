@@ -146,6 +146,11 @@ class ConfigParser:
                 ui_metadata.setdefault("recommended_data", None)
                 ui_metadata.setdefault("default_decoder", None)
                 ui_metadata.setdefault("compatible_decoders", [])
+                ui_metadata.setdefault("default_head", None)
+                ui_metadata.setdefault("default_loss", None)
+                ui_metadata.setdefault("compatible_heads", [])
+                ui_metadata.setdefault("compatible_losses", [])
+                ui_metadata.setdefault("use_cases", [])
 
                 metadata[name] = {
                     "ui_metadata": ui_metadata,
@@ -185,6 +190,43 @@ class ConfigParser:
                 }
 
         self._cache["optimizer_metadata"] = metadata
+        return metadata
+
+    def get_preprocessing_profiles(self) -> dict[str, Any]:
+        """Return metadata describing available preprocessing profiles for UI selection."""
+        if "preprocessing_profiles" in self._cache:
+            return self._cache["preprocessing_profiles"]
+
+        metadata: dict[str, Any] = {}
+        profiles_path = self.config_dir / "ui_meta" / "preprocessing_profiles.yaml"
+        if profiles_path.exists():
+            try:
+                with open(profiles_path) as f:
+                    payload = yaml.safe_load(f) or {}
+            except yaml.YAMLError:
+                payload = {}
+            profiles = payload.get("profiles", {})
+            if isinstance(profiles, dict):
+                for key, info in profiles.items():
+                    if not isinstance(info, dict):
+                        info = {}
+                    metadata[key] = {
+                        "label": info.get("label", key.replace("_", " ").title()),
+                        "description": info.get("description", ""),
+                        "overrides": info.get("overrides", []),
+                    }
+
+        # Always ensure "none" profile exists
+        metadata.setdefault(
+            "none",
+            {
+                "label": "No preprocessing (dataset defaults)",
+                "description": "Use dataset-configured transforms without additional document cleanup.",
+                "overrides": [],
+            },
+        )
+
+        self._cache["preprocessing_profiles"] = metadata
         return metadata
 
     def get_training_parameters(self) -> dict[str, Any]:

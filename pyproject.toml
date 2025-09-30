@@ -57,6 +57,7 @@ dependencies = [
     "torchvision>=0.18.0",
     "openai>=1.109.1",
     "dotenv>=0.9.9",
+    "imutils>=0.5.4",
 ]
 
 

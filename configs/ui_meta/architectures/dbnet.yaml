@@ -9,6 +9,8 @@ ui_metadata:
   default_optimizer: adam
   default_learning_rate: 0.001
   default_decoder: unet
+  default_head: db_head
+  default_loss: db_loss
   compatible_decoders:
     - unet
     - fpn_decoder
@@ -19,7 +21,52 @@ ui_metadata:
     - resnet50
     - mobilenetv3_small_050
     - efficientnet_b0
+  compatible_heads:
+    - db_head
+    - dbpp_head
+  compatible_losses:
+    - db_loss
   recommended_optimizers:
     - adam
     - adamw
   notes: "Use FPN for balanced accuracy/speed on receipts; PAN favours recall on dense text."
+  use_cases:
+    - id: receipts_balanced
+      title: "Receipts · Balanced accuracy"
+      description: "ResNet34 with FPN decoder for robust receipt detection and stable optimisation."
+      recommendations:
+        architecture: dbnet
+        encoder: resnet34
+        decoder: fpn_decoder
+        head: db_head
+        loss: db_loss
+        optimizer: adam
+        learning_rate: 0.001
+        batch_size: 8
+        preprocessing_profile: lens_style
+    - id: receipts_fast
+      title: "Receipts · Mobile capture (fast)"
+      description: "MobileNetV3 backbone with PAN decoder for lightweight deployments."
+      recommendations:
+        architecture: dbnet
+        encoder: mobilenetv3_small_050
+        decoder: pan_decoder
+        head: db_head
+        loss: db_loss
+        optimizer: adamw
+        learning_rate: 0.0008
+        batch_size: 12
+        preprocessing_profile: lens_style
+    - id: receipts_high_recall
+      title: "Dense receipts · High recall"
+      description: "ResNet50 with UNet decoder emphasising recall on cluttered documents."
+      recommendations:
+        architecture: dbnet
+        encoder: resnet50
+        decoder: unet
+        head: db_head
+        loss: db_loss
+        optimizer: adam
+        learning_rate: 0.0007
+        batch_size: 6
+        preprocessing_profile: lens_style_office

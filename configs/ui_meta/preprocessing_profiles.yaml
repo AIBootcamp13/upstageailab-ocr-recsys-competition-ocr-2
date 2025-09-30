@@ -1,0 +1,31 @@
+# Metadata for Streamlit command builder preprocessing profiles
+profiles:
+  lens_style:
+    label: "Lens-style receipts (balanced)"
+    description: "Enables document detection, perspective correction, and lens-style enhancement pipeline."
+    overrides:
+      - "+preset/datasets=preprocessing"
+      - "data.transforms.train_transform=${enhanced_transforms.train_transform}"
+      - "data.transforms.val_transform=${enhanced_transforms.val_transform}"
+      - "data.transforms.test_transform=${enhanced_transforms.test_transform}"
+      - "data.transforms.predict_transform=${enhanced_transforms.predict_transform}"
+  lens_style_office:
+    label: "Lens-style (office mode with text enhancement)"
+    description: "Adds office-lens enhancement and text sharpening on top of the lens-style pipeline for faint receipts."
+    overrides:
+      - "+preset/datasets=preprocessing"
+      - "preprocessing.enhancement_method=office_lens"
+      - "preprocessing.enable_text_enhancement=true"
+      - "data.transforms.train_transform=${enhanced_transforms.train_transform}"
+      - "data.transforms.val_transform=${enhanced_transforms.val_transform}"
+      - "data.transforms.test_transform=${enhanced_transforms.test_transform}"
+      - "data.transforms.predict_transform=${enhanced_transforms.predict_transform}"
+  doctr_demo:
+    label: "docTR demo (perspective + geometry)"
+    description: "Full docTR-style preprocessing with geometry rectification, orientation correction, and padding cleanup."
+    overrides:
+      - "+preset/datasets=preprocessing_docTR_demo"
+      - "data.transforms.train_transform=${enhanced_transforms.train_transform}"
+      - "data.transforms.val_transform=${enhanced_transforms.val_transform}"
+      - "data.transforms.test_transform=${enhanced_transforms.test_transform}"
+      - "data.transforms.predict_transform=${enhanced_transforms.predict_transform}"

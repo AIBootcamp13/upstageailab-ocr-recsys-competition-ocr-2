@@ -9,6 +9,8 @@ ui_metadata:
   default_optimizer: adamw
   default_learning_rate: 0.0005
   default_decoder: dbnetpp_decoder
+  default_head: dbnetpp_head
+  default_loss: dbnetpp_loss
   compatible_decoders:
     - dbnetpp_decoder
     - fpn_decoder
@@ -16,7 +18,40 @@ ui_metadata:
   compatible_backbones:
     - resnet50
     - resnet101
+  compatible_heads:
+    - dbnetpp_head
+    - db_head
+  compatible_losses:
+    - dbnetpp_loss
+    - db_loss
   recommended_optimizers:
     - adamw
     - adam
   notes: "DBNet++ pairs best with higher-capacity timm backbones. FPN/PAN decoders are lighter-weight fallbacks for CPU-bound inference."
+  use_cases:
+    - id: invoices_high_precision
+      title: "Invoices · High precision"
+      description: "ResNet50 with DBNet++ decoder excels on complex invoices with curved text."
+      recommendations:
+        architecture: dbnetpp
+        encoder: resnet50
+        decoder: dbnetpp_decoder
+        head: dbnetpp_head
+        loss: dbnetpp_loss
+        optimizer: adamw
+        learning_rate: 0.0005
+        batch_size: 4
+        preprocessing_profile: lens_style
+    - id: invoices_balanced
+      title: "Invoices · Balanced"
+      description: "ResNet50 with FPN decoder for a balance of speed and precision."
+      recommendations:
+        architecture: dbnetpp
+        encoder: resnet50
+        decoder: fpn_decoder
+        head: db_head
+        loss: db_loss
+        optimizer: adam
+        learning_rate: 0.0006
+        batch_size: 6
+        preprocessing_profile: lens_style

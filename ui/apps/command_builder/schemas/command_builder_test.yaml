@@ -1,6 +1,5 @@
 title: "OCR Testing Command Builder"
 
-# UI schema for Streamlit command builder. Only for UI input validation and command building.
 constant_overrides: []
 
 ui_elements:

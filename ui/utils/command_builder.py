@@ -146,16 +146,32 @@ class CommandBuilder:
         # Model configuration
         if "encoder" in config:
             overrides.append(f"model.encoder.model_name={config['encoder']}")
+        if "decoder" in config:
+            overrides.append(f"model.component_overrides.decoder.name={config['decoder']}")
+        if "head" in config:
+            overrides.append(f"model.component_overrides.head.name={config['head']}")
+        if "loss" in config:
+            overrides.append(f"model.component_overrides.loss.name={config['loss']}")
+        if "optimizer" in config:
+            overrides.append(f"model/optimizers={config['optimizer']}")
 
         # Training parameters
         if "learning_rate" in config:
             overrides.append(f"model.optimizer.lr={config['learning_rate']}")
+        if "weight_decay" in config:
+            overrides.append(f"model.optimizer.weight_decay={config['weight_decay']}")
 
         if "batch_size" in config:
             overrides.append(f"data.batch_size={config['batch_size']}")
 
         if "max_epochs" in config:
             overrides.append(f"trainer.max_epochs={config['max_epochs']}")
+        if "accumulate_grad_batches" in config:
+            overrides.append(f"trainer.accumulate_grad_batches={config['accumulate_grad_batches']}")
+        if "gradient_clip_val" in config:
+            overrides.append(f"trainer.gradient_clip_val={config['gradient_clip_val']}")
+        if "precision" in config:
+            overrides.append(f"trainer.precision={config['precision']}")
 
         if "seed" in config:
             overrides.append(f"seed={config['seed']}")
@@ -239,6 +255,7 @@ class CommandBuilder:
         cwd: str | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ) -> tuple[int, str, str]:
+        # sourcery skip: extract-method
         """Execute a command with streaming output and process group management.
 
         Args:
@@ -266,47 +283,35 @@ class CommandBuilder:
                 preexec_fn=os.setsid,  # Create new process group
             )
 
-            stdout_lines = []
-            stderr_lines = []
+            stdout_lines: list[str] = []
+            stderr_lines: list[str] = []
 
-            # Read output streams
-            while True:
-                # Check if process is still running
-                if process.poll() is not None:
-                    break
+            while process.poll() is None:
+                if process.stdout and (line := process.stdout.readline()):
+                    stripped = line.rstrip()
+                    stdout_lines.append(stripped)
+                    if progress_callback:
+                        progress_callback(f"OUT: {stripped}")
 
-                # Read stdout
-                if process.stdout:
-                    line = process.stdout.readline()
-                    if line:
-                        stdout_lines.append(line.rstrip())
-                        if progress_callback:
-                            progress_callback(f"OUT: {line.rstrip()}")
+                if process.stderr and (line := process.stderr.readline()):
+                    stripped = line.rstrip()
+                    stderr_lines.append(stripped)
+                    if progress_callback:
+                        progress_callback(f"ERR: {stripped}")
 
-                # Read stderr
-                if process.stderr:
-                    line = process.stderr.readline()
-                    if line:
-                        stderr_lines.append(line.rstrip())
-                        if progress_callback:
-                            progress_callback(f"ERR: {line.rstrip()}")
-
-                # Small delay to prevent busy waiting
                 time.sleep(0.1)
 
-            # Get any remaining output
-            if process.stdout:
-                remaining_stdout, remaining_stderr = process.communicate()
-                if remaining_stdout:
-                    for line in remaining_stdout.splitlines():
-                        stdout_lines.append(line)
-                        if progress_callback:
-                            progress_callback(f"OUT: {line}")
-                if remaining_stderr:
-                    for line in remaining_stderr.splitlines():
-                        stderr_lines.append(line)
-                        if progress_callback:
-                            progress_callback(f"ERR: {line}")
+            remaining_stdout, remaining_stderr = process.communicate()
+            if remaining_stdout:
+                for line in remaining_stdout.splitlines():
+                    stdout_lines.append(line)
+                    if progress_callback:
+                        progress_callback(f"OUT: {line}")
+            if remaining_stderr:
+                for line in remaining_stderr.splitlines():
+                    stderr_lines.append(line)
+                    if progress_callback:
+                        progress_callback(f"ERR: {line}")
 
             return process.returncode, "\n".join(stdout_lines), "\n".join(stderr_lines)
 
@@ -341,6 +346,6 @@ class CommandBuilder:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                     process.wait()
             return True
-        except (ProcessLookupError, OSError):
+        except OSError:
             # Process might already be dead
             return False

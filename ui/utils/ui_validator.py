@@ -98,6 +98,27 @@ def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
                 "Please pick one of: " + ", ".join(compatible_backbones)
             )
 
+            compatible_decoders = ui_meta.get("compatible_decoders") or []
+            selected_decoder = values.get("decoder")
+            if compatible_decoders and selected_decoder and selected_decoder not in compatible_decoders:
+                errors.append(
+                    "Selected decoder is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_decoders)
+                )
+
+            compatible_heads = ui_meta.get("compatible_heads") or []
+            selected_head = values.get("head")
+            if compatible_heads and selected_head and selected_head not in compatible_heads:
+                errors.append(
+                    "Selected head is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_heads)
+                )
+
+            compatible_losses = ui_meta.get("compatible_losses") or []
+            selected_loss = values.get("loss")
+            if compatible_losses and selected_loss and selected_loss not in compatible_losses:
+                errors.append(
+                    "Selected loss is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_losses)
+                )
+
         recommended_opts = ui_meta.get("recommended_optimizers") or []
         if recommended_opts and selected_optimizer and selected_optimizer not in recommended_opts:
             errors.append(

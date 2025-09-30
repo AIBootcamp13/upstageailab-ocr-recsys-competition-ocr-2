@@ -1,6 +1,5 @@
 title: "OCR Training Command Builder"
 
-# UI schema for Streamlit command builder. Only for UI input validation and command building.
 constant_overrides: []
 
 ui_elements:
@@ -67,6 +66,42 @@ ui_elements:
     metadata_default_key: "default_backbone"
     metadata_help_key: "compatible_backbones"
 
+  - key: decoder
+    type: selectbox
+    label: "Decoder"
+    options_source: "models.decoders"
+    default: "unet"
+    help: "Decoder to reconstruct feature maps into probability maps."
+    visible_if: "resume_training == false"
+    hydra_override: "model.component_overrides.decoder.name"
+    filter_by_architecture_key: "compatible_decoders"
+    metadata_default_key: "default_decoder"
+    metadata_help_key: "compatible_decoders"
+
+  - key: head
+    type: selectbox
+    label: "Head"
+    options_source: "models.heads"
+    default: "db_head"
+    help: "Detection head producing probability and threshold maps."
+    visible_if: "resume_training == false"
+    hydra_override: "model.component_overrides.head.name"
+    filter_by_architecture_key: "compatible_heads"
+    metadata_default_key: "default_head"
+    metadata_help_key: "compatible_heads"
+
+  - key: loss
+    type: selectbox
+    label: "Loss"
+    options_source: "models.losses"
+    default: "db_loss"
+    help: "Loss function used for optimisation."
+    visible_if: "resume_training == false"
+    hydra_override: "model.component_overrides.loss.name"
+    filter_by_architecture_key: "compatible_losses"
+    metadata_default_key: "default_loss"
+    metadata_help_key: "compatible_losses"
+
   - key: optimizer
     type: selectbox
     label: "Optimizer"
@@ -94,6 +129,16 @@ ui_elements:
     optimizer_metadata_key: "learning_rate"
     optimizer_help_key: "learning_rate.help"
 
+  - key: weight_decay
+    type: slider
+    label: "Weight Decay"
+    min_value: 0.0
+    max_value: 0.01
+    default: 0.0001
+    step: 0.0001
+    format: "%.4f"
+    hydra_override: "model.optimizer.weight_decay"
+
   - key: batch_size
     type: slider
     label: "Batch Size"
@@ -116,6 +161,35 @@ ui_elements:
     default: 10
     step: 1
     hydra_override: "trainer.max_epochs"
+
+  - key: accumulate_grad_batches
+    type: slider
+    label: "Gradient Accumulation"
+    min_value: 1
+    max_value: 16
+    default: 1
+    step: 1
+    hydra_override: "trainer.accumulate_grad_batches"
+
+  - key: gradient_clip_val
+    type: slider
+    label: "Gradient Clip Value"
+    min_value: 0.0
+    max_value: 10.0
+    default: 5.0
+    step: 0.5
+    hydra_override: "trainer.gradient_clip_val"
+
+  - key: precision
+    type: selectbox
+    label: "Trainer Precision"
+    options:
+      - "32"
+      - "bf16"
+      - "bf16-mixed"
+      - "16-mixed"
+    default: "32"
+    hydra_override: "trainer.precision"
 
   - key: seed
     type: number_input

@@ -8,12 +8,18 @@ component_overrides:
     select_features: [1, 2, 3, 4]
     pretrained: true
   decoder:
-    inner_channels: 256
-    out_channels: 128
+    name: "dbnetpp_decoder"
+    params:
+      inner_channels: 256
+      out_channels: 128
   head:
-    upscale: 4
+    name: "dbnetpp_head"
+    params:
+      upscale: 4
   loss:
-    negative_ratio: 3.0
-    prob_map_loss_weight: 5.0
-    thresh_map_loss_weight: 10.0
-    binary_map_loss_weight: 1.0
+    name: "dbnetpp_loss"
+    params:
+      negative_ratio: 3.0
+      prob_map_loss_weight: 5.0
+      thresh_map_loss_weight: 10.0
+      binary_map_loss_weight: 1.0

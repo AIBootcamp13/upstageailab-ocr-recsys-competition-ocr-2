@@ -14,9 +14,13 @@ component_overrides:
       output_channels: 256
       out_channels: 256
   head:
-    k: 50
+    name: "db_head"
+    params:
+      k: 50
   loss:
-    negative_ratio: 3.0
-    prob_map_loss_weight: 5.0
-    thresh_map_loss_weight: 10.0
-    binary_map_loss_weight: 1.0
+    name: "db_loss"
+    params:
+      negative_ratio: 3.0
+      prob_map_loss_weight: 5.0
+      thresh_map_loss_weight: 10.0
+      binary_map_loss_weight: 1.0

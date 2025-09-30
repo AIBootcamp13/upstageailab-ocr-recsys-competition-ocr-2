@@ -10,10 +10,16 @@ component_overrides:
     extra_channels: 512
     freeze_backbone: false
   decoder:
-    inner_channels: 256
-    out_channels: 256
+    name: "craft_decoder"
+    params:
+      inner_channels: 256
+      out_channels: 256
   head:
-    hidden_channels: 128
+    name: "craft_head"
+    params:
+      hidden_channels: 128
   loss:
-    region_weight: 1.0
-    affinity_weight: 1.0
+    name: "craft_loss"
+    params:
+      region_weight: 1.0
+      affinity_weight: 1.0
