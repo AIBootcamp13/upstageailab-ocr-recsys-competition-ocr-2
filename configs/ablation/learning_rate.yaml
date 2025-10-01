@@ -1,17 +1,22 @@
 # Learning Rate Ablation Study
-# Usage: python run_ablation.py +ablation=learning_rate experiment_tag=lr_ablation
+# Usage: python run_ablation.py +ablation=learning_rate -m
+
+# Merge directly into the root config so overrides apply without extra wiring.
+# @package _global_
 
 defaults:
   - _self_
 
-# Override training parameters for learning rate sweep
-training:
-  learning_rate: [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]
+hydra:
+  sweeper:
+    params:
+      model.optimizer.lr: 1e-2,5e-3,1e-3,5e-4,1e-4,5e-5
+      trainer.max_steps: 2000,4000
 
-# Keep other settings minimal for fast iteration
+# Keep epochs modest for fast iteration during sweeps.
 trainer:
-  max_epochs: 5  # Reduced for ablation studies
+  max_epochs: 5
 
-# Enable wandb for tracking
+# Enable wandb logging for ablation runs and tag outputs consistently.
 wandb: true
 experiment_tag: "lr_ablation"

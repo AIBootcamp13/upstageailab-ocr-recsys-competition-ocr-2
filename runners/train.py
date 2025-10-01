@@ -4,10 +4,8 @@ import sys
 
 import hydra
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import (
-    LearningRateMonitor,  # noqa
-    ModelCheckpoint,
-)
+from lightning.pytorch.callbacks import LearningRateMonitor
+from omegaconf import DictConfig
 
 # Setup project paths automatically
 from ocr.utils.path_utils import setup_paths
@@ -59,12 +57,12 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 
 @hydra.main(config_path=CONFIG_DIR, config_name="train", version_base="1.2")
-def train(config):
+def train(config: DictConfig):
     """
     Train a OCR model using the provided configuration.
 
     Args:
-        `config` (dict): A dictionary containing configuration settings for training.
+        `config` (DictConfig): A dictionary containing configuration settings for training.
     """
     global trainer, data_module
 
@@ -111,24 +109,18 @@ def train(config):
             default_hp_metric=False,
         )
 
-    checkpoint_path = config.paths.checkpoint_dir
+    # --- Callback Configuration ---
+    # This is the new, Hydra-native way to handle callbacks.
+    # It iterates through the 'callbacks' config group and instantiates each one.
+    callbacks = []
+    if config.get("callbacks"):
+        for _, cb_conf in config.callbacks.items():
+            if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
+                print(f"Instantiating callback <{cb_conf._target_}>")
+                callbacks.append(hydra.utils.instantiate(cb_conf))
 
-    callbacks = [
-        LearningRateMonitor(logging_interval="step"),
-        ModelCheckpoint(
-            dirpath=checkpoint_path,
-            save_top_k=1,
-            monitor="val/loss",
-            mode="min",
-            filename=f"{config.model.encoder.model_name}_bs{config.dataloaders.train_dataloader.batch_size}_epoch_{{epoch}}_step_{{step}}",
-        ),
-    ]
-
-    # Add wandb image logging callback if wandb is enabled
-    if config.logger.wandb:
-        from ocr.lightning_modules.callbacks.wandb_image_logging import WandbImageLoggingCallback  # noqa: E402
-
-        callbacks.append(WandbImageLoggingCallback(log_every_n_epochs=5))  # Log every 5 epochs
+    # Always add LearningRateMonitor
+    callbacks.append(LearningRateMonitor(logging_interval="step"))
 
     trainer = pl.Trainer(**config.trainer, logger=logger, callbacks=callbacks)
 

@@ -22,12 +22,32 @@ Example:
     python run_ablation.py +ablation=learning_rate experiment_tag=lr_ablation
 """
 
+import sys
+
 import hydra
 import lightning.pytorch as pl
 from omegaconf import DictConfig, OmegaConf
 
 import wandb
 from ocr.lightning_modules import get_pl_modules_by_cfg
+
+
+def _normalize_multirun_flag() -> None:
+    """Ensure the Hydra multirun flag precedes overrides for backward compatibility."""
+    argv = sys.argv
+    # Handle short and long forms.
+    for flag in ("-m", "--multirun"):
+        if flag in argv:
+            idx = argv.index(flag)
+            # Reorder only when the flag isn't already the first argument after the filename.
+            if idx > 1:
+                pre = argv[1:idx]
+                post = argv[idx + 1 :]
+                sys.argv = [argv[0], flag, *pre, *post]
+            break
+
+
+_normalize_multirun_flag()
 
 
 def run_single_experiment(cfg: DictConfig) -> dict:
@@ -45,11 +65,19 @@ def run_single_experiment(cfg: DictConfig) -> dict:
 
     # Initialize wandb if enabled
     if cfg.get("wandb", False):
+        project_name = cfg.get("project_name")
+        if not project_name and cfg.get("logger"):
+            project_name = cfg.logger.get("project_name")
+        project_name = project_name or "OCR_Ablation"
+
+        exp_name = cfg.get("exp_name", "ablation_run")
+        experiment_tag = cfg.get("experiment_tag") or exp_name
+
         wandb.init(
-            project=cfg.get("project_name", "OCR_Ablation"),
-            name=cfg.get("exp_name", "ablation_run"),
-            config=OmegaConf.to_container(cfg, resolve=True),
-            tags=[cfg.get("experiment_tag", "ablation")],
+            project=project_name,
+            name=exp_name,
+            config=OmegaConf.to_container(cfg, resolve=True),  # type: ignore
+            tags=[experiment_tag],
         )
 
     try:

@@ -9,3 +9,6 @@ defaults:
 seed: 42
 exp_name: "ocr_training"
 resume: null
+project_name: null
+experiment_tag: null
+wandb: false

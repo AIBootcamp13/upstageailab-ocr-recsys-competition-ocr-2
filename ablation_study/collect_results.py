@@ -16,13 +16,24 @@ Usage:
 """
 
 import argparse
+import os
+from collections.abc import Sequence
 
 import pandas as pd
 
 import wandb
 
 
-def collect_wandb_results(project_name: str, tag: str = None, entity: str = None) -> pd.DataFrame:
+def _resolve_entity(api: wandb.Api, explicit_entity: str | None) -> str | None:
+    """Choose the wandb entity, honoring CLI flag, env var, or API default."""
+    if explicit_entity:
+        return explicit_entity
+
+    env_entity = os.getenv("WANDB_ENTITY")
+    return env_entity or getattr(api, "default_entity", None)
+
+
+def collect_wandb_results(project_name: str, tag: str | None = None, entity: str | None = None) -> pd.DataFrame:
     """
     Collect results from wandb experiments.
 
@@ -37,8 +48,16 @@ def collect_wandb_results(project_name: str, tag: str = None, entity: str = None
     # Initialize wandb API
     api = wandb.Api()
 
+    resolved_entity = _resolve_entity(api, entity)
+    project_path = f"{resolved_entity}/{project_name}" if resolved_entity else project_name
+
+    if resolved_entity is None and "/" not in project_name:
+        print(
+            "Warning: No entity specified and WANDB_ENTITY not set. Attempting to use project name as-is; pass --entity or set WANDB_ENTITY if you expect team runs."
+        )
+
     # Get runs from project
-    runs = api.runs(f"{entity}/{project_name}" if entity else project_name)
+    runs = api.runs(project_path)
 
     results = []
 
@@ -79,7 +98,7 @@ def collect_wandb_results(project_name: str, tag: str = None, entity: str = None
     return pd.DataFrame(results)
 
 
-def save_results_to_csv(df: pd.DataFrame, output_path: str, sort_by: str = None):
+def save_results_to_csv(df: pd.DataFrame, output_path: str, sort_by: str | None = None):
     """
     Save results to CSV with proper formatting.
 
@@ -98,7 +117,7 @@ def save_results_to_csv(df: pd.DataFrame, output_path: str, sort_by: str = None)
     print(f"Collected {len(df)} experiments")
 
 
-def print_summary_table(df: pd.DataFrame, group_by: str = None, metrics: list = None):
+def print_summary_table(df: pd.DataFrame, group_by: str | None = None, metrics: Sequence[str] | None = None) -> None:
     """
     Print a summary table of results.
 
@@ -118,6 +137,8 @@ def print_summary_table(df: pd.DataFrame, group_by: str = None, metrics: list = 
             "test/hmean",
         ]
         metrics = [m for m in common_metrics if m in df.columns]
+    else:
+        metrics = list(metrics)
 
     if group_by and group_by in df.columns:
         # Grouped summary
@@ -135,7 +156,8 @@ def print_summary_table(df: pd.DataFrame, group_by: str = None, metrics: list = 
         best_metric = metrics[0]  # Use first metric for ranking
         if best_metric in df.columns:
             print(f"\nTop 5 by {best_metric}:")
-            top_runs = df.nlargest(5, best_metric)[["run_name", best_metric] + metrics[1:]]
+            remaining_metrics = metrics[1:] if len(metrics) > 1 else []
+            top_runs = df.nlargest(5, best_metric)[["run_name", best_metric] + list(remaining_metrics)]
             print(top_runs.round(4))
 
 

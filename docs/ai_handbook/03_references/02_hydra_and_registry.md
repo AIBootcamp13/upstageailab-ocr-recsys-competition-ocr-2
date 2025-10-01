@@ -66,3 +66,7 @@ When adding or modifying components, you must ensure they are compatible.
 
 * **Hydra is Authoritative:** Hydra manages all configuration for model training, validation, and testing.
 * **Pydantic for UI Only:** The use of Pydantic models is strictly limited to validating user inputs within the Streamlit UI. It **must not** be used for managing or composing model configuration files. The UI's role is to generate valid Hydra overrides, not to manage its own configuration state.
+
+## **4. Best Practices & Template Adoption**
+
+For guidance on adopting best practices from external templates like the lightning-hydra-template, refer to the [**Template Adoption Protocol**](../02_protocols/16_template_adoption_protocol.md). This protocol provides a systematic approach to analyzing template structures, comparing with our current setup, and proposing incremental improvements to align with community standards.

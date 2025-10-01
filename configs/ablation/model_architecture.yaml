@@ -1,21 +1,21 @@
 # Model Architecture Ablation Study
-# Usage: python run_ablation.py +ablation=model_architecture experiment_tag=model_ablation
+# Usage: python run_ablation.py +ablation=model_architecture -m
+
+# @package _global_
 
 defaults:
   - _self_
 
-# Test different backbone architectures
-model:
-  backbone:
-    name: ["resnet18", "resnet34", "resnet50", "mobilenetv3_small_050", "efficientnet_b0"]
+hydra:
+  sweeper:
+    params:
+      model.encoder.model_name: resnet18,resnet34,resnet50,mobilenetv3_small_050,efficientnet_b0
+      trainer.max_steps: 4000,8000
 
-# Keep training settings consistent
-training:
-  learning_rate: 1e-3
-
+# More epochs to allow each backbone to converge.
 trainer:
-  max_epochs: 10  # More epochs for architecture comparison
+  max_epochs: 10
 
-# Enable wandb for tracking
+# Enable wandb logging for ablation runs and tag outputs consistently.
 wandb: true
 experiment_tag: "model_architecture_ablation"

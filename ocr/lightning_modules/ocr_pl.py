@@ -65,9 +65,9 @@ class OCRPLModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         pred = self.model(**batch)
-        self.log("val/loss", pred["loss"], batch_size=len(batch))
+        self.log("val_loss", pred["loss"], batch_size=len(batch))
         for key, value in pred["loss_dict"].items():
-            self.log(f"val/{key}", value, batch_size=len(batch))
+            self.log(f"val_{key}", value, batch_size=len(batch))
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
         for idx, boxes in enumerate(boxes_batch):

@@ -44,6 +44,12 @@ Use these curated "context bundles" to load the most relevant files for common t
 2. **Start Log:** `make context-log-start LABEL="<task>"`
 3. **Summarize Log:** `make context-log-summarize LOG=logs/agent_runs/<file>.jsonl`
 
+#### **For Planning the Next Training Run:**
+
+1. **Protocol:** [Training & Experimentation](./02_protocols/13_training_protocol.md)
+2. **Command:** `uv run python scripts/agent_tools/propose_next_run.py <wandb_run_id>`
+3. **Extras:** `collect_results.py` and `generate_ablation_table.py` usage is documented inside the protocol for quick sweep analysis.
+
 #### **For Updating Handbook Metadata & Bundles:**
 
 1. **Manifest:** [`docs/ai_handbook/index.json`](./index.json)
@@ -65,6 +71,7 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 
 * [Coding Standards & Workflow](./02_protocols/01_coding_standards.md)
 * [**Command Registry**](./02_protocols/02_command_registry.md)
+* [Training & Experimentation](./02_protocols/13_training_protocol.md)
 * [Debugging Workflow](./02_protocols/03_debugging_workflow.md)
 * [Utility Adoption Guide](./02_protocols/04_utility_adoption.md)
 * [Modular Refactoring Guide](./02_protocols/05_modular_refactor.md)
@@ -73,6 +80,7 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 * [Context Checkpointing & Restoration](./02_protocols/08_context_checkpointing.md)
 * [Hydra Configuration Refactoring](./02_protocols/09_hydra_config_refactoring.md)
 * [Refactoring Guide (redirect)](./02_protocols/10_refactoring_guide.md)
+* [Template Adoption & Best Practices](./02_protocols/16_template_adoption_protocol.md)
 
 ### **03. References (Factual Information)**
 
