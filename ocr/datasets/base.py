@@ -13,7 +13,7 @@ EXIF_ORIENTATION = 274  # Orientation Information: 274
 
 
 class OCRDataset(Dataset):
-    DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".webp"]
+    DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 
     def __init__(self, image_path, annotation_path, transform, image_extensions=None):
         self.image_path = Path(image_path)
@@ -85,8 +85,6 @@ class OCRDataset(Dataset):
         polygons = self.anns[image_filename] or None
         if exif and EXIF_ORIENTATION in exif:
             orientation = exif[EXIF_ORIENTATION]
-            if polygons is not None:
-                polygons = self.transform_polygons_for_exif(polygons, orientation, image.size)
             image = OCRDataset.rotate_image(image, orientation)
         org_shape = image.size
 
@@ -147,78 +145,6 @@ class OCRDataset(Dataset):
         return image
 
     @staticmethod
-    def transform_polygons_for_exif(
-        polygons: Sequence[np.ndarray | Sequence | None],
-        orientation: int,
-        image_size: tuple[int, int],
-    ) -> list[np.ndarray]:
-        """Apply EXIF-aware rotation to polygons and drop degenerate results.
-
-        Polygons that already fit within the target oriented frame are not
-        transformed again to prevent double-rotation, but they are still
-        clipped and filtered so downstream consumers receive clean shapes.
-        """
-        if not polygons:
-            return []
-
-        normalised_polygons: list[np.ndarray] = [
-            polygon_array
-            for polygon in polygons
-            for polygon_array in [OCRDataset._ensure_polygon_array(polygon)]
-            if polygon_array is not None
-        ]
-
-        width, height = image_size
-        if orientation in {5, 6, 7, 8}:
-            new_width, new_height = height, width
-        else:
-            new_width, new_height = width, height
-
-        fits_original = OCRDataset._polygons_fit_within(normalised_polygons, width, height)
-        fits_rotated = OCRDataset._polygons_fit_within(normalised_polygons, new_width, new_height)
-
-        force_identity = orientation == 1
-        skip_transform = force_identity or (not force_identity and not fits_original and fits_rotated)
-
-        transformed: list[np.ndarray] = []
-
-        if skip_transform:
-            transformed = [np.array(polygon, copy=True) for polygon in normalised_polygons]
-        else:
-            for polygon_array in normalised_polygons:
-                normalised_shape = polygon_array.shape
-                reshaped = np.asarray(polygon_array, dtype=np.float32).reshape(-1, 2)
-                rotated_points = OCRDataset._apply_orientation_transform(
-                    reshaped,
-                    orientation=orientation,
-                    width=width,
-                    height=height,
-                )
-                transformed.append(rotated_points.astype(polygon_array.dtype, copy=False).reshape(normalised_shape))
-
-        OCRDataset._clip_polygons_in_place(transformed, new_width, new_height)
-        return OCRDataset._filter_degenerate_polygons(transformed)
-
-    @staticmethod
-    def _apply_orientation_transform(points: np.ndarray, orientation: int, width: int, height: int) -> np.ndarray:
-        """Vectorised orientation transform for polygon points."""
-        if orientation == 2:
-            return np.stack((width - 1 - points[:, 0], points[:, 1]), axis=-1)
-        if orientation == 3:
-            return np.stack((width - 1 - points[:, 0], height - 1 - points[:, 1]), axis=-1)
-        if orientation == 4:
-            return np.stack((points[:, 0], height - 1 - points[:, 1]), axis=-1)
-        if orientation == 5:
-            return np.stack((points[:, 1], points[:, 0]), axis=-1)
-        if orientation == 6:
-            return np.stack((height - 1 - points[:, 1], points[:, 0]), axis=-1)
-        if orientation == 7:
-            return np.stack((height - 1 - points[:, 1], width - 1 - points[:, 0]), axis=-1)
-        if orientation == 8:
-            return np.stack((points[:, 1], width - 1 - points[:, 0]), axis=-1)
-        return np.array(points, copy=True)
-
-    @staticmethod
     def _ensure_polygon_array(polygon: np.ndarray | Sequence | None) -> np.ndarray | None:
         if polygon is None:
             return None
@@ -272,22 +198,3 @@ class OCRDataset(Dataset):
             filtered.append(polygon)
 
         return filtered
-
-    @staticmethod
-    def _polygons_fit_within(polygons: Sequence[np.ndarray], width: int, height: int) -> bool:
-        if width <= 0 or height <= 0:
-            return False
-
-        for polygon in polygons:
-            if polygon.size == 0:
-                continue
-            points = polygon.reshape(-1, 2)
-            if not points.size:
-                continue
-            xmin = float(points[:, 0].min())
-            xmax = float(points[:, 0].max())
-            ymin = float(points[:, 1].min())
-            ymax = float(points[:, 1].max())
-            if xmin < 0 or ymin < 0 or xmax >= width or ymax >= height:
-                return False
-        return True

@@ -280,3 +280,60 @@ class TestOCRModel:
             _, kwargs = registry_mock.create_architecture_components.call_args
             assert kwargs["decoder_name"] == "fpn_decoder"
             assert kwargs["decoder_config"]["out_channels"] == 128
+
+    def test_dbnet_architecture_passes_postprocess_config(self):
+        with patch("ocr.models.architecture.get_registry") as mock_get_registry:
+            encoder = Mock(name="encoder")
+            decoder = Mock(name="decoder")
+            head = Mock(name="head")
+            loss = Mock(name="loss")
+
+            def _assert_postprocess(architecture_name, **kwargs):
+                assert architecture_name == "dbnet"
+                head_config = kwargs["head_config"]
+                assert "postprocess" in head_config.get("params", {})
+                postprocess = head_config["params"]["postprocess"]
+                assert postprocess == {
+                    "thresh": 0.3,
+                    "box_thresh": 0.4,
+                    "max_candidates": 300,
+                    "use_polygon": False,
+                }
+                return {
+                    "encoder": encoder,
+                    "decoder": decoder,
+                    "head": head,
+                    "loss": loss,
+                }
+
+            registry_mock = Mock()
+            registry_mock.create_architecture_components.side_effect = _assert_postprocess
+            mock_get_registry.return_value = registry_mock
+
+            from omegaconf import OmegaConf
+
+            cfg = OmegaConf.create(
+                {
+                    "architecture_name": "dbnet",
+                    "component_overrides": {
+                        "encoder": {},
+                        "decoder": {},
+                        "head": {
+                            "params": {
+                                "postprocess": {
+                                    "thresh": 0.3,
+                                    "box_thresh": 0.4,
+                                    "max_candidates": 300,
+                                    "use_polygon": False,
+                                }
+                            }
+                        },
+                        "loss": {},
+                    },
+                    "optimizer": {},
+                }
+            )
+
+            OCRModel(cfg)
+
+            registry_mock.create_architecture_components.assert_called_once()

@@ -58,13 +58,9 @@ class WandbImageLoggingCallback(pl.Callback):
 
                 # Apply EXIF rotation to match dataset preprocessing
                 exif = image.getexif()
-                original_size = image.size
                 if exif and EXIF_ORIENTATION in exif:
                     orientation = exif[EXIF_ORIENTATION]
                     image = OCRDataset.rotate_image(image, orientation)
-                    # Transform polygons to match rotated image
-                    gt_quads = OCRDataset.transform_polygons_for_exif(gt_quads, orientation, original_size)
-                    pred_quads = OCRDataset.transform_polygons_for_exif(pred_quads, orientation, original_size)
 
                 gt_quads = self._postprocess_polygons(gt_quads, image.size)
                 pred_quads = self._postprocess_polygons(pred_quads, image.size)

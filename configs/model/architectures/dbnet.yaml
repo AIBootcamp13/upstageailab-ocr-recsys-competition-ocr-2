@@ -17,6 +17,11 @@ component_overrides:
     name: "db_head"
     params:
       k: 50
+      postprocess:
+        thresh: 0.3
+        box_thresh: 0.4
+        max_candidates: 300
+        use_polygon: false
   loss:
     name: "db_loss"
     params:

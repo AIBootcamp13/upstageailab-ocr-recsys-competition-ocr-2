@@ -12,3 +12,5 @@ resume: null
 project_name: null
 experiment_tag: null
 wandb: false
+
+callbacks: {}

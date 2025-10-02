@@ -63,7 +63,9 @@ env.bak/
 venv.bak/
 
 # Docs
-docs/
+docs/*
+!docs/next_job_log/
+!docs/next_job_log/**
 # IDE
 .vscode/
 .idea/
@@ -97,7 +99,6 @@ wandb/
 *.tmp
 *.temp
 DEPRECATED/
-docs
 *refactor-plan.md
 
 # Data

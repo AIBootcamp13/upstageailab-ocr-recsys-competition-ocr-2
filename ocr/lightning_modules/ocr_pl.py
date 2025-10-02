@@ -1,9 +1,6 @@
 import json
-import multiprocessing as mp
 from collections import OrderedDict, defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
-from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -15,15 +12,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ocr.metrics import CLEvalMetric
-
-
-def evaluate_single_sample(det_quads, gt_quads, metric_kwargs=None):
-    """Helper function for parallel evaluation of a single sample."""
-    metric_kwargs = metric_kwargs or {}
-    metric = CLEvalMetric(**metric_kwargs)
-    metric(det_quads, gt_quads)
-    result = metric.compute()
-    return result["recall"].item(), result["precision"].item(), result["f1"].item()
 
 
 class OCRPLModule(pl.LightningModule):
@@ -77,9 +65,7 @@ class OCRPLModule(pl.LightningModule):
     def on_validation_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        # Prepare evaluation tasks
-        eval_tasks = []
-        for gt_filename, gt_words in self.dataset["val"].anns.items():
+        for gt_filename, gt_words in tqdm(self.dataset["val"].anns.items(), desc="Evaluation"):
             if gt_filename not in self.validation_step_outputs:
                 import logging
 
@@ -95,27 +81,20 @@ class OCRPLModule(pl.LightningModule):
             pred = self.validation_step_outputs[gt_filename]
             det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
-            eval_tasks.append((det_quads, gt_quads))
 
-        # Parallel evaluation
-        if eval_tasks:
-            num_workers = min(mp.cpu_count(), len(eval_tasks))
-            worker = partial(evaluate_single_sample, metric_kwargs=self.metric_kwargs)
-            with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(worker, det_quads, gt_quads) for det_quads, gt_quads in eval_tasks]
-                for future in tqdm(
-                    as_completed(futures),
-                    total=len(futures),
-                    desc="Parallel Evaluation",
-                ):
-                    recall, precision, hmean = future.result()
-                    cleval_metrics["recall"].append(recall)
-                    cleval_metrics["precision"].append(precision)
-                    cleval_metrics["hmean"].append(hmean)
+            metric = self.metric
+            metric.reset()
+            metric(det_quads, gt_quads)
+            result = metric.compute()
 
-        recall = float(np.mean(cleval_metrics["recall"]))
-        precision = float(np.mean(cleval_metrics["precision"]))
-        hmean = float(np.mean(cleval_metrics["hmean"]))
+            cleval_metrics["recall"].append(result["recall"].item())
+            cleval_metrics["precision"].append(result["precision"].item())
+            cleval_metrics["hmean"].append(result["f1"].item())
+            metric.reset()
+
+        recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
+        precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
+        hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
 
         self.log("val/recall", recall, on_epoch=True, prog_bar=True)
         self.log("val/precision", precision, on_epoch=True, prog_bar=True)
@@ -134,9 +113,7 @@ class OCRPLModule(pl.LightningModule):
     def on_test_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        # Prepare evaluation tasks
-        eval_tasks = []
-        for gt_filename, gt_words in self.dataset["test"].anns.items():
+        for gt_filename, gt_words in tqdm(self.dataset["test"].anns.items(), desc="Evaluation"):
             if gt_filename not in self.test_step_outputs:
                 import logging
 
@@ -152,27 +129,20 @@ class OCRPLModule(pl.LightningModule):
             pred = self.test_step_outputs[gt_filename]
             det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
             gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
-            eval_tasks.append((det_quads, gt_quads))
 
-        # Parallel evaluation
-        if eval_tasks:
-            num_workers = min(mp.cpu_count(), len(eval_tasks))
-            worker = partial(evaluate_single_sample, metric_kwargs=self.metric_kwargs)
-            with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                futures = [executor.submit(worker, det_quads, gt_quads) for det_quads, gt_quads in eval_tasks]
-                for future in tqdm(
-                    as_completed(futures),
-                    total=len(futures),
-                    desc="Parallel Evaluation",
-                ):
-                    recall, precision, hmean = future.result()
-                    cleval_metrics["recall"].append(recall)
-                    cleval_metrics["precision"].append(precision)
-                    cleval_metrics["hmean"].append(hmean)
+            metric = self.metric
+            metric.reset()
+            metric(det_quads, gt_quads)
+            result = metric.compute()
 
-        recall = float(np.mean(cleval_metrics["recall"]))
-        precision = float(np.mean(cleval_metrics["precision"]))
-        hmean = float(np.mean(cleval_metrics["hmean"]))
+            cleval_metrics["recall"].append(result["recall"].item())
+            cleval_metrics["precision"].append(result["precision"].item())
+            cleval_metrics["hmean"].append(result["f1"].item())
+            metric.reset()
+
+        recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
+        precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
+        hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
 
         self.log("test/recall", recall, on_epoch=True, prog_bar=True)
         self.log("test/precision", precision, on_epoch=True, prog_bar=True)
