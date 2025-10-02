@@ -8,7 +8,7 @@ import numpy as np
 
 from .config import DocumentPreprocessorConfig
 from .detector import DocumentDetector
-from .enhancement import ImageEnhancer, TextEnhancer
+from .enhancement import ImageEnhancer
 from .external import DOCTR_AVAILABLE
 from .metadata import DocumentMetadata, PreprocessingState
 from .orientation import OrientationCorrector
@@ -25,7 +25,6 @@ class DocumentPreprocessor:
         enable_document_detection: bool = True,
         enable_perspective_correction: bool = True,
         enable_enhancement: bool = True,
-        enable_text_enhancement: bool = False,
         enhancement_method: str = "conservative",
         target_size: tuple[int, int] | None = (640, 640),
         enable_final_resize: bool = True,
@@ -39,7 +38,7 @@ class DocumentPreprocessor:
         document_detection_min_area_ratio: float = 0.18,
         document_detection_use_adaptive: bool = True,
         document_detection_use_fallback_box: bool = True,
-        document_detection_use_advanced_scanner: bool = False,
+        document_detection_use_camscanner: bool = False,
     ) -> None:
         self.logger = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ class DocumentPreprocessor:
             enable_document_detection=enable_document_detection,
             enable_perspective_correction=enable_perspective_correction,
             enable_enhancement=enable_enhancement,
-            enable_text_enhancement=enable_text_enhancement,
             enhancement_method=enhancement_method,
             target_size=target_size,
             enable_final_resize=enable_final_resize,
@@ -61,7 +59,7 @@ class DocumentPreprocessor:
             document_detection_min_area_ratio=document_detection_min_area_ratio,
             document_detection_use_adaptive=document_detection_use_adaptive,
             document_detection_use_fallback_box=document_detection_use_fallback_box,
-            document_detection_use_advanced_scanner=document_detection_use_advanced_scanner,
+            document_detection_use_camscanner=document_detection_use_camscanner,
         )
 
         if config.enhancement_method not in {"conservative", "office_lens"}:
@@ -75,7 +73,6 @@ class DocumentPreprocessor:
         self.enable_document_detection = self.config.enable_document_detection
         self.enable_perspective_correction = self.config.enable_perspective_correction
         self.enable_enhancement = self.config.enable_enhancement
-        self.enable_text_enhancement = self.config.enable_text_enhancement
         self.enhancement_method = self.config.enhancement_method
         self.target_size = self.config.target_size
         self.enable_final_resize = self.config.enable_final_resize
@@ -89,14 +86,14 @@ class DocumentPreprocessor:
         self.document_detection_min_area_ratio = self.config.document_detection_min_area_ratio
         self.document_detection_use_adaptive = self.config.document_detection_use_adaptive
         self.document_detection_use_fallback_box = self.config.document_detection_use_fallback_box
-        self.document_detection_use_advanced_scanner = self.config.document_detection_use_advanced_scanner
+        self.document_detection_use_camscanner = self.config.document_detection_use_camscanner
 
         self.detector = DocumentDetector(
             logger=self.logger,
             min_area_ratio=self.config.document_detection_min_area_ratio,
             use_adaptive=self.config.document_detection_use_adaptive,
             use_fallback=self.config.document_detection_use_fallback_box,
-            use_advanced_scanner=self.config.document_detection_use_advanced_scanner,
+            use_camscanner=self.config.document_detection_use_camscanner,
         )
         self.orientation_corrector = OrientationCorrector(
             logger=self.logger,
@@ -114,7 +111,6 @@ class DocumentPreprocessor:
         )
         self.padding_cleanup = PaddingCleanup(self._ensure_doctr)
         self.image_enhancer = ImageEnhancer()
-        self.text_enhancer = TextEnhancer()
         self.final_resizer = FinalResizer()
 
     def __call__(self, image: np.ndarray) -> dict[str, np.ndarray | dict]:
@@ -146,7 +142,11 @@ class DocumentPreprocessor:
             else:
                 state.metadata.document_detection_method = "disabled"
 
-            if self.config.enable_orientation_correction and state.corners is not None:
+            if (
+                self.config.enable_orientation_correction
+                and state.corners is not None
+                and not self.config.document_detection_use_camscanner
+            ):
                 corrected_image, corrected_corners, orientation_meta = self.orientation_corrector.correct(
                     state.image,
                     state.corners,
@@ -179,10 +179,6 @@ class DocumentPreprocessor:
                 state.image = enhanced
                 state.metadata.enhancement_applied.extend(applied)
                 state.metadata.processing_steps.append("image_enhancement")
-
-            if self.config.enable_text_enhancement:
-                state.image = self.text_enhancer.enhance(state.image)
-                state.metadata.processing_steps.append("text_enhancement")
 
             if self.config.enable_final_resize and self.config.target_size is not None:
                 state.image = self.final_resizer.resize(state.image, self.config.target_size)
@@ -239,11 +235,6 @@ class DocumentPreprocessor:
         """Compatibility wrapper for Office Lens-style enhancement."""
 
         return self.image_enhancer._enhance_image_office_lens(image)
-
-    def _enhance_text_regions(self, image: np.ndarray) -> np.ndarray:
-        """Compatibility wrapper for text enhancement routine."""
-
-        return self.text_enhancer.enhance(image)
 
     def _resize_to_target(self, image: np.ndarray) -> np.ndarray:
         """Compatibility wrapper for resizing helper (uses configured target size)."""

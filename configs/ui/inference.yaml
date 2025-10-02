@@ -79,20 +79,19 @@ preprocessing:
   enable_perspective_correction: true
   enable_enhancement: true
   enhancement_method: "conservative"
-  enable_text_enhancement: true
   target_size: [640, 640]
   enable_final_resize: true
   enable_orientation_correction: true
   orientation_angle_threshold: 1.0
   orientation_expand_canvas: true
   orientation_preserve_original_shape: false
-  use_doctr_geometry: true
+  use_doctr_geometry: false
   doctr_assume_horizontal: false
   enable_padding_cleanup: true
   document_detection_min_area_ratio: 0.18
   document_detection_use_adaptive: true
   document_detection_use_fallback_box: true
-  document_detection_use_advanced_scanner: false
+  document_detection_use_camscanner: false
   show_metadata: true
   show_corner_overlay: true
 

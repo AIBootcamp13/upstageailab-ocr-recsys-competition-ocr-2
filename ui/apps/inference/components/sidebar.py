@@ -137,80 +137,92 @@ def _render_preprocessing_controls(state: InferenceState, config: UIConfig) -> N
         with st.expander("docTR options", expanded=False):
             st.caption("Tune docTR preprocessing before running inference. These values apply per session.")
 
-            enable_orientation = st.checkbox(
-                "Enable orientation correction",
-                value=overrides.get("enable_orientation_correction", base.enable_orientation_correction),
-                help="Rotate pages using docTR's angle estimate before rectifying corners.",
+            enable_document_detection = st.checkbox(
+                "Enable document detection",
+                value=overrides.get("enable_document_detection", base.enable_document_detection),
+                help="Detect document boundaries and apply geometric corrections.",
             )
-            state.update_preprocessing_override("enable_orientation_correction", enable_orientation)
+            state.update_preprocessing_override("enable_document_detection", enable_document_detection)
 
-            angle_threshold = st.slider(
-                "Orientation threshold (degrees)",
-                min_value=0.1,
-                max_value=15.0,
-                step=0.1,
-                value=float(overrides.get("orientation_angle_threshold", base.orientation_angle_threshold)),
-            )
-            state.update_preprocessing_override("orientation_angle_threshold", float(angle_threshold))
+            # Document detection options (shown when document detection is enabled)
+            if enable_document_detection:
+                angle_threshold = st.slider(
+                    "Orientation threshold (degrees)",
+                    min_value=0.1,
+                    max_value=15.0,
+                    step=0.1,
+                    value=float(overrides.get("orientation_angle_threshold", base.orientation_angle_threshold)),
+                )
+                state.update_preprocessing_override("orientation_angle_threshold", float(angle_threshold))
 
-            expand_canvas = st.checkbox(
-                "Allow canvas expansion while rotating",
-                value=overrides.get("orientation_expand_canvas", base.orientation_expand_canvas),
-            )
-            preserve_shape = st.checkbox(
-                "Preserve original shape after rotation",
-                value=overrides.get("orientation_preserve_original_shape", base.orientation_preserve_original_shape),
-            )
-            state.update_preprocessing_override("orientation_expand_canvas", expand_canvas)
-            state.update_preprocessing_override("orientation_preserve_original_shape", preserve_shape)
+                expand_canvas = st.checkbox(
+                    "Allow canvas expansion while rotating",
+                    value=overrides.get("orientation_expand_canvas", base.orientation_expand_canvas),
+                )
+                preserve_shape = st.checkbox(
+                    "Preserve original shape after rotation",
+                    value=overrides.get("orientation_preserve_original_shape", base.orientation_preserve_original_shape),
+                )
+                state.update_preprocessing_override("orientation_expand_canvas", expand_canvas)
+                state.update_preprocessing_override("orientation_preserve_original_shape", preserve_shape)
 
-            use_doctr_geometry = st.checkbox(
-                "Use docTR rcrop geometry",
-                value=overrides.get("use_doctr_geometry", base.use_doctr_geometry),
-                help="Prefer docTR's perspective correction before falling back to OpenCV.",
-            )
-            state.update_preprocessing_override("use_doctr_geometry", use_doctr_geometry)
+                use_doctr_geometry = st.checkbox(
+                    "Use docTR rcrop geometry",
+                    value=overrides.get("use_doctr_geometry", base.use_doctr_geometry),
+                    help="Prefer docTR's perspective correction before falling back to OpenCV.",
+                )
+                state.update_preprocessing_override("use_doctr_geometry", use_doctr_geometry)
 
-            padding_cleanup = st.checkbox(
-                "Remove padding after warp",
-                value=overrides.get("enable_padding_cleanup", base.enable_padding_cleanup),
-            )
-            state.update_preprocessing_override("enable_padding_cleanup", padding_cleanup)
+                padding_cleanup = st.checkbox(
+                    "Remove padding after warp",
+                    value=overrides.get("enable_padding_cleanup", base.enable_padding_cleanup),
+                )
+                state.update_preprocessing_override("enable_padding_cleanup", padding_cleanup)
 
-            document_detection_min_area = st.slider(
-                "Minimum document area (ratio)",
-                min_value=0.05,
-                max_value=0.6,
-                step=0.01,
-                value=float(
-                    overrides.get(
-                        "document_detection_min_area_ratio",
-                        base.document_detection_min_area_ratio,
-                    )
-                ),
-                help="Ignore contours smaller than this fraction of the image when hunting for page boundaries.",
-            )
-            state.update_preprocessing_override("document_detection_min_area_ratio", float(document_detection_min_area))
+                document_detection_min_area = st.slider(
+                    "Minimum document area (ratio)",
+                    min_value=0.05,
+                    max_value=0.6,
+                    step=0.01,
+                    value=float(
+                        overrides.get(
+                            "document_detection_min_area_ratio",
+                            base.document_detection_min_area_ratio,
+                        )
+                    ),
+                    help="Ignore contours smaller than this fraction of the image when hunting for page boundaries.",
+                )
+                state.update_preprocessing_override("document_detection_min_area_ratio", float(document_detection_min_area))
 
-            detection_use_adaptive = st.checkbox(
-                "Use adaptive threshold fallback",
-                value=overrides.get("document_detection_use_adaptive", base.document_detection_use_adaptive),
-                help="Apply adaptive thresholding when the primary edge detector misses the page.",
-            )
-            detection_use_box = st.checkbox(
-                "Use bounding-box fallback",
-                value=overrides.get("document_detection_use_fallback_box", base.document_detection_use_fallback_box),
-                help="Fallback to the largest content bounding box if no contour is found.",
-            )
-            state.update_preprocessing_override("document_detection_use_adaptive", detection_use_adaptive)
-            state.update_preprocessing_override("document_detection_use_fallback_box", detection_use_box)
+                detection_use_adaptive = st.checkbox(
+                    "Use adaptive threshold fallback",
+                    value=overrides.get("document_detection_use_adaptive", base.document_detection_use_adaptive),
+                    help="Apply adaptive thresholding when the primary edge detector misses the page.",
+                )
+                detection_use_box = st.checkbox(
+                    "Use bounding-box fallback",
+                    value=overrides.get("document_detection_use_fallback_box", base.document_detection_use_fallback_box),
+                    help="Fallback to the largest content bounding box if no contour is found.",
+                )
+                state.update_preprocessing_override("document_detection_use_adaptive", detection_use_adaptive)
+                state.update_preprocessing_override("document_detection_use_fallback_box", detection_use_box)
 
-            advanced_scanner = st.checkbox(
-                "Use advanced document scanner",
-                value=overrides.get("document_detection_use_advanced_scanner", base.document_detection_use_advanced_scanner),
-                help="Use multi-threshold edge detection and morphological processing for better document boundary detection.",
-            )
-            state.update_preprocessing_override("document_detection_use_advanced_scanner", advanced_scanner)
+                camscanner = st.checkbox(
+                    "Use CamScanner-style detection",
+                    value=overrides.get("document_detection_use_camscanner", base.document_detection_use_camscanner),
+                    help="Use advanced CamScanner-style LSD line detection for precise document boundary detection. More accurate than basic edge detection.",
+                )
+                state.update_preprocessing_override("document_detection_use_camscanner", camscanner)
+
+                enable_orientation = st.checkbox(
+                    "Enable orientation correction",
+                    value=overrides.get("enable_orientation_correction", base.enable_orientation_correction) and not camscanner,
+                    disabled=camscanner,
+                    help="Rotate pages using docTR's angle estimate before rectifying corners. Disabled when CamScanner is used as it provides better orientation detection."
+                    if camscanner
+                    else "Rotate pages using docTR's angle estimate before rectifying corners.",
+                )
+                state.update_preprocessing_override("enable_orientation_correction", enable_orientation)
 
             enhancement_enabled = st.checkbox(
                 "Enable photometric enhancement",
@@ -224,12 +236,6 @@ def _render_preprocessing_controls(state: InferenceState, config: UIConfig) -> N
                 index=["conservative", "office_lens"].index(overrides.get("enhancement_method", base.enhancement_method)),
             )
             state.update_preprocessing_override("enhancement_method", enhancement_method)
-
-            text_enhancement = st.checkbox(
-                "Enable text enhancement",
-                value=overrides.get("enable_text_enhancement", base.enable_text_enhancement),
-            )
-            state.update_preprocessing_override("enable_text_enhancement", text_enhancement)
 
             final_resize = st.checkbox(
                 "Resize output to target canvas",

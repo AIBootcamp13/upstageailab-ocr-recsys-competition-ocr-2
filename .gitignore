@@ -109,3 +109,8 @@ lightning_logs/*
 
 multirun/*
 *.ipynb
+
+
+# Experiments
+CamScanner-Web-App/
+OpenCV-Document-Scanner/

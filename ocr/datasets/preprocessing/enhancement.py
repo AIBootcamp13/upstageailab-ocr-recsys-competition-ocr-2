@@ -63,21 +63,4 @@ class ImageEnhancer:
         return final, applied_enhancements
 
 
-class TextEnhancer:
-    """Text-specific enhancement routines."""
-
-    def enhance(self, image: np.ndarray) -> np.ndarray:
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        morphed = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
-        thresh = cv2.adaptiveThreshold(morphed, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-
-        image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        enhanced_text_gray = cv2.bitwise_and(image_gray, thresh)
-        enhanced_text_color = cv2.cvtColor(enhanced_text_gray, cv2.COLOR_GRAY2RGB)
-
-        alpha = 0.7
-        return cv2.addWeighted(image, 1 - alpha, enhanced_text_color, alpha, 0)
-
-
-__all__ = ["ImageEnhancer", "TextEnhancer"]
+__all__ = ["ImageEnhancer"]
