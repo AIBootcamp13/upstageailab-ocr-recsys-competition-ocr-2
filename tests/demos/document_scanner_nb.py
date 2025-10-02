@@ -2,6 +2,7 @@
 # # Imports
 
 import logging
+import os
 
 # %%
 import cv2
@@ -50,7 +51,11 @@ def reorder(vertices):
 
 # %%
 # Load the image
-im = cv2.imread("../../data/datasets/images/test/drp.en_ko.in_house.selectstar_000017.jpg")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+image_path = os.path.join(script_dir, "../../data/datasets/images/test/drp.en_ko.in_house.selectstar_000126.jpg")
+im = cv2.imread(image_path)
+if im is None:
+    raise ValueError(f"Could not load image from {image_path}")
 imshow(im)  # We'll show the final result at the end
 
 # %% [markdown]

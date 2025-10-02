@@ -38,3 +38,15 @@ model_families:
     head:
       class: ocr.models.head.DBHead
       in_channels: 256
+  - id: dbnetpp_resnet50
+    description: "DBNet++ architecture trained with ResNet50/ResNet101 backbone and DBPP decoder."
+    encoder:
+      model_names: ["resnet50", "resnet101"]
+    decoder:
+      class: ocr.models.decoder.dbpp_decoder.DBPPDecoder
+      inner_channels: 256
+      output_channels: 128
+      in_channels: [256, 512, 1024, 2048]
+    head:
+      class: ocr.models.head.db_head.DBHead
+      in_channels: 128

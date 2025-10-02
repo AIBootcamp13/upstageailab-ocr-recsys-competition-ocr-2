@@ -13,9 +13,11 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageDraw
 
-from .helpers import draw_predictions_on_image, parse_polygon_string
+from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
+
+from .helpers import parse_polygon_string
 
 
 def display_image_viewer(df: pd.DataFrame, image_dir: str) -> None:
@@ -74,11 +76,18 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
         st.error(f"Error loading image: {exc}")
         return
 
+    # Apply EXIF rotation to the image if present (mimicking OCRDataset behavior)
+    exif = image.getexif()
+    orientation = exif.get(EXIF_ORIENTATION, 1) if exif else 1
+    if orientation != 1:
+        image = OCRDataset.rotate_image(image, orientation)
+
     row = df[df["filename"] == image_name].iloc[0]
     polygons_str = str(row.get("polygons", ""))
 
     if polygons := parse_polygon_string(polygons_str):
-        annotated = draw_predictions_on_image(image, polygons_str, (255, 0, 0))
+        # Draw predictions on the rotated image
+        annotated = _draw_predictions_from_list(image, polygons, (255, 0, 0))
         st.image(annotated, caption=f"Predictions on {image_name}")
         st.info(f"Found {len(polygons)} valid text regions in this image (out of {len(polygons)} total)")
         _render_enlarge_toggle(
@@ -166,3 +175,23 @@ def _current_viewer_row(df: pd.DataFrame) -> tuple[int, pd.Series]:
     index = max(0, min(index, len(df) - 1))
     st.session_state.image_viewer_page = index
     return index, df.iloc[index]
+
+
+def _draw_predictions_from_list(image: Image.Image, polygons: list[list[float]], color: tuple[int, int, int]) -> Image.Image:
+    """Draw polygon predictions from a list on a copy of the image."""
+    if not polygons:
+        return image
+
+    overlay = image.copy()
+    draw = ImageDraw.Draw(overlay, "RGBA")
+
+    for index, coords in enumerate(polygons):
+        points = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
+        try:
+            draw.polygon(points, outline=color + (255,), fill=color + (50,), width=2)
+        except TypeError:
+            draw.polygon(points, outline=color + (255,), fill=color + (50,))
+        if points:
+            draw.text((points[0][0], points[0][1] - 10), f"T{index + 1}", fill=color + (255,))
+
+    return overlay
