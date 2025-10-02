@@ -110,6 +110,7 @@ class PreprocessingConfig:
     document_detection_min_area_ratio: float = 0.18
     document_detection_use_adaptive: bool = True
     document_detection_use_fallback_box: bool = True
+    document_detection_use_advanced_scanner: bool = False
 
     def to_kwargs(self) -> dict[str, Any]:
         return {
@@ -130,6 +131,7 @@ class PreprocessingConfig:
             "document_detection_min_area_ratio": self.document_detection_min_area_ratio,
             "document_detection_use_adaptive": self.document_detection_use_adaptive,
             "document_detection_use_fallback_box": self.document_detection_use_fallback_box,
+            "document_detection_use_advanced_scanner": self.document_detection_use_advanced_scanner,
         }
 
 

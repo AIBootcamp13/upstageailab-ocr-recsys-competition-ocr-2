@@ -205,6 +205,13 @@ def _render_preprocessing_controls(state: InferenceState, config: UIConfig) -> N
             state.update_preprocessing_override("document_detection_use_adaptive", detection_use_adaptive)
             state.update_preprocessing_override("document_detection_use_fallback_box", detection_use_box)
 
+            advanced_scanner = st.checkbox(
+                "Use advanced document scanner",
+                value=overrides.get("document_detection_use_advanced_scanner", base.document_detection_use_advanced_scanner),
+                help="Use multi-threshold edge detection and morphological processing for better document boundary detection.",
+            )
+            state.update_preprocessing_override("document_detection_use_advanced_scanner", advanced_scanner)
+
             enhancement_enabled = st.checkbox(
                 "Enable photometric enhancement",
                 value=overrides.get("enable_enhancement", base.enable_enhancement),

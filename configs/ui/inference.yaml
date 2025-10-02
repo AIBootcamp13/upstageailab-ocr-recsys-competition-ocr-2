@@ -92,6 +92,7 @@ preprocessing:
   document_detection_min_area_ratio: 0.18
   document_detection_use_adaptive: true
   document_detection_use_fallback_box: true
+  document_detection_use_advanced_scanner: false
   show_metadata: true
   show_corner_overlay: true
 

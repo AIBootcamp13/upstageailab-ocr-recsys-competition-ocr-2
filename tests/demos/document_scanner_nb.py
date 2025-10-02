@@ -46,42 +46,15 @@ def reorder(vertices):
     return reordered
 
 
-# %% [markdown]
-# # Image
-
-# %%
-# Load the image
-script_dir = os.path.dirname(os.path.abspath(__file__))
-image_path = os.path.join(script_dir, "../../data/datasets/images/test/drp.en_ko.in_house.selectstar_000126.jpg")
-im = cv2.imread(image_path)
-if im is None:
-    raise ValueError(f"Could not load image from {image_path}")
-imshow(im)  # We'll show the final result at the end
-
-# %% [markdown]
-# # Process
-
-# %% [markdown]
-# ## Grayscale Transform
-
-
 # %%
 def to_grayscale(im):
     return cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-
-
-# %% [markdown]
-# ## Blurring the Image
 
 
 # %%
 def blur(im):
     # Using a slightly larger kernel can help reduce noise for edge detection
     return cv2.GaussianBlur(im, (5, 5), 0)
-
-
-# %% [markdown]
-# ## Edge Detection
 
 
 # %%
@@ -115,10 +88,6 @@ def to_edges(im):
     edges = cv2.dilate(edges, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)
 
     return edges
-
-
-# %% [markdown]
-# ## Contour Detection
 
 
 # %%
@@ -280,10 +249,6 @@ def _is_reasonable_document(vertices, img_height, img_width):
         return False
 
     return True
-
-
-# %% [markdown]
-# ## Perspective Transform
 
 
 # %%
@@ -475,10 +440,6 @@ def _is_valid_quadrilateral(vertices):
     return area > 100  # Minimum area threshold
 
 
-# %% [markdown]
-# ## Image Enhancement
-
-
 # %%
 def enhance(im, block_size=21, C=10):
     """
@@ -522,10 +483,6 @@ def enhance(im, block_size=21, C=10):
     )
 
     return enhanced
-
-
-# %% [markdown]
-# ## Result
 
 
 # %%
@@ -594,8 +551,387 @@ def scan(im, logger=None):
 
 
 # %%
-scanned = scan(im)
-imshow(scanned)
+def visualize_pipeline_stages(im, show_intermediates=True):
+    """
+    Visualize all stages of the document scanning pipeline side by side.
+
+    Parameters
+    ----------
+    im : np.ndarray
+        Input image
+    show_intermediates : bool
+        Whether to show intermediate processing steps
+    """
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
+    fig.suptitle("Document Scanning Pipeline Stages", fontsize=16)
+
+    # Stage 1: Original Image
+    axes[0, 0].imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
+    axes[0, 0].set_title("1. Original Image")
+    axes[0, 0].axis("off")
+
+    # Stage 2: Grayscale
+    gray = to_grayscale(im)
+    axes[0, 1].imshow(gray, cmap="gray")
+    axes[0, 1].set_title("2. Grayscale")
+    axes[0, 1].axis("off")
+
+    # Stage 3: Blurred
+    blurred = blur(gray)
+    axes[0, 2].imshow(blurred, cmap="gray")
+    axes[0, 2].set_title("3. Gaussian Blur (5x5)")
+    axes[0, 2].axis("off")
+
+    # Stage 4: Edges
+    edges = to_edges(blurred)
+    axes[0, 3].imshow(edges, cmap="gray")
+    axes[0, 3].set_title("4. Edge Detection\n(Canny + Morphological)")
+    axes[0, 3].axis("off")
+
+    # Stage 5: Contour Detection & Vertices
+    vertices = find_vertices(edges)
+    contour_viz = im.copy()
+    if vertices is not None:
+        # Draw detected vertices
+        for i, (x, y) in enumerate(vertices):
+            cv2.circle(contour_viz, (int(x), int(y)), 8, (0, 255, 0), -1)
+            cv2.putText(contour_viz, str(i), (int(x) + 10, int(y) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        # Draw quadrilateral outline
+        pts = vertices.reshape((-1, 1, 2)).astype(np.int32)
+        cv2.polylines(contour_viz, [pts], True, (255, 0, 0), 3)
+
+    axes[1, 0].imshow(cv2.cvtColor(contour_viz, cv2.COLOR_BGR2RGB))
+    vertex_status = "Found" if vertices is not None else "Not Found"
+    axes[1, 0].set_title(f"5. Document Detection\n(Vertices: {vertex_status})")
+    axes[1, 0].axis("off")
+
+    # Stage 6: Perspective Correction
+    if vertices is not None:
+        cropped = crop_out(im, vertices)
+        axes[1, 1].imshow(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
+        axes[1, 1].set_title(f"6. Perspective Correction\n({cropped.shape[1]}x{cropped.shape[0]})")
+    else:
+        # Fallback crop
+        fallback = fallback_crop(im)
+        axes[1, 1].imshow(cv2.cvtColor(fallback, cv2.COLOR_BGR2RGB))
+        axes[1, 1].set_title(f"6. Fallback Crop\n({fallback.shape[1]}x{fallback.shape[0]})")
+    axes[1, 1].axis("off")
+
+    # Stage 7: Enhancement
+    if vertices is not None:
+        cropped = crop_out(im, vertices)
+        enhanced = enhance(cropped)
+    else:
+        enhanced = enhance(fallback_crop(im))
+
+    axes[1, 2].imshow(enhanced, cmap="gray")
+    axes[1, 2].set_title("7. OCR Enhancement\n(Adaptive Threshold)")
+    axes[1, 2].axis("off")
+
+    # Stage 8: Final Result with Metrics
+    axes[1, 3].imshow(enhanced, cmap="gray")
+
+    # Add metrics text
+    metrics_text = f".1f.1fFinal Result\n{enhanced.shape[1]}x{enhanced.shape[0]} px\n"
+    if vertices is not None:
+        # Calculate some quality metrics
+        area = cv2.contourArea(vertices.reshape(4, 1, 2).astype(np.int32))
+        perimeter = cv2.arcLength(vertices.reshape(4, 1, 2).astype(np.float32), True)
+        metrics_text += f"Area: {area:.0f} px²\nPerimeter: {perimeter:.0f} px"
+    else:
+        metrics_text += "No document detected\nUsing fallback method"
+
+    axes[1, 3].text(10, 30, metrics_text, fontsize=8, color="red", bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "alpha": 0.8})
+    axes[1, 3].set_title("8. Final OCR-Ready Image")
+    axes[1, 3].axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    # Print detailed information
+    print("=== PIPELINE ANALYSIS ===")
+    print(f"Original image size: {im.shape[1]}x{im.shape[0]}")
+    print(f"Grayscale conversion: {'✓' if len(gray.shape) == 2 else '✗'}")
+    print(f"Edge detection: {np.sum(edges > 0)} edge pixels detected")
+    print(f"Document vertices: {'✓ Found' if vertices is not None else '✗ Not found'}")
+    if vertices is not None:
+        print(f"  Vertices: {vertices}")
+        area = cv2.contourArea(vertices.reshape(4, 1, 2).astype(np.int32))
+        print(f"  Detected area: {area:.0f} pixels")
+    print(f"Final output size: {enhanced.shape[1]}x{enhanced.shape[0]}")
+
+    return enhanced
+
 
 # %%
+def debug_edge_detection(im, canny_thresholds=None):
+    """
+    Debug edge detection with different Canny thresholds to find optimal settings for receipts.
+    """
+    if canny_thresholds is None:
+        canny_thresholds = [(30, 100), (50, 150), (75, 200)]
+    # Convert to grayscale if needed
+    if len(im.shape) == 3:
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = im
+
+    # Apply bilateral filter to reduce noise while preserving edges
+    filtered = cv2.bilateralFilter(gray, 9, 75, 75)
+
+    fig, axes = plt.subplots(2, len(canny_thresholds) + 1, figsize=(15, 8))
+    fig.suptitle("Edge Detection Parameter Tuning", fontsize=14)
+
+    # Show filtered image
+    axes[0, 0].imshow(filtered, cmap="gray")
+    axes[0, 0].set_title("Filtered Image\n(Bilateral Filter)")
+    axes[0, 0].axis("off")
+
+    # Show different Canny thresholds
+    for i, (low, high) in enumerate(canny_thresholds):
+        edges = cv2.Canny(filtered, low, high)
+        axes[0, i + 1].imshow(edges, cmap="gray")
+        axes[0, i + 1].set_title(f"Canny Edges\n({low}, {high})")
+        axes[0, i + 1].axis("off")
+
+        # Show edge pixel count
+        edge_count = np.sum(edges > 0)
+        axes[0, i + 1].text(
+            10, 30, f"{edge_count} px", fontsize=8, color="red", bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.8}
+        )
+
+    # Show morphological operations
+    edges_combined = cv2.bitwise_or(cv2.Canny(filtered, 30, 100), cv2.Canny(filtered, 50, 150))
+    edges_combined = cv2.bitwise_or(edges_combined, cv2.Canny(filtered, 75, 200))
+
+    # Apply morphological operations
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    morph_close = cv2.morphologyEx(edges_combined, cv2.MORPH_CLOSE, kernel)
+    final_edges = cv2.dilate(morph_close, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)), iterations=2)
+
+    axes[1, 0].imshow(edges_combined, cmap="gray")
+    axes[1, 0].set_title("Combined Edges")
+    axes[1, 0].axis("off")
+
+    axes[1, 1].imshow(morph_close, cmap="gray")
+    axes[1, 1].set_title("Morphological Close\n(5x5 kernel)")
+    axes[1, 1].axis("off")
+
+    axes[1, 2].imshow(final_edges, cmap="gray")
+    axes[1, 2].set_title("Final Edges\n(Dilate 2x)")
+    axes[1, 2].axis("off")
+
+    # Show contour detection on final edges
+    contours, _ = cv2.findContours(final_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contour_viz = cv2.cvtColor(final_edges, cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(contour_viz, contours, -1, (0, 255, 0), 2)
+
+    # Highlight largest contours
+    if contours:
+        largest_contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+        for i, cnt in enumerate(largest_contours):
+            cv2.drawContours(contour_viz, [cnt], -1, (255, 0, 0), 3)
+            # Add area label
+            area = cv2.contourArea(cnt)
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                cv2.putText(contour_viz, f"{area:.0f}", (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+
+    axes[1, 3].imshow(cv2.cvtColor(contour_viz, cv2.COLOR_BGR2RGB))
+    axes[1, 3].set_title(f"Top Contours\n({len(contours)} total)")
+    axes[1, 3].axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+    print(f"Total contours found: {len(contours)}")
+    if contours:
+        areas = [cv2.contourArea(cnt) for cnt in contours]
+        print(f"Contour areas: min={min(areas):.0f}, max={max(areas):.0f}, mean={np.mean(areas):.0f}")
+
+
+# %%
+def debug_contour_filtering(im, area_thresholds=None):
+    """
+    Debug contour filtering parameters to understand how area thresholds affect detection.
+    """
+    if area_thresholds is None:
+        area_thresholds = [0.01, 0.05, 0.1, 0.2]
+    edges = to_edges(im)
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        print("No contours found!")
+        return
+
+    image_area = im.shape[0] * im.shape[1]
+    print(f"Image area: {image_area} pixels")
+    print(f"Total contours: {len(contours)}")
+
+    fig, axes = plt.subplots(2, len(area_thresholds), figsize=(15, 8))
+    fig.suptitle("Contour Area Filtering Analysis", fontsize=14)
+
+    for i, threshold in enumerate(area_thresholds):
+        min_area = image_area * threshold
+        filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
+        # Visualize
+        viz = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        cv2.drawContours(viz, filtered_contours, -1, (0, 255, 0), 2)
+
+        axes[0, i].imshow(cv2.cvtColor(viz, cv2.COLOR_BGR2RGB))
+        axes[0, i].set_title(f"Area > {threshold * 100:.0f}%\n({len(filtered_contours)} contours)")
+        axes[0, i].axis("off")
+
+        # Show area distribution
+        if filtered_contours:
+            areas = [cv2.contourArea(cnt) for cnt in filtered_contours]
+            axes[1, i].hist(areas, bins=20, alpha=0.7, color="blue", edgecolor="black")
+            axes[1, i].set_xlabel("Contour Area (pixels)")
+            axes[1, i].set_ylabel("Frequency")
+            axes[1, i].set_title(f"Area Distribution\n(mean: {np.mean(areas):.0f})")
+            axes[1, i].axvline(min_area, color="red", linestyle="--", label=f"Threshold: {min_area:.0f}")
+            axes[1, i].legend()
+        else:
+            axes[1, i].text(0.5, 0.5, "No contours\nabove threshold", ha="center", va="center", transform=axes[1, i].transAxes)
+            axes[1, i].set_title("No Valid Contours")
+
+    plt.tight_layout()
+    plt.show()
+
+
+# %%
+def analyze_receipt_characteristics(im):
+    """
+    Analyze image characteristics specific to receipt detection.
+    """
+    print("=== RECEIPT IMAGE ANALYSIS ===")
+
+    # Basic properties
+    height, width = im.shape[:2]
+    print(f"Image dimensions: {width}x{height} (aspect ratio: {width / height:.2f})")
+
+    # Color analysis
+    if len(im.shape) == 3:
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        print("Color image detected")
+    else:
+        gray = im
+        print("Grayscale image")
+
+    # Brightness analysis
+    mean_brightness = np.mean(gray)
+    std_brightness = np.std(gray)
+    print(f"Brightness: mean={mean_brightness:.1f}, std={std_brightness:.1f}")
+
+    # Contrast analysis
+    contrast = np.max(gray) - np.min(gray)
+    print(f"Contrast range: {contrast}")
+
+    # Edge density analysis
+    edges = cv2.Canny(gray, 50, 150)
+    edge_density = np.sum(edges > 0) / (height * width)
+    print(f"Edge density: {edge_density:.3f} ({np.sum(edges > 0)} edge pixels)")
+
+    # Text region estimation (rough)
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+    text_density = np.sum(thresh > 0) / (height * width)
+    print(f"Estimated text density: {text_density:.3f}")
+
+    # Aspect ratio analysis for receipts
+    if width / height > 1.5:  # Wider than tall
+        print("Image is wide (typical for receipts)")
+    elif height / width > 1.5:  # Taller than wide
+        print("Image is tall (less typical for receipts)")
+    else:
+        print("Image has balanced aspect ratio")
+
+    # Size analysis
+    total_pixels = height * width
+    if total_pixels < 100000:
+        print("Low resolution image - may need upscaling")
+    elif total_pixels > 2000000:
+        print("High resolution image - may need downscaling")
+    else:
+        print("Reasonable resolution for OCR")
+
+    return {
+        "dimensions": (width, height),
+        "brightness": (mean_brightness, std_brightness),
+        "contrast": contrast,
+        "edge_density": edge_density,
+        "text_density": text_density,
+        "aspect_ratio": width / height,
+    }
+
+
+# %% [markdown]
+# # Image
+
+# %%
+# Load the image
+script_dir = os.path.dirname(os.path.abspath(__file__))
+image_path = os.path.join(script_dir, "../../data/datasets/images/test/drp.en_ko.in_house.selectstar_000126.jpg")
+im = cv2.imread(image_path)
+if im is None:
+    raise ValueError(f"Could not load image from {image_path}")
+
+print("=== RECEIPT IMAGE ANALYSIS ===")
+characteristics = analyze_receipt_characteristics(im)
+
+# %% [markdown]
+# # Debug Edge Detection
+# Let's examine the edge detection parameters to optimize for receipt detection
+
+# %%
+debug_edge_detection(im)
+
+# %% [markdown]
+# # Debug Contour Filtering
+# Let's see how different area thresholds affect contour detection
+
+# %%
+debug_contour_filtering(im)
+
+# %% [markdown]
+# # Complete Pipeline Visualization
+# Now let's see the full pipeline with all stages
+
+# %%
+scanned = visualize_pipeline_stages(im)
+
+# %% [markdown]
+# # Fine-tuning Recommendations for Receipt Detection
+#
+# Based on the analysis above, here are key areas to fine-tune for receipt detection:
+#
+# ## 1. Edge Detection Parameters
+# - **Canny thresholds**: Current settings (30,100), (50,150), (75,200) work well for receipts
+# - **Morphological operations**: The 5x5 close + 2x dilate helps connect receipt edges
+# - **For receipts**: Consider lower thresholds if edges are weak, higher if there's noise
+#
+# ## 2. Contour Filtering
+# - **Area thresholds**: Current 5% minimum works well, but receipts might need 1-3%
+# - **Aspect ratio**: Receipts are typically wider than tall (aspect > 1.2)
+# - **Shape validation**: Ensure contours aren't too elongated (max aspect ratio ~5.0)
+#
+# ## 3. Perspective Correction
+# - **Fallback strategy**: Text-based cropping works well when document edges aren't clear
+# - **Vertex ordering**: Ensure proper TL, TR, BR, BL ordering for perspective transform
+#
+# ## 4. Enhancement Parameters
+# - **Adaptive threshold**: Block size 21, C=10 works well for most receipts
+# - **For low contrast**: Increase C value (makes text darker)
+# - **For high contrast**: Decrease C value (prevents text from becoming too thin)
+#
+# ## 5. Receipt-Specific Optimizations
+# - **Text density**: Look for images with 10-40% text density
+# - **Edge density**: Moderate edge density (0.01-0.05) indicates structured content
+# - **Brightness**: Receipts often have moderate contrast, not extreme brightness variation
+
+# %%
+# Save the final result
 cv2.imwrite("scanned_improved2.jpg", scanned)
+print(f"Final scanned image saved as 'scanned_improved2.jpg' ({scanned.shape[1]}x{scanned.shape[0]})")

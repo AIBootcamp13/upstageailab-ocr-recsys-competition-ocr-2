@@ -39,6 +39,7 @@ class DocumentPreprocessor:
         document_detection_min_area_ratio: float = 0.18,
         document_detection_use_adaptive: bool = True,
         document_detection_use_fallback_box: bool = True,
+        document_detection_use_advanced_scanner: bool = False,
     ) -> None:
         self.logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class DocumentPreprocessor:
             document_detection_min_area_ratio=document_detection_min_area_ratio,
             document_detection_use_adaptive=document_detection_use_adaptive,
             document_detection_use_fallback_box=document_detection_use_fallback_box,
+            document_detection_use_advanced_scanner=document_detection_use_advanced_scanner,
         )
 
         if config.enhancement_method not in {"conservative", "office_lens"}:
@@ -87,12 +89,14 @@ class DocumentPreprocessor:
         self.document_detection_min_area_ratio = self.config.document_detection_min_area_ratio
         self.document_detection_use_adaptive = self.config.document_detection_use_adaptive
         self.document_detection_use_fallback_box = self.config.document_detection_use_fallback_box
+        self.document_detection_use_advanced_scanner = self.config.document_detection_use_advanced_scanner
 
         self.detector = DocumentDetector(
             logger=self.logger,
             min_area_ratio=self.config.document_detection_min_area_ratio,
             use_adaptive=self.config.document_detection_use_adaptive,
             use_fallback=self.config.document_detection_use_fallback_box,
+            use_advanced_scanner=self.config.document_detection_use_advanced_scanner,
         )
         self.orientation_corrector = OrientationCorrector(
             logger=self.logger,
