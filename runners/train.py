@@ -1,3 +1,4 @@
+import math
 import os
 import signal
 import sys
@@ -73,6 +74,36 @@ def train(config: DictConfig):
 
     torch.set_float32_matmul_precision("high")
 
+    runtime_cfg = config.get("runtime") or {}
+    auto_gpu_devices = runtime_cfg.get("auto_gpu_devices", True)
+    preferred_strategy = runtime_cfg.get("ddp_strategy", "ddp_find_unused_parameters_false")
+    min_auto_devices = runtime_cfg.get("min_auto_devices", 2)
+
+    def _normalize_device_request(value):
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return value
+        return value
+
+    if auto_gpu_devices and config.trainer.get("accelerator", "cpu") == "gpu" and torch.cuda.is_available():
+        available_gpus = torch.cuda.device_count()
+        requested_devices = _normalize_device_request(config.trainer.get("devices"))
+        if available_gpus >= max(1, min_auto_devices):
+            if requested_devices in (None, 1):
+                config.trainer.devices = available_gpus
+                strategy_cfg = config.trainer.get("strategy")
+                if strategy_cfg in (None, "auto"):
+                    config.trainer.strategy = preferred_strategy
+                print(f"[AutoParallel] Scaling to {available_gpus} GPUs with strategy='{config.trainer.strategy}'.")
+            elif isinstance(requested_devices, int) and requested_devices > available_gpus:
+                config.trainer.devices = available_gpus
+                print(
+                    f"[AutoParallel] Requested {requested_devices} GPUs, but only {available_gpus} detected. "
+                    f"Falling back to {available_gpus}."
+                )
+
     model_module, data_module = get_pl_modules_by_cfg(config)
 
     # Ensure key output directories exist before creating callbacks
@@ -138,19 +169,25 @@ def train(config: DictConfig):
     if config.logger.wandb:
         from ocr.utils.wandb_utils import finalize_run  # noqa: E402
 
-        # Get final validation loss as a simple metric for finalization
-        final_loss = trainer.callback_metrics.get("val/loss", 0.0)
-        try:
-            # Handle both tensor and scalar values safely
-            item_attr = getattr(final_loss, "item", None)
-            if callable(item_attr):
-                item_val = item_attr()
-                final_loss = float(item_val) if isinstance(item_val, int | float) else float(final_loss)
-            else:
-                final_loss = float(final_loss)
-        except (ValueError, TypeError):
-            final_loss = 0.0
-        finalize_run(final_loss)
+        metrics: dict[str, float] = {}
+
+        def _to_float(value) -> float | None:
+            try:
+                if isinstance(value, torch.Tensor):
+                    return float(value.detach().cpu().item())
+                if hasattr(value, "item"):
+                    item_val = value.item()
+                    return float(item_val)
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        for key, value in trainer.callback_metrics.items():
+            cast_value = _to_float(value)
+            if cast_value is not None and math.isfinite(cast_value):
+                metrics[key] = cast_value
+
+        finalize_run(metrics)
 
 
 if __name__ == "__main__":

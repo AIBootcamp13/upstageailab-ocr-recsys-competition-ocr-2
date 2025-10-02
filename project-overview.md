@@ -155,6 +155,30 @@ V100 GPU에서 10 에포크 훈련 후, 베이스라인 모델은 공개 테스�
 python runners/train.py preset=example
 ```
 
+#### ⚡️ GPU 병렬화 자동 활성화
+
+- `configs/train.yaml`에 추가된 `runtime.auto_gpu_devices`가 `true`이면, 다중 GPU 환경에서 `devices` 값을 자동으로 확장하고 `ddp_find_unused_parameters_false` 전략을 사용합니다.
+- 단일 GPU에서 실행 중이거나 명시적으로 `trainer.devices`를 지정한 경우에는 기존 설정을 그대로 유지합니다.
+- 기본 동작을 끄려면 다음과 같이 오버라이드합니다.
+
+```bash
+python runners/train.py runtime.auto_gpu_devices=false
+```
+
+필요 시 원하는 병렬 전략을 명시할 수도 있습니다.
+
+```bash
+python runners/train.py trainer.strategy=ddp trainer.devices=4
+```
+
+자동 조정은 가용 GPU 수보다 큰 값이 설정된 경우에도 안전하게 감지된 개수로 되돌립니다.
+
+#### 🧭 W&B 런 이름 정리
+
+- 훈련 종료 시 `wandb` 런 이름이 최종 손실이 아닌 최고 가용 지표(우선순위: `test/val hmean → recall → precision → loss`)로 갱신됩니다.
+- 요약(`wandb.summary`)에는 모든 수집된 최종 지표가 기록되며, `final_run_name` 필드에서도 동일한 값이 확인됩니다.
+- 자체 규칙을 적용하고 싶다면 `ocr/utils/wandb_utils.py::finalize_run`에서 우선순위 배열을 수정하세요.
+
 ### **모델 테스트**
 
 평가를 실행하려면 저장된 체크포인트의 경로를 제공하세요.

@@ -2,9 +2,10 @@
 # NEEDS TO BE REPURPOSED FOR TEXT DETECTION
 
 import hashlib
+import math
 import os
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -339,21 +340,79 @@ def generate_run_name(cfg: DictConfig) -> str:
     return run_name
 
 
-def finalize_run(final_loss: float):
-    """Updates the run name with the final score and saves summary metrics."""
+def finalize_run(metrics: Mapping[str, float] | float | None):
+    """Finalize the active W&B run with the most relevant metric."""
+
     if not wandb.run:
         print("W&B run not initialized. Skipping finalization.")
         return
 
-    # 1. Update the run name with the final loss
-    current_name = wandb.run.name or "run_SCORE_PLACEHOLDER"
-    final_name = current_name.replace("_SCORE_PLACEHOLDER", f"_loss{final_loss:.4f}")
-    wandb.run.name = final_name
-    print(f"Finalized run name: {final_name}")
+    metric_map: dict[str, float] = {}
 
-    # 2. Update the summary to pin key metrics to the overview
-    wandb.summary["final_mean_loss"] = final_loss
+    if isinstance(metrics, Mapping):
+        for key, value in metrics.items():
+            try:
+                metric_map[key] = float(value)
+            except (TypeError, ValueError):
+                continue
+    elif metrics is not None:
+        try:
+            metric_map["val/loss"] = float(metrics)
+        except (TypeError, ValueError):
+            metric_map["val/loss"] = 0.0
+
+    final_loss = metric_map.get("val/loss")
+    if final_loss is None:
+        final_loss = metric_map.get("loss")
+    if final_loss is None:
+        final_loss = metric_map.get("train/loss")
+    if final_loss is None:
+        final_loss = 0.0
+
+    metric_map.setdefault("final_mean_loss", final_loss)
+
+    # Update summary metrics
+    for key, value in metric_map.items():
+        if math.isfinite(value):
+            wandb.summary[key] = value
+
+    rename_preferences: list[tuple[str, str, int]] = [
+        ("test/hmean", "hmean", 3),
+        ("val/hmean", "hmean", 3),
+        ("test/recall", "recall", 3),
+        ("val/recall", "recall", 3),
+        ("test/precision", "precision", 3),
+        ("val/precision", "precision", 3),
+        ("val/loss", "loss", 4),
+        ("test/loss", "loss", 4),
+        ("final_mean_loss", "loss", 4),
+    ]
+
+    metric_label = "loss"
+    metric_value = final_loss
+    precision = 4
+
+    for key, label, prec in rename_preferences:
+        value = metric_map.get(key)
+        if value is None or not math.isfinite(value):
+            continue
+        metric_label = label
+        metric_value = value
+        precision = prec
+        break
+
+    formatted_score = f"{metric_label}{metric_value:.{precision}f}"
+
+    current_name = wandb.run.name or "run_SCORE_PLACEHOLDER"
+    if "_SCORE_PLACEHOLDER" in current_name:
+        final_name = current_name.replace("_SCORE_PLACEHOLDER", f"_{formatted_score}")
+    else:
+        final_name = f"{current_name}_{formatted_score}"
+
+    wandb.run.name = final_name
     wandb.summary["final_run_name"] = final_name
+
+    print(f"Finalized run name: {final_name}")
 
     wandb.finish()
 
