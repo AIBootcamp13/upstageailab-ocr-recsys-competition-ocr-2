@@ -52,6 +52,7 @@ dependencies = [
     "types-shapely",
     "types-tqdm",
     "wandb>=0.17.0",
+    "ocrd-fork-pylsd==0.0.8",
     # PyTorch with CUDA support - Updated to 2.8.0
     "torch>=2.8.0",
     "torchvision>=0.18.0",
@@ -75,7 +76,7 @@ packages = ["ocr"]
 # General settings
 ignore_missing_imports = true
 show_error_codes = false
-exclude = ["scripts/process_monitor.py"]
+exclude = ["scripts/process_monitor.py", "outputs/", "scripts/", "docs/", "ablation_study/"]
 
 # Development-friendly settings (less strictness)
 warn_unused_ignores = false

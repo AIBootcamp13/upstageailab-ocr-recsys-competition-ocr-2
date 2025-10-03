@@ -1944,6 +1944,27 @@ wheels = [
 ]
 
 [[package]]
+name = "ocrd-fork-pylsd"
+version = "0.0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/42/2e116b7e62fbb6a4cd723771e6775292057f6f034697af6f3b7b4bb7023d/ocrd-fork-pylsd-0.0.8.tar.gz", hash = "sha256:6b89106aff57739befc00ca7d91c27ab3bc7a7bf2bb5999c273c9232abbcf977", size = 24826, upload-time = "2023-06-23T16:15:08.919Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/0c/9dc49e9a271b3c3b1fa994802b06d289e450267d94a5b79e135811ba4127/ocrd_fork_pylsd-0.0.8-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:86081959448276fcdec24972f4f537d36c2b9ff73c085b35e9c88e8551b47391", size = 20403, upload-time = "2023-06-23T16:14:11.161Z" },
+    { url = "https://files.pythonhosted.org/packages/21/69/1968f699d950a12414280ae34cb0035ec2c5af44c37b7697626fed6e2e3f/ocrd_fork_pylsd-0.0.8-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e89a01305fb01a2031a026c9f0c07a8c25772b2cadcb4f18680045211b27d5c4", size = 51813, upload-time = "2023-06-23T16:14:12.632Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/9c/7e8e65914371dc31e3ba247a83ec885462edd446fcdccfad14499be81fa6/ocrd_fork_pylsd-0.0.8-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8e2db0d6e09dc8c76ad1af9325683663bff6bb07efbd20be97086998c88b31ec", size = 56519, upload-time = "2023-06-23T16:14:14.059Z" },
+    { url = "https://files.pythonhosted.org/packages/95/8a/fa4c5206d7938d2f223be4447068b671bb587033b742afa94dde95f4265c/ocrd_fork_pylsd-0.0.8-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:d5bf5c7148489b0a20bcb56dcc4a84abf83523f35d88e1d572406b676bfbec1e", size = 51256, upload-time = "2023-06-23T16:14:15.362Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/d5/7f70d040fe8e48e58a0b13f6334ec0e954633a1ebeb1e5480f5771a70162/ocrd_fork_pylsd-0.0.8-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:83a1a416d5019ddf68a8fe864c72b650864e2bb9e192b92ebd0c7f36a616f490", size = 57068, upload-time = "2023-06-23T16:14:16.574Z" },
+    { url = "https://files.pythonhosted.org/packages/db/09/fad7e06ee1d529a09b1ca269345c23c6db2b639d7bbc91f2d8ded1e1e0f3/ocrd_fork_pylsd-0.0.8-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:874cdcf7c99c4a9fa8b9022fce4c7404e621373145aa719d9306180f40271120", size = 20403, upload-time = "2023-06-23T16:14:17.939Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/56/f49d055001b3a33fe4086afa2d3026e372ca01543c686ba2dadcd057dd5e/ocrd_fork_pylsd-0.0.8-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:eec41c5778718c596fbd6980100793265971d8863b85ed3ad6bbb382339030e2", size = 51813, upload-time = "2023-06-23T16:14:19.351Z" },
+    { url = "https://files.pythonhosted.org/packages/de/8f/12bedcfb5c5ddb2466db3a8b4d95ab901eaa7217c5ff44eb4d1c479e1a76/ocrd_fork_pylsd-0.0.8-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:72d2a8365375fe7baf7f781415d66e3c9d0174bc67598403cdc586b3f8ebe759", size = 56518, upload-time = "2023-06-23T16:14:20.456Z" },
+    { url = "https://files.pythonhosted.org/packages/43/ec/8cc00d4022b114b1b8a7e08f2823791dc0ce0a51b907e45d69a942973039/ocrd_fork_pylsd-0.0.8-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:cc6f64073a2b91577d6e62b676623591bb9320f288702f6eea76295d36384458", size = 51258, upload-time = "2023-06-23T16:14:21.544Z" },
+    { url = "https://files.pythonhosted.org/packages/65/ef/e826d1a16405d3d852aa76c911b916165112fa8fa21dba5d096a328e0bc3/ocrd_fork_pylsd-0.0.8-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:a20deed57b810b25d6e5d7e2835355b02035b6c8c08fb16638bcede184da7e33", size = 57071, upload-time = "2023-06-23T16:14:22.947Z" },
+]
+
+[[package]]
 name = "omegaconf"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3807,6 +3828,7 @@ dependencies = [
     { name = "numba" },
     { name = "numpy" },
     { name = "nvidia-ml-py" },
+    { name = "ocrd-fork-pylsd" },
     { name = "openai" },
     { name = "opencv-python" },
     { name = "pandas" },
@@ -3864,6 +3886,7 @@ requires-dist = [
     { name = "numba", specifier = "==0.58.1" },
     { name = "numpy", specifier = ">=1.24.0,<2.0.0" },
     { name = "nvidia-ml-py", specifier = ">=13.580.82" },
+    { name = "ocrd-fork-pylsd", specifier = "==0.0.8" },
     { name = "openai", specifier = ">=1.109.1" },
     { name = "opencv-python", specifier = "==4.8.1.78" },
     { name = "pandas", specifier = "==2.1.4" },

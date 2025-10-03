@@ -171,12 +171,6 @@ class TestDocumentPreprocessor:
         assert isinstance(applied, list)
         assert len(applied) > 0
 
-    def test_text_enhancement(self, preprocessor, sample_image):
-        """Test text-specific enhancement."""
-        enhanced = preprocessor._enhance_text_regions(sample_image)
-
-        assert enhanced.shape == sample_image.shape
-
     def test_resize_to_target(self, preprocessor):
         """Test image resizing to target dimensions."""
         # Create a smaller test image

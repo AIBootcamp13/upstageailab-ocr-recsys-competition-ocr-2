@@ -114,3 +114,5 @@ multirun/*
 # Experiments
 CamScanner-Web-App/
 OpenCV-Document-Scanner/
+
+_archive/docs

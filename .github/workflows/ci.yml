@@ -57,7 +57,7 @@ jobs:
 
       # Step 5: Install project dependencies
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync
 
       # Step 5.5: Ensure ruff is installed
       - name: Install ruff
