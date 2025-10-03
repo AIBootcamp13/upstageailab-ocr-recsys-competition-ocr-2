@@ -1,0 +1,40 @@
+{
+  "model_config": {
+    "architecture": "dbnetpp",
+    "encoder": "resnet50",
+    "batch_size": 8,
+    "learning_rate": "1e-3"
+  },
+  "performance_metrics": {
+    "best_val/precision": 0.9721,
+    "final_val/precision": 0.9668,
+    "mean_val/precision": 0.9531,
+    "best_val/recall": 0.8582,
+    "final_val/recall": 0.8457,
+    "mean_val/recall": 0.8196,
+    "best_val/hmean": 0.9027,
+    "final_val/hmean": 0.8985,
+    "mean_val/hmean": 0.8758
+  },
+  "data_insights": {
+    "total_steps": 3074,
+    "suspected_bad_batches": 2,
+    "drop_frequency": "2 drops detected"
+  },
+  "anomalies": [
+    {
+      "step": 2049,
+      "metric": "val/recall",
+      "drop": 0.109,
+      "from": 0.847,
+      "to": 0.738
+    },
+    {
+      "step": 2049,
+      "metric": "val/hmean",
+      "drop": 0.063,
+      "from": 0.894,
+      "to": 0.831
+    }
+  ]
+}

@@ -16,6 +16,7 @@ This is an OCR (Optical Character Recognition) project focused on receipt text d
 ### Documentation
 - `docs/ai_handbook/index.md` - Your primary source of truth with comprehensive project documentation
 - `docs/ai_handbook/01_onboarding/01_setup_and_tooling.md` - Start here if new to the project
+- `docs/ai_handbook/02_protocols/command_builder_testing_guide.md` - Testing guide for Command Builder module
 
 ### Setup Scripts
 - `scripts/setup/` - Contains numbered setup scripts for environment setup, linting, and aliases
@@ -25,6 +26,15 @@ This is an OCR (Optical Character Recognition) project focused on receipt text d
 ### Utilities
 - `run_ui.py` - Streamlit applications for evaluation viewer, inference, command builder, and resource monitor
 - `.env.template` - Environment variable template
+
+### Command Builder Module (New Modular Structure)
+- `ui/utils/command/` - Modular command building utilities
+  - `models.py` - Data models for command parameters
+  - `quoting.py` - Hydra/shell quoting utilities
+  - `builder.py` - Command construction logic
+  - `executor.py` - Command execution and process management
+  - `validator.py` - Command validation
+- **Important**: Use `from ui.utils.command import CommandBuilder` for new development (not the old location)
 
 ## Working Guidelines
 

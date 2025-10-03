@@ -60,7 +60,53 @@ class OCRPLModule(pl.LightningModule):
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
         for idx, boxes in enumerate(boxes_batch):
             self.validation_step_outputs[batch["image_filename"][idx]] = boxes
+
+        # Compute per-batch validation metrics
+        batch_metrics = self._compute_batch_metrics(batch, boxes_batch)
+        self.log(f"batch_{batch_idx}/recall", batch_metrics["recall"])
+        self.log(f"batch_{batch_idx}/precision", batch_metrics["precision"])
+        self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"])
+
+        # Log problematic batch image paths
+        if batch_metrics["recall"] < 0.8:
+            image_paths = [str(path) for path in batch["image_path"]]
+            # Use wandb.log if available for image paths
+            try:
+                import wandb
+
+                wandb.log({f"problematic_batch_{batch_idx}": image_paths})
+            except ImportError:
+                pass  # wandb not available
+
         return pred
+
+    def _compute_batch_metrics(self, batch, boxes_batch):
+        """Compute validation metrics for a batch of images."""
+        cleval_metrics = defaultdict(list)
+
+        for idx, boxes in enumerate(boxes_batch):
+            filename = batch["image_filename"][idx]
+            if filename not in self.dataset["val"].anns:
+                continue
+            gt_words = self.dataset["val"].anns[filename]
+
+            det_quads = [[point for coord in polygons for point in coord] for polygons in boxes]
+            gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+
+            metric = CLEvalMetric(**self.metric_kwargs)  # Create new instance
+            metric.reset()
+            metric(det_quads, gt_quads)
+            result = metric.compute()
+
+            cleval_metrics["recall"].append(result["recall"].item())
+            cleval_metrics["precision"].append(result["precision"].item())
+            cleval_metrics["hmean"].append(result["f1"].item())
+
+        recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
+        precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
+        hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
+
+        return {"recall": recall, "precision": precision, "hmean": hmean}
 
     def on_validation_epoch_end(self):
         cleval_metrics = defaultdict(list)

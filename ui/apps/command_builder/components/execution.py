@@ -6,7 +6,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from ui.utils.command_builder import CommandBuilder
+from ui.utils.command import CommandBuilder, CommandExecutor, CommandValidator
 
 from ..models.command import CommandPageData
 from ..services.formatting import format_command_output
@@ -37,7 +37,8 @@ def render_execution_panel(
         st.info("Generate a command above to enable execution.")
         return
 
-    is_valid, validation_error = command_builder.validate_command(command)
+    validator = CommandValidator()
+    is_valid, validation_error = validator.validate_command(command)
     if not is_valid:
         st.error(f"Command validation failed: {validation_error}")
         return
@@ -61,7 +62,8 @@ def render_execution_panel(
                 error_placeholder.warning(f"⚠️ Potential issue detected: {line[:120]}...")
 
         try:
-            return_code, stdout, stderr = command_builder.execute_command_streaming(command, progress_callback=progress_callback)
+            executor = CommandExecutor()
+            return_code, stdout, stderr = executor.execute_command_streaming(command, progress_callback=progress_callback)
             duration = time.time() - start_time
             page.execution.mark_finished(return_code, duration, stdout, stderr)
             status_placeholder.empty()

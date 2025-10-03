@@ -122,6 +122,7 @@ Configuration lives in `configs/ui/<app_name>.yaml`, while domain schemas sit in
 | Hard-coded UI strings without config sync | Update `configs/ui/<app_name>.yaml` and matching `ui_meta/<app_name>/` copy. |
 | Using Pydantic to replace Hydra/OmegaConf configs | Restrict Pydantic models to validating submission/session payloads; keep Hydra configs canonical. |
 | Mock fallback hiding real failures | Inspect logs; ensure service layers only fall back on explicit exceptions. |
+| Insufficient testing after modular refactoring | Create unit tests for each module, integration tests for UI components, and regression tests for fixed issues. See `command_builder_testing_guide.md` for examples. |
 
 ---
 

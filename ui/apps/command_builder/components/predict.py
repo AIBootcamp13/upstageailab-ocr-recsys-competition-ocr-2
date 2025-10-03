@@ -7,7 +7,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from ui.utils.command_builder import CommandBuilder
+from ui.utils.command import CommandBuilder, CommandValidator
 from ui.utils.ui_generator import generate_ui_from_schema
 from ui.utils.ui_validator import validate_inputs
 
@@ -68,7 +68,8 @@ def render_predict_page(state: CommandBuilderState, command_builder: CommandBuil
             )
             page.generated.generated = command_text
             page.generated.edited = command_text
-            validation_ok, validation_error = command_builder.validate_command(command_text)
+            validator = CommandValidator()
+            validation_ok, validation_error = validator.validate_command(command_text)
             page.generated.validation_error = None if validation_ok else validation_error
             st.session_state[f"command_builder_{CommandType.PREDICT.value}_command_text"] = command_text
             if validation_ok:

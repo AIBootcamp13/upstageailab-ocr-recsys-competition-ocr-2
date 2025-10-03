@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.utils.command_builder import CommandBuilder
+from ui.utils.command import CommandBuilder
 from ui.utils.config_parser import ConfigParser
 
 from .components import render_predict_page, render_sidebar, render_test_page, render_training_page
