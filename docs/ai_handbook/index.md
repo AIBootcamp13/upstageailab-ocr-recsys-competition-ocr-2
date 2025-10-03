@@ -2,7 +2,7 @@
 
 # **AI Agent Handbook: OCR Project**
 
-Version: 1.2 (2025-09-30)
+Version: 1.8 (2025-10-03)
 Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-09-29_legacy-ui-cleanup.md).
 
 ## **1. Project Overview**
@@ -43,6 +43,11 @@ Use these curated "context bundles" to load the most relevant files for common t
 1. **Protocol:** [Context Logging & Summarization](./02_protocols/06_context_logging.md)
 2. **Start Log:** `make context-log-start LABEL="<task>"`
 3. **Summarize Log:** `make context-log-summarize LOG=logs/agent_runs/<file>.jsonl`
+
+#### **For Maintenance & Cleanup Tasks:**
+
+1. **Command Registry:** [Approved Maintenance Scripts](./02_protocols/02_command_registry.md#7-maintenance--cleanup)
+2. **Examples:** Checkpoint cleanup, storage management, and system maintenance utilities
 
 #### **For Planning the Next Training Run:**
 

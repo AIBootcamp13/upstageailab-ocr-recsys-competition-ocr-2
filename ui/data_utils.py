@@ -26,8 +26,9 @@ def calculate_prediction_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     # Generate more realistic confidence scores based on heuristics
     # In a real system, these would come from the model's output probabilities
-    np.random.seed(42)  # For reproducible results
-    df["avg_confidence"] = df.apply(lambda row: generate_confidence_score(row), axis=1)
+    if "avg_confidence" not in df.columns:
+        np.random.seed(42)  # For reproducible results
+        df["avg_confidence"] = df.apply(lambda row: generate_confidence_score(row), axis=1)
 
     # Aspect ratio (placeholder)
     df["aspect_ratio"] = 1.0

@@ -20,6 +20,16 @@ profiles:
       - "data.transforms.val_transform=${enhanced_transforms.val_transform}"
       - "data.transforms.test_transform=${enhanced_transforms.test_transform}"
       - "data.transforms.predict_transform=${enhanced_transforms.predict_transform}"
+  camscanner:
+    label: "CamScanner document detection"
+    description: "Uses CamScanner-style LSD line detection for advanced document boundary detection."
+    overrides:
+      - "+preset/datasets=preprocessing"
+      - "preprocessing.document_detection_use_camscanner=true"
+      - "data.transforms.train_transform=${enhanced_transforms.train_transform}"
+      - "data.transforms.val_transform=${enhanced_transforms.val_transform}"
+      - "data.transforms.test_transform=${enhanced_transforms.test_transform}"
+      - "data.transforms.predict_transform=${enhanced_transforms.predict_transform}"
   doctr_demo:
     label: "docTR demo (perspective + geometry)"
     description: "Full docTR-style preprocessing with geometry rectification, orientation correction, and padding cleanup."

@@ -58,30 +58,6 @@ def render_training_page(
     schema_result = generate_ui_from_schema(str(SCHEMA_PATH))
     values = dict(schema_result.values)
 
-    profiles = config_parser.get_preprocessing_profiles()
-    if PREPROCESSING_STATE_KEY not in st.session_state:
-        default_profile = page.generated.values.get("preprocessing_profile", "none")
-        st.session_state[PREPROCESSING_STATE_KEY] = default_profile if default_profile in profiles else "none"
-
-    profile_options = list(profiles.keys())
-    try:
-        default_index = profile_options.index(st.session_state[PREPROCESSING_STATE_KEY])
-    except ValueError:
-        st.session_state[PREPROCESSING_STATE_KEY] = "none"
-        default_index = profile_options.index("none") if "none" in profile_options else 0
-    selected_profile = st.selectbox(
-        "Preprocessing profile",
-        profile_options,
-        index=default_index,
-        key=PREPROCESSING_STATE_KEY,
-        format_func=lambda key: profiles[key]["label"],
-        help="Choose a document preprocessing bundle to apply before training.",
-    )
-    profile_meta = profiles.get(selected_profile, {})
-    if description := profile_meta.get("description"):
-        st.caption(description)
-    values["preprocessing_profile"] = selected_profile
-
     state.append_model_suffix = st.checkbox(
         "Append architecture + encoder to experiment name",
         value=state.append_model_suffix,

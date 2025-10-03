@@ -23,6 +23,7 @@ class DBTransforms:
         transformed = self.transform(image=image, keypoints=keypoints)
         transformed_image = transformed["image"]
         keypoints = transformed["keypoints"]
+        metadata = transformed.get("metadata")
 
         # Keypoints 재변환을 위한 Matrix 계산
         _, new_height, new_width = transformed_image.shape
@@ -39,11 +40,16 @@ class DBTransforms:
                 transformed_polygons.append(np.array([keypoints[index : index + num_points]]))
                 index += num_points
 
-        return OrderedDict(
+        output = OrderedDict(
             image=transformed_image,
             polygons=transformed_polygons,
             inverse_matrix=inverse_matrix,
         )
+
+        if metadata is not None:
+            output["metadata"] = metadata
+
+        return output
 
     def clamp_keypoints(self, keypoints, img_width, img_height):
         clamped_keypoints = []

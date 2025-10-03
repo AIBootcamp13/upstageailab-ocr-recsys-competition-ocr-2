@@ -44,10 +44,111 @@ def display_advanced_analysis(df: pd.DataFrame, image_dir: str | Path) -> None:
                 "low_confidence",
                 "many_predictions",
                 "few_predictions",
+                "custom_threshold",
             ],
+            help="Filter images by predefined categories or custom threshold.",
         )
 
-    sorted_df = apply_sorting_filtering(metrics_df, sort_by, sort_order, filter_metric)
+    # Custom threshold filtering
+    filtered_df = None
+    if filter_metric == "custom_threshold":
+        st.markdown("#### 🎯 Custom Threshold Filtering")
+        threshold_col1, threshold_col2, threshold_col3 = st.columns(3)
+
+        with threshold_col1:
+            threshold_metric = st.selectbox(
+                "Metric",
+                ["avg_confidence", "prediction_count", "total_area", "aspect_ratio"],
+                help="Select which metric to filter by",
+            )
+
+        with threshold_col2:
+            threshold_operator = st.selectbox(
+                "Operator",
+                ["<", "<=", ">", ">=", "=="],
+                help="Comparison operator",
+            )
+
+        with threshold_col3:
+            # Dynamic default based on metric
+            if threshold_metric == "avg_confidence":
+                default_threshold = 0.30
+                step = 0.01
+                format_str = "%.2f"
+            elif threshold_metric == "prediction_count":
+                default_threshold = 10
+                step = 1
+                format_str = "%d"
+            elif threshold_metric == "total_area":
+                default_threshold = 1000
+                step = 100
+                format_str = "%d"
+            else:  # aspect_ratio
+                default_threshold = 1.0
+                step = 0.1
+                format_str = "%.2f"
+
+            threshold_value = st.number_input(
+                "Threshold",
+                min_value=0.0,
+                value=float(default_threshold),
+                step=float(step),
+                format=format_str,
+                help=f"Filter images where {threshold_metric} {threshold_operator} threshold",
+            )
+
+        # Apply custom filter
+        if threshold_operator == "<":
+            filtered_df = metrics_df[metrics_df[threshold_metric] < threshold_value]
+        elif threshold_operator == "<=":
+            filtered_df = metrics_df[metrics_df[threshold_metric] <= threshold_value]
+        elif threshold_operator == ">":
+            filtered_df = metrics_df[metrics_df[threshold_metric] > threshold_value]
+        elif threshold_operator == ">=":
+            filtered_df = metrics_df[metrics_df[threshold_metric] >= threshold_value]
+        elif threshold_operator == "==":
+            filtered_df = metrics_df[metrics_df[threshold_metric] == threshold_value]
+        else:
+            filtered_df = metrics_df
+
+        num_filtered = len(filtered_df) if filtered_df is not None else 0
+        st.info(f"✅ Found **{num_filtered}** images where `{threshold_metric}` {threshold_operator} `{threshold_value}`")
+
+        # Add download options for filtered results
+        if filtered_df is not None and len(filtered_df) > 0:
+            st.markdown("#### 📥 Download Options")
+            download_col1, download_col2 = st.columns(2)
+
+            with download_col1:
+                # Simple list download (filename + metric)
+                st.download_button(
+                    label=f"� Download List ({len(filtered_df)} images)",
+                    data=filtered_df[["filename", threshold_metric]].to_csv(index=False),
+                    file_name=f"filtered_{threshold_metric}_{threshold_operator.replace('<', 'lt').replace('>', 'gt').replace('=', 'eq')}_{threshold_value}.csv",
+                    mime="text/csv",
+                    help="Download simple list with filename and metric value",
+                )
+
+            with download_col2:
+                # Full data download (with polygons)
+                # Check if 'polygons' column exists in the original dataframe
+                if "polygons" in df.columns:
+                    # filtered_df already contains polygons from the original dataframe
+                    st.download_button(
+                        label=f"🔷 Download with Polygons ({len(filtered_df)} images)",
+                        data=filtered_df.to_csv(index=False),
+                        file_name=f"filtered_with_polygons_{threshold_metric}_{threshold_operator.replace('<', 'lt').replace('>', 'gt').replace('=', 'eq')}_{threshold_value}.csv",
+                        mime="text/csv",
+                        help="Download full data including polygon coordinates for analysis",
+                    )
+                else:
+                    st.warning("⚠️ Polygon data not available in the predictions file")
+
+    # Apply sorting and filtering
+    if filtered_df is not None and filter_metric == "custom_threshold":
+        sorted_df = filtered_df.sort_values(by=sort_by, ascending=(sort_order == "ascending"))
+    else:
+        sorted_df = apply_sorting_filtering(metrics_df, sort_by, sort_order, filter_metric)
 
     if "advanced_page" not in st.session_state:
         st.session_state.advanced_page = 0

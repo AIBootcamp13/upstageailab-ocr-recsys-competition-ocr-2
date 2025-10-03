@@ -4,10 +4,10 @@
 train_dataloader:
   batch_size: ${data.batch_size}
   shuffle: true
-  num_workers: 12  # Tuned for RTX 3090 throughput
+  num_workers: 4  # Reduced from 12 to prevent OOM in workers
   pin_memory: true
   persistent_workers: true
-  prefetch_factor: 4
+  prefetch_factor: 2  # Adjusted for fewer workers
 val_dataloader:
   batch_size: ${data.batch_size}
   shuffle: false

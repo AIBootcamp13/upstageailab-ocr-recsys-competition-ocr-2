@@ -28,6 +28,41 @@ def parse_polygon_string(polygons_str: str) -> list[Polygon]:
     return polygons
 
 
+def validate_polygons(polygons_str: str) -> tuple[list[Polygon], dict[str, int]]:
+    """Validate polygons and return details about filtering."""
+    polygons: list[Polygon] = []
+    stats = {"total": 0, "valid": 0, "too_small": 0, "odd_coords": 0, "parse_errors": 0}
+
+    if not polygons_str.strip():
+        return polygons, stats
+
+    raw_polygons = polygons_str.split("|")
+    stats["total"] = len(raw_polygons)
+
+    for raw_polygon in raw_polygons:
+        coords: Polygon = []
+        has_parse_error = False
+
+        for token in raw_polygon.split():
+            try:
+                coords.append(float(token))
+            except ValueError:
+                has_parse_error = True
+                break
+
+        if has_parse_error:
+            stats["parse_errors"] += 1
+        elif len(coords) < 8:
+            stats["too_small"] += 1
+        elif len(coords) % 2 != 0:
+            stats["odd_coords"] += 1
+        else:
+            polygons.append(coords)
+            stats["valid"] += 1
+
+    return polygons, stats
+
+
 def polygon_points(coords: Iterable[float]) -> list[tuple[float, float]]:
     """Convert a flat coordinate list into point tuples."""
     coords_list = list(coords)

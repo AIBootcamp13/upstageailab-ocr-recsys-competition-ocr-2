@@ -152,10 +152,15 @@ class OCRPLModule(pl.LightningModule):
 
     def predict_step(self, batch):
         pred = self.model(return_loss=False, **batch)
-        boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
+        boxes_batch, scores_batch = self.model.get_polygons_from_maps(batch, pred)
 
-        for idx, boxes in enumerate(boxes_batch):
-            self.predict_step_outputs[batch["image_filename"][idx]] = boxes
+        include_confidence = getattr(self.config, "include_confidence", False)
+
+        for idx, (boxes, scores) in enumerate(zip(boxes_batch, scores_batch, strict=True)):
+            if include_confidence:
+                self.predict_step_outputs[batch["image_filename"][idx]] = {"boxes": boxes, "scores": scores}
+            else:
+                self.predict_step_outputs[batch["image_filename"][idx]] = boxes
         return pred
 
     def on_predict_epoch_end(self):
@@ -164,16 +169,26 @@ class OCRPLModule(pl.LightningModule):
         submission_file.parent.mkdir(parents=True, exist_ok=True)
 
         submission = OrderedDict(images=OrderedDict())
-        for filename, pred_boxes in self.predict_step_outputs.items():
+        include_confidence = getattr(self.config, "include_confidence", False)
+
+        for filename, pred_data in self.predict_step_outputs.items():
+            if include_confidence:
+                boxes = pred_data["boxes"]
+                scores = pred_data["scores"]
+            else:
+                boxes = pred_data
+                scores = None
+
             # Separate box
-            boxes = OrderedDict()
-            for idx, box in enumerate(pred_boxes):
-                boxes[f"{idx + 1:04}"] = OrderedDict(points=box)
+            words = OrderedDict()
+            for idx, box in enumerate(boxes):
+                word_data = OrderedDict(points=box)
+                if include_confidence and scores is not None:
+                    word_data["confidence"] = float(scores[idx])
+                words[f"{idx + 1:04}"] = word_data
 
             # Append box
-            submission["images"][filename] = OrderedDict(words=boxes)
-
-        # Export submission
+            submission["images"][filename] = OrderedDict(words=words)  # Export submission
         with submission_file.open("w") as fp:
             if self.config.minified_json:
                 json.dump(submission, fp, indent=None, separators=(",", ":"))

@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw
 
 from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
 
-from .helpers import parse_polygon_string
+from .helpers import validate_polygons
 
 
 def display_image_viewer(df: pd.DataFrame, image_dir: str) -> None:
@@ -85,16 +85,25 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
     row = df[df["filename"] == image_name].iloc[0]
     polygons_str = str(row.get("polygons", ""))
 
-    if polygons := parse_polygon_string(polygons_str):
+    polygons, validation_stats = validate_polygons(polygons_str)
+
+    if polygons:
         # Draw predictions on the rotated image
         annotated = _draw_predictions_from_list(image, polygons, (255, 0, 0))
         st.image(annotated, caption=f"Predictions on {image_name}")
-        st.info(f"Found {len(polygons)} valid text regions in this image (out of {len(polygons)} total)")
+
+        # Display validation summary
+        if validation_stats["total"] > validation_stats["valid"]:
+            st.info(f"Found {validation_stats['valid']} valid text regions in this image (out of {validation_stats['total']} total)")
+            _render_polygon_validation_report(validation_stats)
+        else:
+            st.info(f"Found {validation_stats['valid']} valid text regions in this image")
+
         _render_enlarge_toggle(
             image_name,
             annotated,
-            polygons_count=len(polygons),
-            total_polygons=len(polygons),
+            polygons_count=validation_stats["valid"],
+            total_polygons=validation_stats["total"],
             confidence=row.get("avg_confidence", 0.8),
         )
     else:
@@ -168,6 +177,28 @@ def _render_enlarge_toggle(
 
             if st.button("❌ Close Enlarged View", key=f"close_{image_name}"):
                 st.session_state[key] = False
+
+
+def _render_polygon_validation_report(validation_stats: dict[str, int]) -> None:
+    """Render detailed polygon validation report."""
+    with st.expander("🔍 Validation Details"):
+        st.write("**Polygon Validation Summary:**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Polygons", validation_stats["total"])
+            st.metric("Valid Polygons", validation_stats["valid"])
+        with col2:
+            filtered = validation_stats["total"] - validation_stats["valid"]
+            st.metric("Filtered Out", filtered)
+            if filtered > 0:
+                st.metric("Success Rate", f"{validation_stats['valid'] / validation_stats['total']:.1%}")
+
+        if validation_stats["too_small"] > 0:
+            st.write(f"• **Too small** (<4 points): {validation_stats['too_small']} polygons")
+        if validation_stats["odd_coords"] > 0:
+            st.write(f"• **Odd coordinates**: {validation_stats['odd_coords']} polygons")
+        if validation_stats["parse_errors"] > 0:
+            st.write(f"• **Parse errors**: {validation_stats['parse_errors']} polygons")
 
 
 def _current_viewer_row(df: pd.DataFrame) -> tuple[int, pd.Series]:

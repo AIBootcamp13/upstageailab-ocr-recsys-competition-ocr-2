@@ -30,7 +30,7 @@ ui_elements:
     options_source: "checkpoints"
     default: ""
     visible_if: "resume_training == true"
-    hydra_override: "trainer.ckpt_path"
+    hydra_override: "resume"
     validation:
       required_if: "resume_training == true"
 
@@ -203,7 +203,26 @@ ui_elements:
     label: "Dataset Config"
     options_source: "datasets"
     default: "default"
-    help: "Hydra dataset configuration to load."
+    help: "Hydra dataset configuration to load. Note: This will be automatically set to 'preprocessing' if you select a preprocessing profile below."
     visible_if: "resume_training == false"
     hydra_override: "data"
     metadata_default_key: "recommended_data"
+
+  - key: preprocessing_profile
+    type: selectbox
+    label: "Preprocessing Profile"
+    options:
+      - label: "None (standard transforms)"
+        value: "none"
+      - label: "Lens-style (balanced)"
+        value: "lens_style"
+      - label: "Lens-style + Office mode"
+        value: "lens_style_office"
+      - label: "CamScanner document detection"
+        value: "camscanner"
+      - label: "docTR demo (experimental)"
+        value: "doctr_demo"
+    default: "none"
+    help: "Microsoft Lens-style preprocessing with document detection, perspective correction, and enhancement. When selected, 'data=preprocessing' will be used automatically."
+    visible_if: "resume_training == false"
+    hydra_override: "__preprocessing_profile__"

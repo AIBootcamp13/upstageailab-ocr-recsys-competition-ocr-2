@@ -1,3 +1,4 @@
+# @package _global_
 # Preprocessing Configuration
 # Microsoft Lens-style document preprocessing
 
@@ -7,6 +8,7 @@ preprocessing:
   document_detection_min_area_ratio: 0.18
   document_detection_use_adaptive: true
   document_detection_use_fallback_box: true
+  document_detection_use_camscanner: false
 
   # --- PerspectiveCorrector -----------------------------------------------
   enable_perspective_correction: true
@@ -25,11 +27,17 @@ preprocessing:
   # --- ImageEnhancer / TextEnhancer ---------------------------------------
   enable_enhancement: true
   enhancement_method: "conservative"  # "conservative" or "office_lens"
-  enable_text_enhancement: false
 
   # --- FinalResizer -------------------------------------------------------
   target_size: [640, 640]
   enable_final_resize: true
+
+# Collate function configuration
+collate_fn:
+  _target_: ${dataset_path}.DBCollateFN
+  shrink_ratio: 0.4
+  thresh_min: 0.3
+  thresh_max: 0.7
 
 # Albumentations-compatible preprocessor
 lens_style_preprocessor:
@@ -40,7 +48,6 @@ lens_style_preprocessor:
     enable_perspective_correction: ${preprocessing.enable_perspective_correction}
     enable_enhancement: ${preprocessing.enable_enhancement}
     enhancement_method: ${preprocessing.enhancement_method}
-    enable_text_enhancement: ${preprocessing.enable_text_enhancement}
     target_size: ${preprocessing.target_size}
     enable_final_resize: ${preprocessing.enable_final_resize}
     enable_orientation_correction: ${preprocessing.enable_orientation_correction}
@@ -53,6 +60,7 @@ lens_style_preprocessor:
     document_detection_min_area_ratio: ${preprocessing.document_detection_min_area_ratio}
     document_detection_use_adaptive: ${preprocessing.document_detection_use_adaptive}
     document_detection_use_fallback_box: ${preprocessing.document_detection_use_fallback_box}
+    document_detection_use_camscanner: ${preprocessing.document_detection_use_camscanner}
 
 # Enhanced transforms with preprocessing
 enhanced_transforms:
@@ -98,6 +106,10 @@ enhanced_transforms:
     _target_: ${dataset_path}.DBTransforms
     transforms:
       - ${lens_style_preprocessor}
+    keypoint_params:
+      _target_: albumentations.KeypointParams
+      format: 'xy'
+      remove_invisible: True
 
 # Office Lens enhanced preprocessor (more sophisticated enhancement)
 lens_style_preprocessor_office_lens:
@@ -108,7 +120,6 @@ lens_style_preprocessor_office_lens:
     enable_perspective_correction: ${preprocessing.enable_perspective_correction}
     enable_enhancement: ${preprocessing.enable_enhancement}
     enhancement_method: "office_lens"
-    enable_text_enhancement: ${preprocessing.enable_text_enhancement}
     target_size: ${preprocessing.target_size}
     enable_final_resize: ${preprocessing.enable_final_resize}
     enable_orientation_correction: ${preprocessing.enable_orientation_correction}
@@ -121,3 +132,4 @@ lens_style_preprocessor_office_lens:
     document_detection_min_area_ratio: ${preprocessing.document_detection_min_area_ratio}
     document_detection_use_adaptive: ${preprocessing.document_detection_use_adaptive}
     document_detection_use_fallback_box: ${preprocessing.document_detection_use_fallback_box}
+    document_detection_use_camscanner: ${preprocessing.document_detection_use_camscanner}

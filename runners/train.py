@@ -153,7 +153,12 @@ def train(config: DictConfig):
     # Always add LearningRateMonitor
     callbacks.append(LearningRateMonitor(logging_interval="step"))
 
-    trainer = pl.Trainer(**config.trainer, logger=logger, callbacks=callbacks)
+    # Preprocess trainer config for PyTorch Lightning compatibility
+    trainer_config = dict(config.trainer)
+    if trainer_config.get("max_steps") is None:
+        trainer_config["max_steps"] = -1  # PyTorch Lightning expects -1 for unlimited steps
+
+    trainer = pl.Trainer(**trainer_config, logger=logger, callbacks=callbacks)
 
     trainer.fit(
         model_module,

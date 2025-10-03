@@ -3,6 +3,7 @@
 Main orchestrator for synthetic OCR dataset generation.
 """
 
+import json
 import random
 from pathlib import Path
 from typing import Any
@@ -46,8 +47,10 @@ class SyntheticDatasetGenerator:
             self.augmentation_pipeline = None
             logger.warning("Albumentations not available, skipping augmentations")
 
-    def _create_augmentation_pipeline(self) -> A.Compose:
+    def _create_augmentation_pipeline(self) -> Any:
         """Create augmentation pipeline."""
+        if not ALBUMENTATIONS_AVAILABLE or A is None:
+            return None
         transforms = [
             A.Rotate(limit=10, p=0.3),
             A.GaussianBlur(blur_limit=3, p=0.1),
@@ -87,9 +90,19 @@ class SyntheticDatasetGenerator:
             text = self.text_generator.generate_text_line()
 
             # Random position
-            margin = 50
-            x = random.randint(margin, size[0] - 200)
-            y = random.randint(margin, size[1] - 50)
+            width, height = size
+            margin_x = min(50, max(0, width // 6))
+            margin_y = min(50, max(0, height // 6))
+            x_min = margin_x
+            x_max = width - margin_x - 1
+            if x_max < x_min:
+                x_min, x_max = 0, max(width - 1, 0)
+            y_min = margin_y
+            y_max = height - margin_y - 1
+            if y_max < y_min:
+                y_min, y_max = 0, max(height - 1, 0)
+            x = random.randint(x_min, x_max if x_max >= x_min else x_min)
+            y = random.randint(y_min, y_max if y_max >= y_min else y_min)
 
             # Random font size
             font_size = random.randint(16, 32)
@@ -133,6 +146,9 @@ class SyntheticDatasetGenerator:
         num_images: int,
         output_dir: str | Path,
         image_size: tuple[int, int] = (512, 512),
+        image_prefix: str = "synthetic",
+        image_format: str = "png",
+        annotation_format: str = "json",
         **kwargs,
     ) -> list[dict[str, Any]]:
         """Generate a complete synthetic dataset.
@@ -161,20 +177,21 @@ class SyntheticDatasetGenerator:
             # Generate synthetic image
             synthetic_image = self.generate_single_image(size=image_size, **kwargs)
 
+            # Determine filenames
+            image_filename = f"{image_prefix}_{i:04d}.{image_format.strip('.')}"
+            annotation_filename = f"{image_prefix}_{i:04d}.{annotation_format.strip('.')}"
+
             # Save image
-            image_filename = "04d"
             image_path = images_dir / image_filename
             Image.fromarray(synthetic_image.image).save(image_path)
 
             # Create annotation
             annotation = self._create_annotation(synthetic_image, image_filename)
-            annotation_filename = f"synthetic_{i:04d}.json"
             annotation_path = annotations_dir / annotation_filename
 
-            # Save annotation (simplified - would use JSON in real implementation)
-            with open(annotation_path, "w") as f:
-                # Simplified annotation format
-                f.write(str(annotation))
+            # Persist annotation as JSON
+            with annotation_path.open("w", encoding="utf-8") as fp:
+                json.dump(annotation, fp, ensure_ascii=False, indent=2)
 
             dataset_entries.append(
                 {

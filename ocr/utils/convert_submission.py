@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def convert_json_to_csv(json_path, output_path):
+def convert_json_to_csv(json_path, output_path, include_confidence=False):
     # Check if CSV file already exists
     csv_file = Path(output_path)
     if csv_file.exists():
@@ -23,6 +23,7 @@ def convert_json_to_csv(json_path, output_path):
         assert "words" in content, f"The '{filename}' doesn't contain the 'words' key."
 
         polygons = []
+        confidences = []
         for idx, word in content["words"].items():
             assert "points" in word, f"'{idx}' in '{filename}' doesn't contain the 'points' key."
 
@@ -32,10 +33,23 @@ def convert_json_to_csv(json_path, output_path):
             polygon = " ".join([" ".join(map(str, point)) for point in points])
             polygons.append(polygon)
 
-        polygons_str = "|".join(polygons)
-        rows.append([filename, polygons_str])
+            # Extract confidence if available and requested
+            if include_confidence:
+                confidence = word.get("confidence", 1.0)  # Default to 1.0 if not present
+                confidences.append(confidence)
 
-    df = pd.DataFrame(rows, columns=["filename", "polygons"])
+        polygons_str = "|".join(polygons)
+        if include_confidence and confidences:
+            avg_confidence = sum(confidences) / len(confidences)
+            rows.append([filename, polygons_str, avg_confidence])
+        else:
+            rows.append([filename, polygons_str])
+
+    columns = ["filename", "polygons"]
+    if include_confidence:
+        columns.append("avg_confidence")
+
+    df = pd.DataFrame(rows, columns=columns)
     df.to_csv(output_path, index=False)
 
     return len(rows), output_path
@@ -51,10 +65,15 @@ def convert():
         required=True,
         help="Path to the output CSV file",
     )
+    parser.add_argument(
+        "--include_confidence",
+        action="store_true",
+        help="Include confidence scores in the CSV output",
+    )
 
     args = parser.parse_args()
 
-    result = convert_json_to_csv(args.json_path, args.output_path)
+    result = convert_json_to_csv(args.json_path, args.output_path, args.include_confidence)
     if result:
         num_rows, output_file = result
         print(f"Successfully converted {num_rows} rows to '{output_file}'")

@@ -1,7 +1,7 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.7 (2025-10-01)",
-  "generated_at": "2025-10-01T16:17:00Z",
+  "version": "1.8 (2025-10-03)",
+  "generated_at": "2025-10-03T13:55:00Z",
   "entries": [
     {
       "id": "training-protocol",
@@ -71,7 +71,7 @@
       "tags": ["automation", "commands"],
       "priority": "high",
       "summary": "Curated list of safe commands, including Streamlit launchers and validation utilities.",
-      "last_reviewed": "2025-09-29",
+      "last_reviewed": "2025-10-03",
       "owner": "automation",
       "bundles": ["streamlit-maintenance", "debugging", "new-feature"]
     },

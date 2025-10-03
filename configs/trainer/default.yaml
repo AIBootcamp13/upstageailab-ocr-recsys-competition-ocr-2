@@ -1,9 +1,9 @@
 
 # Trainer config
-max_steps: 1000  # Default max steps, can be overridden
-max_epochs: null  # Set to null when using max_steps
+max_steps: -1  # -1 means unlimited (controlled by max_epochs)
+max_epochs: 200
 num_sanity_val_steps: 1
-log_every_n_steps: 10
+log_every_n_steps: 100
 val_check_interval: null
 check_val_every_n_epoch: 1
 deterministic: True

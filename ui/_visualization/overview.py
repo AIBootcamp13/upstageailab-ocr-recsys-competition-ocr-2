@@ -30,19 +30,39 @@ def display_dataset_overview(df: pd.DataFrame) -> None:
         st.metric("Empty Predictions", empty_predictions)
 
     st.markdown("### Prediction Statistics")
+    # Calculate confidence statistics
+    if "avg_confidence" in df.columns:
+        min_conf = df["avg_confidence"].min()
+        avg_conf = df["avg_confidence"].mean()
+        max_conf = df["avg_confidence"].max()
+
+        # Check if all confidence scores are 1.0 (indicating synthetic/default values)
+        if avg_conf == 1.0 and min_conf == 1.0 and max_conf == 1.0:
+            conf_stats = ["N/A (confidence scores not calculated)"]
+        else:
+            conf_stats = [
+                f"Lowest Confidence: {min_conf:.3f}",
+                f"Average Confidence: {avg_conf:.3f}",
+                f"Highest Confidence: {max_conf:.3f}",
+            ]
+    else:
+        conf_stats = ["Confidence data not available"]
+
     stats_data = {
         "Metric": [
             "Total Polygons",
             "Average per Image",
             "Images with Predictions",
             "Empty Predictions",
-        ],
+        ]
+        + (["Confidence Scores"] if "avg_confidence" in df.columns else []),
         "Value": [
             str(total_polygons),
             f"{avg_polygons:.1f}",
             str(total_images - empty_predictions),
             str(empty_predictions),
-        ],
+        ]
+        + ([" | ".join(conf_stats)] if "avg_confidence" in df.columns else []),
     }
     st.table(pd.DataFrame(stats_data))
 

@@ -131,3 +131,21 @@ All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the c
 	* Restore: `uv run python scripts/agent_tools/strip_doc_markers.py --restore`
 * **Expected Output:** Lists files containing markers, and when `--apply` is used, stores a snapshot to `tmp/ai_docs_markers.json` for later restoration.
 * **Resources:** Negligible.
+
+## **7. Maintenance & Cleanup**
+
+### **Remove Low-Step Checkpoints**
+
+* **Purpose:** Identifies and optionally removes checkpoint files with fewer than 100 training steps to reclaim disk space.
+* **Command:** `uv run python remove_low_step_checkpoints.py --dry-run` (dry run) or `uv run python remove_low_step_checkpoints.py` (actual deletion with confirmation)
+* **Expected Output:** List of checkpoints that would be removed with file sizes, or confirmation prompt for actual deletion.
+* **Resources:** Low (CPU, < 30s for scanning, longer for deletion)
+* **Safety Note:** Requires explicit confirmation before deleting files. Use `--dry-run` first to review what would be removed.
+
+### **Checkpoint Cleanup & Renaming**
+
+* **Purpose:** Renames checkpoint files with problematic characters (like '=') to filesystem-safe names and moves epoch 0 checkpoints for review.
+* **Command:** `uv run python scripts/agent_tools/cleanup_remaining_checkpoints.py`
+* **Expected Output:** Summary of renamed files and moved epoch 0 checkpoints, with instructions for cleanup.
+* **Resources:** Low (CPU, < 30s)
+* **Safety Note:** Creates backup of epoch 0 checkpoints in `outputs/epoch0_checkpoints/` for review before deletion.

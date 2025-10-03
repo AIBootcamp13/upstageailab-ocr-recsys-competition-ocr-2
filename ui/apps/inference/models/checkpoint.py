@@ -40,9 +40,20 @@ class CheckpointMetadata:
         return self.display_name or self.checkpoint_path.stem
 
     def to_display_option(self) -> str:
-        prefix = f"{self.backbone} ({self.architecture})" if self.backbone != "unknown" else self.architecture
-        suffix = f"epoch {self.epochs}" if self.epochs is not None else self.checkpoint_path.stem
-        return f"{prefix} · {suffix}"
+        # Create concise display name
+        model_info = f"{self.backbone}" if self.backbone and self.backbone != "unknown" else self.architecture
+
+        # Add key training info
+        if self.epochs is not None:
+            training_info = f"ep{self.epochs}"
+        else:
+            # Extract step count from filename for concise display
+            import re
+
+            step_match = re.search(r"step_(\d+)", self.checkpoint_path.stem)
+            training_info = f"step_{step_match.group(1)}" if step_match else self.checkpoint_path.stem[:20]
+
+        return f"{model_info} · {training_info}"
 
     def to_dict(self) -> dict[str, Any]:
         return {

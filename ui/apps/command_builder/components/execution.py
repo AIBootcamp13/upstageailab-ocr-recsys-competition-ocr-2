@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from pathlib import Path
 
 import streamlit as st
 
@@ -12,12 +13,23 @@ from ..services.formatting import format_command_output
 from ..state import CommandType
 
 
+def find_latest_submission_json(exp_name: str) -> Path | None:
+    """Find the most recent submission JSON file for a given experiment."""
+    outputs_dir = Path("outputs") / exp_name / "submissions"
+    if not outputs_dir.exists():
+        return None
+    json_files = sorted(outputs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return json_files[0] if json_files else None
+
+
 def render_execution_panel(
     *,
     command_builder: CommandBuilder,
     command: str,
     page: CommandPageData,
     command_type: CommandType,
+    json_file: Path | None = None,  # New param for auto-selection
+    exp_name: str | None = None,  # New param for exp_name
 ) -> None:
     st.markdown("### ⚙️ Execute command")
 
@@ -55,6 +67,12 @@ def render_execution_panel(
             status_placeholder.empty()
             if return_code == 0:
                 status_placeholder.success(f"✅ Command completed successfully in {duration:.1f}s")
+                # Auto-set JSON path for predict commands
+                if command_type == CommandType.PREDICT and exp_name:
+                    latest_json = find_latest_submission_json(exp_name)
+                    if latest_json:
+                        st.session_state["predict_auto_selected_path"] = str(latest_json)
+                        st.rerun()  # Refresh to show auto-selected file
             else:
                 status_placeholder.error(f"❌ Command failed with return code {return_code} after {duration:.1f}s")
         except Exception as exc:  # noqa: BLE001

@@ -1,0 +1,9 @@
+# @package _global_
+# Preprocessing Configuration with CamScanner document detection
+# This preset enables CamScanner-style LSD line detection for document boundaries
+
+defaults:
+  - preprocessing
+
+preprocessing:
+  document_detection_use_camscanner: true

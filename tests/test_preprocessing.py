@@ -23,7 +23,6 @@ class TestDocumentPreprocessor:
             enable_document_detection=True,
             enable_perspective_correction=True,
             enable_enhancement=True,
-            enable_text_enhancement=False,  # Updated default
             target_size=(640, 640),
         )
 
@@ -32,7 +31,6 @@ class TestDocumentPreprocessor:
         assert preprocessor.enable_document_detection is True
         assert preprocessor.enable_perspective_correction is True
         assert preprocessor.enable_enhancement is True
-        assert preprocessor.enable_text_enhancement is False  # Updated default
         assert preprocessor.target_size == (640, 640)
 
     def test_preprocessing_pipeline(self, preprocessor, sample_image):
@@ -243,7 +241,6 @@ class TestPreprocessingIntegration:
             enable_document_detection=True,
             enable_perspective_correction=True,
             enable_enhancement=True,
-            enable_text_enhancement=False,  # Updated default
             target_size=(640, 640),
         )
 
@@ -260,7 +257,6 @@ class TestPreprocessingIntegration:
             enable_document_detection=False,  # Skip detection for this test
             enable_perspective_correction=False,  # Skip correction for this test
             enable_enhancement=True,
-            enable_text_enhancement=True,
         )
 
         result = preprocessor(image)

@@ -18,5 +18,94 @@ ui_elements:
     options_source: "checkpoints"
     default: ""
     hydra_override: "checkpoint_path"
+    help: "⚠️ Important: Select components below that match your checkpoint's training configuration to avoid state_dict errors."
     validation:
       required: true
+
+  - key: architecture
+    type: selectbox
+    label: "Architecture"
+    options_source: "models.architectures"
+    default: "dbnet"
+    help: "OCR architecture preset (DBNet, CRAFT, DBNet++)."
+    hydra_override:
+      - "model.architecture_name"
+      - "model/architectures"
+    metadata_help_key: "notes"
+    architecture_fallback: "dbnet"
+
+  - key: architecture_components
+    type: info
+    label: "Component Summary"
+    metadata_info_key: "components"
+    info_template: "Encoder: {encoder}\nDecoder: {decoder}\nHead: {head}\nLoss: {loss}"
+
+  - key: encoder
+    type: selectbox
+    label: "Backbone (Encoder)"
+    options_source: "models.backbones"
+    default: "resnet18"
+    help: "Backbone encoder architecture. Must match the checkpoint's training configuration."
+    hydra_override: "model.encoder.model_name"
+    filter_by_architecture_key: "compatible_backbones"
+    metadata_default_key: "default_backbone"
+    metadata_help_key: "compatible_backbones"
+    validation:
+      required: true
+
+  - key: decoder
+    type: selectbox
+    label: "Decoder"
+    options_source: "models.decoders"
+    default: "unet"
+    help: "Decoder to reconstruct feature maps into probability maps. Must match the checkpoint's training configuration."
+    hydra_override: "model.component_overrides.decoder.name"
+    filter_by_architecture_key: "compatible_decoders"
+    metadata_default_key: "default_decoder"
+    metadata_help_key: "compatible_decoders"
+    validation:
+      required: true
+
+  - key: head
+    type: selectbox
+    label: "Head"
+    options_source: "models.heads"
+    default: "db_head"
+    help: "Detection head producing probability and threshold maps. Must match the checkpoint's training configuration."
+    hydra_override: "model.component_overrides.head.name"
+    filter_by_architecture_key: "compatible_heads"
+    metadata_default_key: "default_head"
+    metadata_help_key: "compatible_heads"
+    validation:
+      required: true
+
+  - key: loss
+    type: selectbox
+    label: "Loss"
+    options_source: "models.losses"
+    default: "db_loss"
+    help: "Loss function used for optimisation. Must match the checkpoint's training configuration."
+    hydra_override: "model.component_overrides.loss.name"
+    filter_by_architecture_key: "compatible_losses"
+    metadata_default_key: "default_loss"
+    metadata_help_key: "compatible_losses"
+    validation:
+      required: true
+
+  - key: preprocessing_profile
+    type: selectbox
+    label: "Preprocessing Profile"
+    options:
+      - label: "None (standard transforms)"
+        value: "none"
+      - label: "Lens-style (balanced)"
+        value: "lens_style"
+      - label: "Lens-style + Office mode"
+        value: "lens_style_office"
+      - label: "CamScanner document detection"
+        value: "camscanner"
+      - label: "docTR demo (experimental)"
+        value: "doctr_demo"
+    default: "none"
+    help: "⚠️ CRITICAL: Use the SAME preprocessing profile that was used during training! When selected, 'data=preprocessing' will be used automatically."
+    hydra_override: "__preprocessing_profile__"

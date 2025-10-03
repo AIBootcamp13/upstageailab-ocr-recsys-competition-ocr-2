@@ -7,6 +7,7 @@ defaults:
   - override hydra/job_logging: disabled
 
 seed: 42
-exp_name: "ocr_training"
+exp_name: "ocr_prediction"
 checkpoint_path: "outputs/ocr_training/checkpoints/epoch-0-step-205.ckpt"
 minified_json: False
+include_confidence: False

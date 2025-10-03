@@ -86,43 +86,57 @@ def validate_inputs(values: dict[str, Any], schema_path: str) -> list[str]:
         errors.append("Cannot change Encoder when resuming from a checkpoint.")
 
     selected_optimizer = values.get("optimizer")
+    selected_arch = values.get("architecture")
 
-    if selected_arch := values.get("architecture"):
+    # Architecture compatibility validation
+    if selected_arch:
         arch_info = architecture_metadata.get(selected_arch, {})
         ui_meta = arch_info.get("ui_metadata", {}) if arch_info else {}
-        compatible_backbones = ui_meta.get("compatible_backbones") or []
+
+        # Get user selections
         selected_backbone = values.get("encoder")
+        selected_decoder = values.get("decoder")
+        selected_head = values.get("head")
+        selected_loss = values.get("loss")
+
+        # Validate encoder/backbone compatibility
+        compatible_backbones = ui_meta.get("compatible_backbones") or []
         if compatible_backbones and selected_backbone and selected_backbone not in compatible_backbones:
             errors.append(
-                "Selected encoder/backbone is not compatible with the chosen architecture. "
-                "Please pick one of: " + ", ".join(compatible_backbones)
+                f"Encoder '{selected_backbone}' is not compatible with '{selected_arch}' architecture. "
+                f"Compatible encoders: {', '.join(compatible_backbones)}"
             )
 
-            compatible_decoders = ui_meta.get("compatible_decoders") or []
-            selected_decoder = values.get("decoder")
-            if compatible_decoders and selected_decoder and selected_decoder not in compatible_decoders:
-                errors.append(
-                    "Selected decoder is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_decoders)
-                )
+        # Validate decoder compatibility
+        compatible_decoders = ui_meta.get("compatible_decoders") or []
+        if compatible_decoders and selected_decoder and selected_decoder not in compatible_decoders:
+            errors.append(
+                f"Decoder '{selected_decoder}' is not compatible with '{selected_arch}' architecture. "
+                f"Compatible decoders: {', '.join(compatible_decoders)}"
+            )
 
-            compatible_heads = ui_meta.get("compatible_heads") or []
-            selected_head = values.get("head")
-            if compatible_heads and selected_head and selected_head not in compatible_heads:
-                errors.append(
-                    "Selected head is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_heads)
-                )
+        # Validate head compatibility
+        compatible_heads = ui_meta.get("compatible_heads") or []
+        if compatible_heads and selected_head and selected_head not in compatible_heads:
+            errors.append(
+                f"Head '{selected_head}' is not compatible with '{selected_arch}' architecture. "
+                f"Compatible heads: {', '.join(compatible_heads)}"
+            )
 
-            compatible_losses = ui_meta.get("compatible_losses") or []
-            selected_loss = values.get("loss")
-            if compatible_losses and selected_loss and selected_loss not in compatible_losses:
-                errors.append(
-                    "Selected loss is not compatible with the chosen architecture. Available options: " + ", ".join(compatible_losses)
-                )
+        # Validate loss compatibility
+        compatible_losses = ui_meta.get("compatible_losses") or []
+        if compatible_losses and selected_loss and selected_loss not in compatible_losses:
+            errors.append(
+                f"Loss '{selected_loss}' is not compatible with '{selected_arch}' architecture. "
+                f"Compatible losses: {', '.join(compatible_losses)}"
+            )
 
+        # Validate optimizer recommendation (warning, not error)
         recommended_opts = ui_meta.get("recommended_optimizers") or []
         if recommended_opts and selected_optimizer and selected_optimizer not in recommended_opts:
             errors.append(
-                "Selected optimizer is not recommended for the chosen architecture. Suggested options: " + ", ".join(recommended_opts)
+                f"Warning: Optimizer '{selected_optimizer}' is not recommended for '{selected_arch}'. "
+                f"Recommended optimizers: {', '.join(recommended_opts)}"
             )
         learning_rate = values.get("learning_rate")
         if selected_optimizer and isinstance(learning_rate, int | float):

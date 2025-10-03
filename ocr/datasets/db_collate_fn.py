@@ -73,8 +73,19 @@ class DBCollateFN:
                 continue
 
             # https://arxiv.org/pdf/1911.08947.pdf 참고
-            L = cv2.arcLength(poly, True) + np.finfo(float).eps
-            D = cv2.contourArea(poly) * (1 - self.shrink_ratio**2) / L
+            area = cv2.contourArea(poly)
+            if area <= 0:
+                # Degenerate polygon (line or a point) – skip to avoid zero-area artifacts
+                continue
+
+            L = cv2.arcLength(poly, True)
+            if L <= 0:
+                continue
+
+            eps = np.finfo(float).eps
+            D = area * (1 - self.shrink_ratio**2) / (L + eps)
+            if D <= eps:
+                continue
             pco = pyclipper.PyclipperOffset()
             pco.AddPaths(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
 

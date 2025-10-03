@@ -1,18 +1,17 @@
-# @package callbacks
-
 # This file defines the callbacks that will be instantiated by Hydra.
 # The `_target_` key tells Hydra which Python class to create.
 # We use variable interpolation (e.g., ${paths.checkpoint_dir}) to reference
 # other parts of the main configuration tree.
 
 model_checkpoint:
-  _target_: lightning.pytorch.callbacks.ModelCheckpoint
+  _target_: ocr.lightning_modules.callbacks.unique_checkpoint.UniqueModelCheckpoint
   dirpath: ${paths.checkpoint_dir}
-  filename: "epoch_{epoch:02d}-step_{step:04d}-loss_{val_loss:.4f}"
+  filename: "epoch_{epoch:02d}_step_{step:06d}_{model.architecture_name}_{model.encoder.model_name}"
   monitor: "val_loss"
   mode: "min"
-  save_top_k: 1
+  save_top_k: 3
   save_last: true
+  add_timestamp: true
 
 early_stopping:
   _target_: lightning.pytorch.callbacks.EarlyStopping

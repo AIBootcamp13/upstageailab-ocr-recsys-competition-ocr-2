@@ -1,0 +1,40 @@
+# @package synthetic
+
+# Base configuration for synthetic receipt dataset generation
+# This config is intended to drive the forthcoming generation CLI.
+# It exposes toggles for the internal generator as well as external backends
+# (PaddleOCR/MMOCR). Values can be overridden via the command line or presets.
+
+defaults:
+  - _self_
+
+backend: custom  # one of: custom, paddle, mmocr
+
+output:
+  root_dir: ${hydra:runtime.output_dir}/synthetic
+  image_prefix: synthetic
+  image_format: png
+  annotation_format: json
+
+generation:
+  num_images: 1000
+  image_size: [512, 512]
+  num_text_regions: 4
+  background_type: plain
+
+augmentation:
+  enable: true
+
+paths:
+  fonts_dir: null
+  assets_dir: null
+  dictionaries_dir: null
+
+generator:
+  _target_: ocr.synthetic_data.dataset.SyntheticDatasetGenerator
+  config:
+    backend: ${synthetic.backend}
+    output: ${synthetic.output}
+    generation: ${synthetic.generation}
+    augmentation: ${synthetic.augmentation}
+    paths: ${synthetic.paths}

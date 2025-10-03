@@ -95,7 +95,27 @@ def _is_visible(visible_if: str | None, values: dict[str, Any]) -> bool:
 def _to_override(k: str, v: Any) -> str | None:
     if v is None or v == "":
         return None
-    return f"{k}={str(v).lower()}" if isinstance(v, bool) else f"{k}={v}"
+
+    v_str = str(v).lower() if isinstance(v, bool) else str(v)
+
+    # Quote values containing special characters that confuse Hydra parser
+    # Characters that need quoting: , = : { } [ ] space tab newline return ' "
+    # According to Hydra docs, these chars need escaping or the value needs to be quoted
+    special_chars = ",=:{}[] \t\n\r'\""
+    needs_quotes = any(char in v_str for char in special_chars)
+
+    # For interpolations or special chars, quote the VALUE only (not the entire override)
+    # Hydra expects: key="value" (where value is quoted)
+    # The shell quoting 'key="value"' is handled separately when displaying the command
+    contains_interpolation = "${" in v_str
+
+    if needs_quotes or contains_interpolation:
+        # Escape any double quotes in the value for proper nesting
+        escaped_value = v_str.replace('"', '\\"')
+        # Use double quotes around the value: key="value"
+        return f'{k}="{escaped_value}"'
+    else:
+        return f"{k}={v_str}"
 
 
 @dataclass
@@ -114,6 +134,12 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
     elements: list[dict[str, Any]] = schema.get("ui_elements", [])
     constant_overrides: list[str] = schema.get("constant_overrides", [])
     overrides: list[str] = []
+
+    # Check if preprocessing profile is active
+    preprocessing_profile = values.get("preprocessing_profile", "none")
+    preprocessing_active = preprocessing_profile and preprocessing_profile != "none"
+    preprocessing_overrides_applied = False
+
     for element in elements:
         key = element.get("key")
         if not isinstance(key, str) or not key:
@@ -123,6 +149,21 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
             continue
 
         value = values.get(key)
+
+        # Skip dataset override if preprocessing is active
+        # (preprocessing profiles will set data=preprocessing automatically)
+        if key == "dataset" and preprocessing_active:
+            continue
+
+        # Special handling for preprocessing profiles
+        if override_key == "__preprocessing_profile__":
+            if value and value != "none" and not preprocessing_overrides_applied:
+                preprocessing_overrides_applied = True
+                # Apply preprocessing profile overrides
+                profile_overrides = _get_preprocessing_profile_overrides(value)
+                overrides.extend(profile_overrides)
+            continue
+
         if isinstance(override_key, list):
             for k in override_key:
                 if ov := _to_override(k, value):
@@ -131,6 +172,34 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
             overrides.append(ov)
 
     return overrides, constant_overrides
+
+
+def _get_preprocessing_profile_overrides(profile) -> list[str]:
+    """Get the Hydra overrides for a preprocessing profile."""
+    # Handle case where profile is a dict (e.g., from UI selectbox with dict options)
+    if isinstance(profile, dict):
+        profile = profile.get("name", "")  # Extract the 'name' key as the profile string; default to '' if missing
+
+    profile_map = {
+        "lens_style": [
+            "data=preprocessing",
+            "+preset/datasets=preprocessing",
+        ],
+        "lens_style_office": [
+            "data=preprocessing",
+            "+preset/datasets=preprocessing",
+            "preprocessing.enhancement_method=office_lens",
+        ],
+        "camscanner": [
+            "data=preprocessing",
+            "+preset/datasets=preprocessing_camscanner",
+        ],
+        "doctr_demo": [
+            "data=preprocessing",
+            "+preset/datasets=preprocessing_docTR_demo",
+        ],
+    }
+    return profile_map.get(profile, [])
 
 
 def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
@@ -291,16 +360,51 @@ def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:
             st.info(message)
             values[key] = info_value
         elif etype == "selectbox":
-            opts = options or [""]
-            dval = str(default) if default is not None else ""
-            index = opts.index(dval) if dval in opts else 0
-            values[key] = st.selectbox(
+            # Handle options that may be dicts with 'label' and 'value' keys
+            if options and all(isinstance(opt, dict) for opt in options):
+                # Options are dicts, extract labels for display and create value mapping
+                display_options = [opt.get("label", str(opt)) for opt in options]
+                value_map = {opt.get("label", str(opt)): opt.get("value", opt) for opt in options}
+                opts = display_options
+                dval = str(default) if default is not None else ""
+                # Find the display option that corresponds to the default value
+                default_display = None
+                for opt in options:
+                    if opt.get("value") == default:
+                        default_display = opt.get("label", str(opt))
+                        break
+                if default_display:
+                    dval = default_display
+                index = opts.index(dval) if dval in opts else 0
+            else:
+                # Options are strings
+                opts = options or [""]
+                dval = str(default) if default is not None else ""
+                index = opts.index(dval) if dval in opts else 0
+
+            # Check if current session state value is valid for filtered options
+            current_value = st.session_state.get(widget_key)
+            if current_value is not None and current_value not in opts:
+                # Clear invalid session state to use the default
+                st.session_state.pop(widget_key, None)
+                current_value = None
+
+            if current_value is not None and current_value in opts:
+                index = opts.index(current_value)
+
+            selected_display = st.selectbox(
                 label,
                 opts,
                 index=index,
                 help=help_text,
                 key=widget_key,
             )
+
+            # Convert back to value if options were dicts
+            if options and all(isinstance(opt, dict) for opt in options):
+                values[key] = value_map.get(selected_display, selected_display)
+            else:
+                values[key] = selected_display
         else:
             st.warning(f"Unsupported UI element type: {etype}")
             values[key] = None
