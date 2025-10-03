@@ -116,3 +116,5 @@ CamScanner-Web-App/
 OpenCV-Document-Scanner/
 
 _archive/docs
+QWEN.md
+continuation-prompt-streamlit-ui.md
