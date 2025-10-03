@@ -1,7 +1,7 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.8 (2025-10-03)",
-  "generated_at": "2025-10-03T13:55:00Z",
+  "version": "1.9 (2025-10-03)",
+  "generated_at": "2025-10-03T14:15:00Z",
   "entries": [
     {
       "id": "training-protocol",
@@ -280,6 +280,30 @@
       "bundles": ["context-management"]
     },
     {
+      "id": "advanced-training-techniques",
+      "title": "Advanced Training Techniques",
+      "path": "./02_protocols/17_advanced_training_techniques.md",
+      "section": "02. Protocols (How-To Guides)",
+      "tags": ["training", "parallel", "multirun", "architecture"],
+      "priority": "high",
+      "summary": "Guide to parallel training, multirun experimentation, and architecture selection for specific use cases.",
+      "last_reviewed": "2025-10-03",
+      "owner": "ml-platform",
+      "bundles": ["training-analysis", "parallel-processing"]
+    },
+    {
+      "id": "model-architecture-selection",
+      "title": "Model Architecture Selection",
+      "path": "./06_concepts/01_model_architecture_selection.md",
+      "section": "06. Concepts (Core Understanding)",
+      "tags": ["architecture", "models", "ocr", "selection"],
+      "priority": "high",
+      "summary": "Decision framework for choosing between DBNet, DBNet++, and CRAFT architectures based on dataset characteristics.",
+      "last_reviewed": "2025-10-03",
+      "owner": "ml-platform",
+      "bundles": ["architecture", "training-analysis"]
+    },
+    {
       "id": "experiment-log-template",
       "title": "Experiment Log Template",
       "path": "./04_experiments/TEMPLATE.md",
@@ -341,6 +365,14 @@
     }
   ],
   "bundles": {
+    "architecture": {
+      "title": "System Architecture",
+      "description": "Core system architecture, models, and architectural decision making.",
+      "entries": [
+        "architecture",
+        "model-architecture-selection"
+      ]
+    },
     "hydra-management": {
       "title": "Hydra Configuration",
       "description": "Guides and protocols for working with Hydra configurations.",
@@ -358,7 +390,18 @@
         "experiment-log-template",
         "evaluation-metrics",
         "debugging-workflow",
-        "hydra-registry"
+        "hydra-registry",
+        "advanced-training-techniques",
+        "model-architecture-selection"
+      ]
+    },
+    "parallel-processing": {
+      "title": "Parallel Training & Multirun",
+      "description": "Advanced techniques for running multiple experiments simultaneously.",
+      "entries": [
+        "advanced-training-techniques",
+        "model-architecture-selection",
+        "training-protocol"
       ]
     },
     "streamlit-maintenance": {

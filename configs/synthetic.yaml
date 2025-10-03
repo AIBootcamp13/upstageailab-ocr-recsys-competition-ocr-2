@@ -1,12 +1,15 @@
-# @package synthetic
+# @package _global_
 
-# Base configuration for synthetic receipt dataset generation
-# This config is intended to drive the forthcoming generation CLI.
-# It exposes toggles for the internal generator as well as external backends
-# (PaddleOCR/MMOCR). Values can be overridden via the command line or presets.
+# Synthetic dataset generation configuration
+# This config drives the synthetic data generator CLI.
+# It supports multiple backends (custom, paddle, mmocr) and exposes
+# generation parameters for easy experimentation.
 
 defaults:
   - _self_
+
+# Global struct setting to allow overrides
+struct: false
 
 backend: custom  # one of: custom, paddle, mmocr
 
@@ -33,8 +36,8 @@ paths:
 generator:
   _target_: ocr.synthetic_data.dataset.SyntheticDatasetGenerator
   config:
-    backend: ${synthetic.backend}
-    output: ${synthetic.output}
-    generation: ${synthetic.generation}
-    augmentation: ${synthetic.augmentation}
-    paths: ${synthetic.paths}
+    backend: ${backend}
+    output: ${output}
+    generation: ${generation}
+    augmentation: ${augmentation}
+    paths: ${paths}

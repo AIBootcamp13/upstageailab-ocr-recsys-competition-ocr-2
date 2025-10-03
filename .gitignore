@@ -63,7 +63,7 @@ env.bak/
 venv.bak/
 
 # Docs
-docs/*
+docs/_deprecated/
 !docs/next_job_log/
 !docs/next_job_log/**
 # IDE
