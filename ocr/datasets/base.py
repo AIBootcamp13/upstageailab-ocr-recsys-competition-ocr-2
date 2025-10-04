@@ -88,7 +88,7 @@ class OCRDataset(Dataset):
             image = OCRDataset.rotate_image(image, orientation)
         org_shape = image.size
 
-        item = OrderedDict(image=image, image_filename=image_filename, shape=org_shape)
+        item = OrderedDict(image=image, image_filename=image_filename, image_path=str(image_path), shape=org_shape)
 
         if self.transform is None:
             raise ValueError("Transform function is a required value.")

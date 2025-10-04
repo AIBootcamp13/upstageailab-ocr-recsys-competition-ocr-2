@@ -46,16 +46,16 @@ class OCRPLModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         pred = self.model(**batch)
-        self.log("train/loss", pred["loss"], batch_size=len(batch))
+        self.log("train/loss", pred["loss"], batch_size=batch["images"].shape[0])
         for key, value in pred["loss_dict"].items():
-            self.log(f"train/{key}", value, batch_size=len(batch))
-        return pred
+            self.log(f"train/{key}", value, batch_size=batch["images"].shape[0])
+        return pred["loss"]
 
     def validation_step(self, batch, batch_idx):
         pred = self.model(**batch)
-        self.log("val_loss", pred["loss"], batch_size=len(batch))
+        self.log("val_loss", pred["loss"], batch_size=batch["images"].shape[0])
         for key, value in pred["loss_dict"].items():
-            self.log(f"val_{key}", value, batch_size=len(batch))
+            self.log(f"val_{key}", value, batch_size=batch["images"].shape[0])
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
         for idx, boxes in enumerate(boxes_batch):
@@ -63,9 +63,9 @@ class OCRPLModule(pl.LightningModule):
 
         # Compute per-batch validation metrics
         batch_metrics = self._compute_batch_metrics(batch, boxes_batch)
-        self.log(f"batch_{batch_idx}/recall", batch_metrics["recall"])
-        self.log(f"batch_{batch_idx}/precision", batch_metrics["precision"])
-        self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"])
+        self.log(f"batch_{batch_idx}/recall", batch_metrics["recall"], batch_size=batch["images"].shape[0])
+        self.log(f"batch_{batch_idx}/precision", batch_metrics["precision"], batch_size=batch["images"].shape[0])
+        self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
 
         # Log problematic batch image paths
         if batch_metrics["recall"] < 0.8:
@@ -78,7 +78,7 @@ class OCRPLModule(pl.LightningModule):
             except ImportError:
                 pass  # wandb not available
 
-        return pred
+        return pred["loss"]
 
     def _compute_batch_metrics(self, batch, boxes_batch):
         """Compute validation metrics for a batch of images."""

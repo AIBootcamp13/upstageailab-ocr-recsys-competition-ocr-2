@@ -29,11 +29,13 @@ class DBCollateFN:
     def __call__(self, batch):
         images = [item["image"] for item in batch]
         filenames = [item["image_filename"] for item in batch]
+        image_paths = [item["image_path"] for item in batch]
         inverse_matrix = [item["inverse_matrix"] for item in batch]
 
         collated_batch = OrderedDict(
             images=torch.stack(images, dim=0),
             image_filename=filenames,
+            image_path=image_paths,
             inverse_matrix=inverse_matrix,
         )
 
