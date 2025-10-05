@@ -28,12 +28,12 @@ preprocessing:
 
   # --- ImageEnhancer / TextEnhancer ---------------------------------------
   enable_enhancement: true
-  enhancement_method: "office_lens"
+  enhancement_method: "conservative"
   enable_text_enhancement: true
 
   # --- FinalResizer -------------------------------------------------------
   target_size: [640, 640]
-  enable_final_resize: false
+  enable_final_resize: true
 
 lens_style_preprocessor:
   _target_: ${dataset_path}.LensStylePreprocessorAlbumentations

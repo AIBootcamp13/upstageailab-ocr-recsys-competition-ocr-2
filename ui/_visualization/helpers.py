@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Shared helpers for visualization components."""
 
+import re
 from collections.abc import Iterable
 
 from PIL import Image, ImageDraw
@@ -17,7 +18,8 @@ def parse_polygon_string(polygons_str: str) -> list[Polygon]:
 
     for raw_polygon in polygons_str.split("|"):
         coords: Polygon = []
-        for token in raw_polygon.split():
+        tokens = [token for token in re.split(r"[\s,]+", raw_polygon.strip()) if token]
+        for token in tokens:
             try:
                 coords.append(float(token))
             except ValueError:
@@ -41,9 +43,14 @@ def validate_polygons(polygons_str: str) -> tuple[list[Polygon], dict[str, int]]
 
     for raw_polygon in raw_polygons:
         coords: Polygon = []
+        tokens = [token for token in re.split(r"[\s,]+", raw_polygon.strip()) if token]
+        if not tokens:
+            stats["parse_errors"] += 1
+            continue
+
         has_parse_error = False
 
-        for token in raw_polygon.split():
+        for token in tokens:
             try:
                 coords.append(float(token))
             except ValueError:

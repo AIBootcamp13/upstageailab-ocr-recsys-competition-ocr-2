@@ -31,12 +31,18 @@ class DBCollateFN:
         filenames = [item["image_filename"] for item in batch]
         image_paths = [item["image_path"] for item in batch]
         inverse_matrix = [item["inverse_matrix"] for item in batch]
+        raw_sizes = [item.get("raw_size", None) for item in batch]
+        orientations = [item.get("orientation", 1) for item in batch]
+        canonical_sizes = [item.get("shape") for item in batch]
 
         collated_batch = OrderedDict(
             images=torch.stack(images, dim=0),
             image_filename=filenames,
             image_path=image_paths,
             inverse_matrix=inverse_matrix,
+            raw_size=raw_sizes,
+            orientation=orientations,
+            canonical_size=canonical_sizes,
         )
 
         if self.inference_mode:
@@ -88,14 +94,14 @@ class DBCollateFN:
             D = area * (1 - self.shrink_ratio**2) / (L + eps)
             if D <= eps:
                 continue
-            pco = pyclipper.PyclipperOffset()
-            pco.AddPaths(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+            pco = pyclipper.PyclipperOffset()  # type: ignore[attr-defined]
+            pco.AddPaths(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)  # type: ignore[attr-defined]
 
             # Probability map 생성
             shrinked = pco.Execute(-D)
             for s in shrinked:
                 shrinked_poly = np.array(s)
-                cv2.fillPoly(prob_map, [shrinked_poly], 1.0)
+                cv2.fillPoly(prob_map, [shrinked_poly], 1.0)  # type: ignore[arg-type]
 
             # Threshold map 생성
             dilated = pco.Execute(D)

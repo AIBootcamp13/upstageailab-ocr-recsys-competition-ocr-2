@@ -42,7 +42,7 @@ uv sync
 
 ### **구성**
 
-구성 파일에서 데이터셋 경로를 업데이트해야 합니다. `configs/preset/datasets/db.yaml`의 `base_path` 변수를 데이터를 압축 해제한 위치로 수정하세요.
+구성 파일은 프로젝트의 경로 설정을 자동으로 감지합니다. 경로 관리는 `ocr/utils/path_utils.py`의 `OCRPathResolver`가 처리하므로 별도의 구성 파일 수정이 필요 없습니다.
 
 ## **2. 모델 및 훈련 설정**
 
@@ -248,7 +248,17 @@ python ocr/utils/convert_submission.py --json_path outputs/ocr_training/submissi
 
 대회 리더보드는 공개 및 비공개 순위로 나뉩니다. 대회 기간 중에는 공개 세트에 대한 점수가 표시됩니다. 최종 우승자는 대회 종료 후 공개되는 비공개 테스트 세트에서의 모델 성능으로 결정됩니다. 테스트 데이터는 공개 및 비공개 세트 간에 동등하게(50/50) 분할됩니다.
 
-## **8. 문서 전처리 파이프라인 (모듈형)**
+## **8. 모듈형 UI Architecture & Command Builder**
+
+UI 시스템이 모듈형 구조로 리팩토링되었습니다. Command Builder 인터페이스는 동적 스키마 기반으로 재구성되었으며, UI 스키마는 앱별로 `ui/apps/<app_name>/schemas/`에 위치합니다 (예: `ui/apps/command_builder/schemas/`).
+
+- **Command Builder 스키마**: `ui/apps/command_builder/schemas/`에 위치 - 훈련, 테스트, 예측 명령을 위한 UI 요소를 정의
+- **호환성 스키마**: `configs/schemas/ui_inference_compat.yaml`에 위치 - 모델 구성 요소 간 호환성 검증
+- **기본 모델 스키마**: `configs/schemas/default_model.yaml`에 위치 - 기본 모델 구성 정의
+
+이 모듈형 접근 방식은 각 UI 구성 요소가 독립적으로 유지 관리되고 확장될 수 있도록 합니다.
+
+## **9. 문서 전처리 파이프라인 (모듈형)**
 
 `DocumentPreprocessor`가 기존 단일 파일 구현에서 모듈형 구조(`ocr/datasets/preprocessing/`)로 분리되었습니다. 각 단계는 독립적인 클래스로 구성되어 필요에 따라 켜고 끌 수 있으며, Hydra 설정에서도 동일한 옵션을 노출합니다.
 

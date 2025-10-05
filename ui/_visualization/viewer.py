@@ -11,11 +11,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image, ImageDraw
 
-from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
+from ocr.utils.orientation import normalize_pil_image, remap_polygons
 
 from .helpers import validate_polygons
 
@@ -71,21 +72,32 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
         return
 
     try:
-        image = Image.open(image_path)
+        pil_image = Image.open(image_path)
     except Exception as exc:  # noqa: BLE001
         st.error(f"Error loading image: {exc}")
         return
 
-    # Apply EXIF rotation to the image if present (mimicking OCRDataset behavior)
-    exif = image.getexif()
-    orientation = exif.get(EXIF_ORIENTATION, 1) if exif else 1
-    if orientation != 1:
-        image = OCRDataset.rotate_image(image, orientation)
+    raw_width, raw_height = pil_image.size
+    normalized_image, orientation = normalize_pil_image(pil_image)
+
+    if normalized_image.mode != "RGB":
+        image = normalized_image.convert("RGB")
+    else:
+        image = normalized_image.copy()
+
+    if normalized_image is not pil_image and normalized_image is not image:
+        normalized_image.close()
+    pil_image.close()
 
     row = df[df["filename"] == image_name].iloc[0]
     polygons_str = str(row.get("polygons", ""))
 
     polygons, validation_stats = validate_polygons(polygons_str)
+
+    if orientation != 1 and polygons:
+        np_polygons = [np.array(coords, dtype=np.float32).reshape(1, -1, 2) for coords in polygons]
+        remapped = remap_polygons(np_polygons, raw_width, raw_height, orientation)
+        polygons = [poly.reshape(-1).tolist() for poly in remapped]
 
     if polygons:
         # Draw predictions on the rotated image

@@ -3,19 +3,17 @@ import os
 import signal
 import sys
 
+# Setup project paths automatically
 import hydra
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor
 from omegaconf import DictConfig
 
-# Setup project paths automatically
-from ocr.utils.path_utils import setup_paths
+from ocr.utils.path_utils import get_path_resolver, setup_paths
 
 setup_paths()
 
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
-
-CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
 
 _shutdown_in_progress = False
 trainer = None
@@ -57,7 +55,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 # Avoid creating a new process group here; the caller (UI) manages process groups
 
 
-@hydra.main(config_path=CONFIG_DIR, config_name="train", version_base="1.2")
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="train", version_base="1.2")
 def train(config: DictConfig):
     """
     Train a OCR model using the provided configuration.

@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import cv2
+import numpy as np
+from PIL import Image
+
+from ocr.utils.orientation import normalize_pil_image, orientation_requires_rotation, remap_polygons
 
 from .config_loader import ModelConfigBundle, PostprocessSettings, load_model_config, resolve_config_path
 from .dependencies import OCR_MODULES_AVAILABLE, torch
@@ -17,6 +21,8 @@ from .utils import generate_mock_predictions
 from .utils import get_available_checkpoints as scan_checkpoints
 
 LOGGER = logging.getLogger(__name__)
+
+_ORIENTATION_INVERSE = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 8, 7: 7, 8: 6}
 
 
 class InferenceEngine:
@@ -138,8 +144,27 @@ class InferenceEngine:
                 min_detection_size=min_detection_size,
             )
 
-        image = cv2.imread(image_path)
-        if image is None:
+        orientation = 1
+        canonical_width = 0
+        canonical_height = 0
+
+        try:
+            with Image.open(image_path) as pil_image:
+                normalized_image, orientation = normalize_pil_image(pil_image)
+
+                rgb_image = normalized_image
+                if normalized_image.mode != "RGB":
+                    rgb_image = normalized_image.convert("RGB")
+
+                image_array = np.asarray(rgb_image)
+                canonical_height, canonical_width = image_array.shape[:2]
+                image = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+
+                if rgb_image is not normalized_image:
+                    rgb_image.close()
+                if normalized_image is not pil_image:
+                    normalized_image.close()
+        except OSError:
             LOGGER.error("Failed to read image at path: %s", image_path)
             return None
 
@@ -166,19 +191,75 @@ class InferenceEngine:
 
         decoded = decode_polygons_with_head(self.model, batch, predictions, image.shape)
         if decoded is not None:
-            return decoded
+            return self._remap_predictions_if_needed(
+                decoded,
+                orientation,
+                canonical_width,
+                canonical_height,
+            )
 
         try:
-            return fallback_postprocess(predictions, image.shape, bundle.postprocess)
+            result = fallback_postprocess(predictions, image.shape, bundle.postprocess)
         except Exception:  # noqa: BLE001
             LOGGER.exception("Error in post-processing for %s", image_path)
             return generate_mock_predictions()
+        return self._remap_predictions_if_needed(
+            result,
+            orientation,
+            canonical_width,
+            canonical_height,
+        )
 
     # Internal helpers ---------------------------------------------------
     def _apply_config_bundle(self, bundle: ModelConfigBundle) -> None:
         self._config_bundle = bundle
         self._postprocess_settings = bundle.postprocess
         self._transform = None
+
+    @staticmethod
+    def _remap_predictions_if_needed(
+        result: dict[str, Any],
+        orientation: int,
+        canonical_width: int,
+        canonical_height: int,
+    ) -> dict[str, Any]:
+        if not result:
+            return result
+
+        if not orientation_requires_rotation(orientation):
+            return result
+
+        polygons_str = result.get("polygons")
+        if not polygons_str:
+            return result
+
+        inverse_orientation = _ORIENTATION_INVERSE.get(orientation, 1)
+        if inverse_orientation == 1:
+            return result
+
+        remapped_polygons = []
+        for polygon_entry in polygons_str.split("|"):
+            tokens = [token for token in polygon_entry.split(",") if token]
+            if len(tokens) < 8:
+                continue
+            try:
+                coords = np.array([float(value) for value in tokens], dtype=np.float32).reshape(-1, 2)
+            except ValueError:
+                continue
+            remapped_polygons.append(coords)
+
+        if not remapped_polygons:
+            return result
+
+        transformed = remap_polygons(remapped_polygons, canonical_width, canonical_height, inverse_orientation)
+        serialised: list[str] = []
+        for polygon in transformed:
+            flat = polygon.reshape(-1)
+            serialised.append(",".join(str(int(round(value))) for value in flat))
+
+        updated = dict(result)
+        updated["polygons"] = "|".join(serialised)
+        return updated
 
 
 def run_inference_on_image(

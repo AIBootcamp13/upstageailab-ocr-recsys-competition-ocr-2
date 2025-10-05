@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Iterable
+from typing import cast
 
 import cv2
 import numpy as np
 import torch
+from numpy.typing import NDArray
 
 
 class CraftCollateFN:
@@ -37,12 +39,18 @@ class CraftCollateFN:
         filenames = [item["image_filename"] for item in batch]
         image_paths = [item["image_path"] for item in batch]
         inverse_matrices = [item["inverse_matrix"] for item in batch]
+        raw_sizes = [item.get("raw_size", None) for item in batch]
+        orientations = [item.get("orientation", 1) for item in batch]
+        canonical_sizes = [item.get("shape") for item in batch]
 
         collated_batch = OrderedDict(
             images=torch.stack(images, dim=0),
             image_filename=filenames,
             image_path=image_paths,
             inverse_matrix=inverse_matrices,
+            raw_size=raw_sizes,
+            orientation=orientations,
+            canonical_size=canonical_sizes,
         )
 
         if self.inference_mode:
@@ -70,10 +78,10 @@ class CraftCollateFN:
         self,
         image: torch.Tensor,
         polygons: list[np.ndarray] | None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
         _, height, width = image.shape
-        region_map = np.zeros((height, width), dtype=np.float32)
-        affinity_map = np.zeros((height, width), dtype=np.float32)
+        region_map: NDArray[np.float32] = np.zeros((height, width), dtype=np.float32)
+        affinity_map: NDArray[np.float32] = np.zeros((height, width), dtype=np.float32)
 
         if not polygons:
             return region_map, affinity_map
@@ -98,12 +106,13 @@ class CraftCollateFN:
             sigma = max(bbox_w, bbox_h) * self.region_blur_scale
             if sigma > 0:
                 region_heatmap = cv2.GaussianBlur(polygon_mask.astype(np.float32), (0, 0), sigmaX=sigma, sigmaY=sigma)
+                region_heatmap = region_heatmap.astype(np.float32, copy=False)
                 max_value = float(region_heatmap.max())
                 if max_value > 0:
-                    region_heatmap = region_heatmap / max_value
+                    region_heatmap = cast(NDArray[np.float32], region_heatmap / max_value)
             else:
                 region_heatmap = polygon_mask.astype(np.float32)
-            region_map = np.maximum(region_map, region_heatmap)
+            np.maximum(region_map, region_heatmap, out=region_map)
 
             # Affinity heatmap: dilate the polygon to encourage connectivity
             kernel_size = int(max(bbox_w, bbox_h) * self.affinity_kernel_ratio)
@@ -114,12 +123,13 @@ class CraftCollateFN:
             if self.affinity_blur_scale > 0:
                 sigma_aff = kernel_size * self.affinity_blur_scale
                 affinity_heatmap = cv2.GaussianBlur(dilated.astype(np.float32), (0, 0), sigmaX=sigma_aff, sigmaY=sigma_aff)
+                affinity_heatmap = affinity_heatmap.astype(np.float32, copy=False)
                 max_value = float(affinity_heatmap.max())
                 if max_value > 0:
-                    affinity_heatmap = affinity_heatmap / max_value
+                    affinity_heatmap = cast(NDArray[np.float32], affinity_heatmap / max_value)
             else:
                 affinity_heatmap = dilated.astype(np.float32)
-            affinity_map = np.maximum(affinity_map, affinity_heatmap)
+            np.maximum(affinity_map, affinity_heatmap, out=affinity_map)
 
         np.clip(region_map, 0.0, 1.0, out=region_map)
         np.clip(affinity_map, 0.0, 1.0, out=affinity_map)

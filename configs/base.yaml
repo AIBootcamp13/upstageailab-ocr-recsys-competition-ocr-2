@@ -3,8 +3,6 @@ hydra:
     dir: 'outputs/${exp_name}'
 
 defaults:
-  - data: default
-  - dataloaders: default
   - model: default
   - metrics: cleval
   - paths: default

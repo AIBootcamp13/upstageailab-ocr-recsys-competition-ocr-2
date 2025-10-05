@@ -1,0 +1,31 @@
+# @package _global_
+
+dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"
+
+datasets:
+  train_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/train
+    annotation_path: ${dataset_base_path}jsons/train.json
+    transform: ${transforms.train_transform}
+  val_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.val_transform}
+  test_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/val
+    annotation_path: ${dataset_base_path}jsons/val.json
+    transform: ${transforms.test_transform}
+  predict_dataset:
+    _target_: ${dataset_path}.OCRDataset
+    image_path: ${dataset_base_path}images/test
+    annotation_path: null
+    transform: ${transforms.test_transform}
+
+collate_fn:
+  _target_: ${dataset_path}.DBCollateFN
+  shrink_ratio: 0.4
+  thresh_min: 0.3
+  thresh_max: 0.7

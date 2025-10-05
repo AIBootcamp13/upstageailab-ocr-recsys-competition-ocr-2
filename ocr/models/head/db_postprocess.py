@@ -15,6 +15,7 @@
 import cv2
 import numpy as np
 import pyclipper
+import torch
 from shapely.geometry import Polygon
 
 
@@ -86,6 +87,8 @@ class DBPostProcessor:
         matrix: (3, 3) as NDArray[float32]
         return: (N, 2) as NDArray[float32]
         """
+        if isinstance(matrix, torch.Tensor):
+            matrix = matrix.cpu().numpy()
         coords = np.array(coords)
         coords = np.dot(matrix, np.vstack([coords.T, np.ones(coords.shape[0])]))
         coords /= coords[2, :]

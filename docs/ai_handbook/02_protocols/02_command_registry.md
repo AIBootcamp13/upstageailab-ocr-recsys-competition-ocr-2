@@ -54,6 +54,16 @@ This document lists approved, safe-to-run scripts for autonomous execution. All 
 * **Expected Output:** Orientation histogram, polygon audit summary (including drop counts and example file ids).
 * **Resources:** Low (CPU, < 15s)
 
+### **Prediction Visualization**
+
+* **Purpose:** Visualizes model predictions overlaid on images to debug OCR performance and understand detection failures.
+* **Command:** `uv run python ui/visualize_predictions.py --image_dir <path> --checkpoint <path> [--max_images N] [--save_dir <path>] [--score_threshold T]`
+* **Recommended Usage:**
+	* `--image_dir LOW_PERFORMANCE_IMGS --checkpoint outputs/checkpoints/last.ckpt --max_images 5 --save_dir outputs/debug` for analyzing problematic validation images.
+	* `--image_dir data/datasets/images/val --checkpoint outputs/checkpoints/model.ckpt --max_images 3` for interactive visualization.
+* **Expected Output:** PNG file with overlaid predictions (when --save_dir provided) or interactive matplotlib plot showing predicted bounding boxes with confidence scores.
+* **Resources:** Medium (GPU recommended for faster inference, < 30s for 5 images)
+
 ## **5. Streamlit UI Launchers**
 
 All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the commands below to launch the corresponding app without relying on deprecated monolithic scripts.

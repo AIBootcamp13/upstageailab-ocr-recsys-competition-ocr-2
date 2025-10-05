@@ -8,10 +8,12 @@ import lightning.pytorch as pl
 import numpy as np
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
+from PIL import Image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from ocr.metrics import CLEvalMetric
+from ocr.utils.orientation import remap_polygons
 
 
 class OCRPLModule(pl.LightningModule):
@@ -59,7 +61,15 @@ class OCRPLModule(pl.LightningModule):
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
         for idx, boxes in enumerate(boxes_batch):
-            self.validation_step_outputs[batch["image_filename"][idx]] = boxes
+            normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
+            filename = batch["image_filename"][idx]
+            self.validation_step_outputs[filename] = {
+                "boxes": normalized_boxes,
+                "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
+                "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
+                "canonical_size": tuple(batch.get("canonical_size", [None])[idx]) if "canonical_size" in batch else None,
+                "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
+            }
 
         # Compute per-batch validation metrics
         batch_metrics = self._compute_batch_metrics(batch, boxes_batch)
@@ -74,7 +84,14 @@ class OCRPLModule(pl.LightningModule):
             try:
                 import wandb
 
-                wandb.log({f"problematic_batch_{batch_idx}": image_paths})
+                table = wandb.Table(columns=["image_path"], data=[[path] for path in image_paths])
+                wandb.log(
+                    {
+                        f"problematic_batch_{batch_idx}": table,
+                        f"problematic_batch_{batch_idx}_paths": ", ".join(image_paths),
+                        f"problematic_batch_{batch_idx}_count": len(image_paths),
+                    }
+                )
             except ImportError:
                 pass  # wandb not available
 
@@ -90,8 +107,44 @@ class OCRPLModule(pl.LightningModule):
                 continue
             gt_words = self.dataset["val"].anns[filename]
 
-            det_quads = [[point for coord in polygons for point in coord] for polygons in boxes]
-            gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+            entry = self.validation_step_outputs.get(filename, {})
+
+            orientation = 1
+            if "orientation" in batch:
+                orientation = batch["orientation"][idx]
+            orientation = entry.get("orientation", orientation)
+
+            raw_size = entry.get("raw_size")
+            if raw_size is None and "raw_size" in batch:
+                raw_size = batch["raw_size"][idx]
+
+            image_path = entry.get("image_path")
+            if image_path is None and "image_path" in batch:
+                image_path = batch["image_path"][idx]
+            if image_path is None:
+                image_path = self.dataset["val"].image_path / filename  # type: ignore[attr-defined]
+
+            raw_width, raw_height = 0, 0
+            if raw_size is not None and all(dim for dim in raw_size):
+                raw_width, raw_height = map(int, raw_size)
+            else:
+                try:
+                    with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                        raw_width, raw_height = pil_image.size
+                except Exception:
+                    raw_width, raw_height = 0, 0
+
+            det_polygons = [np.asarray(polygon, dtype=np.float32) for polygon in boxes if polygon]
+            det_quads = [polygon.reshape(-1).tolist() for polygon in det_polygons if polygon.size > 0]
+
+            canonical_gt = []
+            if gt_words is not None and len(gt_words) > 0:
+                if raw_width > 0 and raw_height > 0:
+                    canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                else:
+                    canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+
+            gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
 
             metric = CLEvalMetric(**self.metric_kwargs)  # Create new instance
             metric.reset()
@@ -124,9 +177,32 @@ class OCRPLModule(pl.LightningModule):
                 cleval_metrics["hmean"].append(0.0)
                 continue
 
-            pred = self.validation_step_outputs[gt_filename]
-            det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
-            gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+            entry = self.validation_step_outputs[gt_filename]
+            pred_polygons = entry.get("boxes", [])
+            orientation = entry.get("orientation", 1)
+            raw_size = entry.get("raw_size")
+
+            if raw_size is None:
+                image_path = entry.get("image_path")
+                if image_path is None:
+                    image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
+                try:
+                    with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                        raw_width, raw_height = pil_image.size
+                except Exception:
+                    raw_width, raw_height = 0, 0
+            else:
+                raw_width, raw_height = map(int, raw_size)
+
+            det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
+
+            canonical_gt = []
+            if gt_words is not None and len(gt_words) > 0:
+                if raw_width > 0 and raw_height > 0:
+                    canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                else:
+                    canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+            gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
 
             metric = self.metric
             metric.reset()
@@ -153,7 +229,15 @@ class OCRPLModule(pl.LightningModule):
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
         for idx, boxes in enumerate(boxes_batch):
-            self.test_step_outputs[batch["image_filename"][idx]] = boxes
+            normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
+            filename = batch["image_filename"][idx]
+            self.test_step_outputs[filename] = {
+                "boxes": normalized_boxes,
+                "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
+                "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
+                "canonical_size": tuple(batch.get("canonical_size", [None])[idx]) if "canonical_size" in batch else None,
+                "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
+            }
         return pred
 
     def on_test_epoch_end(self):
@@ -172,9 +256,32 @@ class OCRPLModule(pl.LightningModule):
                 cleval_metrics["hmean"].append(0.0)
                 continue
 
-            pred = self.test_step_outputs[gt_filename]
-            det_quads = [[point for coord in polygons for point in coord] for polygons in pred]
-            gt_quads = [item.squeeze().reshape(-1) for item in gt_words]
+            entry = self.test_step_outputs[gt_filename]
+            pred_polygons = entry.get("boxes", [])
+            orientation = entry.get("orientation", 1)
+            raw_size = entry.get("raw_size")
+
+            if raw_size is None:
+                image_path = entry.get("image_path")
+                if image_path is None:
+                    image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
+                try:
+                    with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                        raw_width, raw_height = pil_image.size
+                except Exception:
+                    raw_width, raw_height = 0, 0
+            else:
+                raw_width, raw_height = map(int, raw_size)
+
+            det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
+
+            canonical_gt = []
+            if gt_words is not None and len(gt_words) > 0:
+                if raw_width > 0 and raw_height > 0:
+                    canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                else:
+                    canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+            gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
 
             metric = self.metric
             metric.reset()
@@ -203,10 +310,11 @@ class OCRPLModule(pl.LightningModule):
         include_confidence = getattr(self.config, "include_confidence", False)
 
         for idx, (boxes, scores) in enumerate(zip(boxes_batch, scores_batch, strict=True)):
+            normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
             if include_confidence:
-                self.predict_step_outputs[batch["image_filename"][idx]] = {"boxes": boxes, "scores": scores}
+                self.predict_step_outputs[batch["image_filename"][idx]] = {"boxes": normalized_boxes, "scores": scores}
             else:
-                self.predict_step_outputs[batch["image_filename"][idx]] = boxes
+                self.predict_step_outputs[batch["image_filename"][idx]] = normalized_boxes
         return pred
 
     def on_predict_epoch_end(self):
@@ -228,7 +336,8 @@ class OCRPLModule(pl.LightningModule):
             # Separate box
             words = OrderedDict()
             for idx, box in enumerate(boxes):
-                word_data = OrderedDict(points=box)
+                points = box.tolist() if isinstance(box, np.ndarray) else box
+                word_data = OrderedDict(points=points)
                 if include_confidence and scores is not None:
                     word_data["confidence"] = float(scores[idx])
                 words[f"{idx + 1:04}"] = word_data
@@ -278,24 +387,29 @@ class OCRDataPLModule(pl.LightningDataModule):
         self.config = config
         self.dataloaders_cfg = self.config.dataloaders
         self.collate_cfg = self.config.collate_fn
-        self.collate_fn = instantiate(self.collate_cfg)
+
+    def _build_collate_fn(self, *, inference_mode: bool) -> Any:
+        collate_fn = instantiate(self.collate_cfg)
+        if hasattr(collate_fn, "inference_mode"):
+            collate_fn.inference_mode = inference_mode
+        return collate_fn
 
     def train_dataloader(self):
         train_loader_config = self.dataloaders_cfg.train_dataloader
-        self.collate_fn.inference_mode = False
-        return DataLoader(self.dataset["train"], collate_fn=self.collate_fn, **train_loader_config)
+        collate_fn = self._build_collate_fn(inference_mode=False)
+        return DataLoader(self.dataset["train"], collate_fn=collate_fn, **train_loader_config)
 
     def val_dataloader(self):
         val_loader_config = self.dataloaders_cfg.val_dataloader
-        self.collate_fn.inference_mode = False
-        return DataLoader(self.dataset["val"], collate_fn=self.collate_fn, **val_loader_config)
+        collate_fn = self._build_collate_fn(inference_mode=False)
+        return DataLoader(self.dataset["val"], collate_fn=collate_fn, **val_loader_config)
 
     def test_dataloader(self):
         test_loader_config = self.dataloaders_cfg.test_dataloader
-        self.collate_fn.inference_mode = False
-        return DataLoader(self.dataset["test"], collate_fn=self.collate_fn, **test_loader_config)
+        collate_fn = self._build_collate_fn(inference_mode=False)
+        return DataLoader(self.dataset["test"], collate_fn=collate_fn, **test_loader_config)
 
     def predict_dataloader(self):
         predict_loader_config = self.dataloaders_cfg.predict_dataloader
-        self.collate_fn.inference_mode = True
-        return DataLoader(self.dataset["predict"], collate_fn=self.collate_fn, **predict_loader_config)
+        collate_fn = self._build_collate_fn(inference_mode=True)
+        return DataLoader(self.dataset["predict"], collate_fn=collate_fn, **predict_loader_config)

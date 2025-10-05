@@ -2,8 +2,8 @@
 
 # **AI Agent Handbook: OCR Project**
 
-Version: 1.8 (2025-10-03)
-Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-09-29_legacy-ui-cleanup.md).
+Version: 1.9 (2025-10-04)
+Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10-04_Path-Management-Standardization.md).
 
 ## **1. Project Overview**
 

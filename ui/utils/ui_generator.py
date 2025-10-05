@@ -138,7 +138,6 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
     # Check if preprocessing profile is active
     preprocessing_profile = values.get("preprocessing_profile", "none")
     preprocessing_active = preprocessing_profile and preprocessing_profile != "none"
-    preprocessing_overrides_applied = False
 
     for element in elements:
         key = element.get("key")
@@ -155,15 +154,6 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
         if key == "dataset" and preprocessing_active:
             continue
 
-        # Special handling for preprocessing profiles
-        if override_key == "__preprocessing_profile__":
-            if value and value != "none" and not preprocessing_overrides_applied:
-                preprocessing_overrides_applied = True
-                # Apply preprocessing profile overrides
-                profile_overrides = _get_preprocessing_profile_overrides(value)
-                overrides.extend(profile_overrides)
-            continue
-
         if isinstance(override_key, list):
             for k in override_key:
                 if ov := _to_override(k, value):
@@ -172,34 +162,6 @@ def compute_overrides(schema: dict[str, Any], values: dict[str, Any]) -> tuple[l
             overrides.append(ov)
 
     return overrides, constant_overrides
-
-
-def _get_preprocessing_profile_overrides(profile) -> list[str]:
-    """Get the Hydra overrides for a preprocessing profile."""
-    # Handle case where profile is a dict (e.g., from UI selectbox with dict options)
-    if isinstance(profile, dict):
-        profile = profile.get("name", "")  # Extract the 'name' key as the profile string; default to '' if missing
-
-    profile_map = {
-        "lens_style": [
-            "data=preprocessing",
-            "+preset/datasets=preprocessing",
-        ],
-        "lens_style_office": [
-            "data=preprocessing",
-            "+preset/datasets=preprocessing",
-            "preprocessing.enhancement_method=office_lens",
-        ],
-        "camscanner": [
-            "data=preprocessing",
-            "+preset/datasets=preprocessing_camscanner",
-        ],
-        "doctr_demo": [
-            "data=preprocessing",
-            "+preset/datasets=preprocessing_docTR_demo",
-        ],
-    }
-    return profile_map.get(profile, [])
 
 
 def generate_ui_from_schema(schema_path: str) -> UIGenerateResult:

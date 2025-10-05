@@ -7,9 +7,8 @@ import numpy as np
 from PIL import Image
 
 from ocr.datasets.base import OCRDataset
+from ocr.utils.orientation import normalize_pil_image, remap_polygons
 from ocr.utils.wandb_utils import log_validation_images
-
-EXIF_ORIENTATION = 274  # Orientation Information: 274
 
 
 class WandbImageLoggingCallback(pl.Callback):
@@ -42,7 +41,11 @@ class WandbImageLoggingCallback(pl.Callback):
 
         # Collect up to max_images samples
         count = 0
-        for filename, pred_boxes in list(pl_module.validation_step_outputs.items())[: self.max_images]:  # type: ignore
+        for filename, pred_data in list(pl_module.validation_step_outputs.items())[: self.max_images]:  # type: ignore
+            entry = pred_data if isinstance(pred_data, dict) else {"boxes": pred_data}
+            pred_boxes = entry.get("boxes", [])
+            orientation_hint = entry.get("orientation", 1)
+            raw_size_hint = entry.get("raw_size")
             if not hasattr(val_dataset, "anns") or filename not in val_dataset.anns:  # type: ignore
                 continue
 
@@ -53,14 +56,26 @@ class WandbImageLoggingCallback(pl.Callback):
 
             # Get image directly from filesystem (similar to dataset loading)
             try:
-                image_path = val_dataset.image_path / filename  # type: ignore
-                image = Image.open(image_path).convert("RGB")
+                image_path = entry.get("image_path") or val_dataset.image_path / filename  # type: ignore
+                pil_image = Image.open(image_path)
+                raw_width, raw_height = pil_image.size
+                normalized_image, orientation = normalize_pil_image(pil_image)
 
-                # Apply EXIF rotation to match dataset preprocessing
-                exif = image.getexif()
-                if exif and EXIF_ORIENTATION in exif:
-                    orientation = exif[EXIF_ORIENTATION]
-                    image = OCRDataset.rotate_image(image, orientation)
+                if normalized_image.mode != "RGB":
+                    image = normalized_image.convert("RGB")
+                else:
+                    image = normalized_image.copy()
+
+                if normalized_image is not image:
+                    normalized_image.close()
+                pil_image.close()
+
+                if gt_quads:
+                    if orientation != 1:
+                        gt_quads = remap_polygons(gt_quads, raw_width, raw_height, orientation)
+                    elif orientation_hint != 1:
+                        hint_width, hint_height = raw_size_hint or (raw_width, raw_height)
+                        gt_quads = remap_polygons(gt_quads, hint_width, hint_height, orientation_hint)
 
                 gt_quads = self._postprocess_polygons(gt_quads, image.size)
                 pred_quads = self._postprocess_polygons(pred_quads, image.size)
@@ -123,5 +138,4 @@ class WandbImageLoggingCallback(pl.Callback):
             return []
 
         width, height = image_size
-        OCRDataset._clip_polygons_in_place(processed, width, height)
-        return OCRDataset._filter_degenerate_polygons(processed)
+        return processed

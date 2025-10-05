@@ -1,4 +1,5 @@
 import json
+import logging
 from collections import OrderedDict
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -8,8 +9,17 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 
+from ocr.utils.orientation import (
+    EXIF_ORIENTATION_TAG,
+    FLIP_LEFT_RIGHT,
+    normalize_pil_image,
+    orientation_requires_rotation,
+    polygons_in_canonical_frame,
+    remap_polygons,
+)
+
 Image.MAX_IMAGE_PIXELS = 108000000
-EXIF_ORIENTATION = 274  # Orientation Information: 274
+EXIF_ORIENTATION = EXIF_ORIENTATION_TAG  # Orientation Information: 274
 
 
 class OCRDataset(Dataset):
@@ -18,6 +28,8 @@ class OCRDataset(Dataset):
     def __init__(self, image_path, annotation_path, transform, image_extensions=None):
         self.image_path = Path(image_path)
         self.transform = transform
+        self.logger = logging.getLogger(__name__)
+        self._canonical_frame_logged = set()
 
         # Allow configurable image extensions, fallback to default if not provided
         if image_extensions is None:
@@ -34,8 +46,6 @@ class OCRDataset(Dataset):
                 if file.is_file() and file.suffix.lower() in self.image_extensions:
                     self.anns[file.name] = None
             return
-
-        import logging
 
         class AnnotationFileError(Exception):
             pass
@@ -76,19 +86,59 @@ class OCRDataset(Dataset):
         image_filename = list(self.anns.keys())[idx]
         image_path = self.image_path / image_filename
         try:
-            image = Image.open(image_path).convert("RGB")
+            pil_image = Image.open(image_path)
         except OSError as e:
             raise RuntimeError(f"Failed to load image {image_filename}: {e}")
 
-        # EXIF정보를 확인하여 이미지 회전
-        exif = image.getexif()
-        polygons = self.anns[image_filename] or None
-        if exif and EXIF_ORIENTATION in exif:
-            orientation = exif[EXIF_ORIENTATION]
-            image = OCRDataset.rotate_image(image, orientation)
+        raw_width, raw_height = pil_image.size
+        try:
+            normalized_image, orientation = normalize_pil_image(pil_image)
+        except Exception as exc:
+            pil_image.close()
+            raise RuntimeError(f"Failed to normalize image {image_filename}: {exc}") from exc
+
+        if normalized_image.mode != "RGB":
+            image = normalized_image.convert("RGB")
+        else:
+            image = normalized_image.copy()
+
+        if normalized_image is not pil_image:
+            normalized_image.close()
+        pil_image.close()
+
+        raw_polygons = self.anns[image_filename] or None
+        polygons = None
+        polygon_frame = "raw"
+        if raw_polygons:
+            polygons_list = [np.asarray(poly, dtype=np.float32) for poly in raw_polygons]
+            if orientation_requires_rotation(orientation):
+                if polygons_in_canonical_frame(polygons_list, raw_width, raw_height, orientation):
+                    polygons = polygons_list
+                    polygon_frame = "canonical"
+                    if image_filename not in self._canonical_frame_logged:
+                        self.logger.debug(
+                            "Skipping EXIF remap for %s; polygons already align with canonical orientation (orientation=%d).",
+                            image_filename,
+                            orientation,
+                        )
+                        self._canonical_frame_logged.add(image_filename)
+                else:
+                    polygons = remap_polygons(polygons_list, raw_width, raw_height, orientation)
+                    polygon_frame = "canonical"
+            else:
+                polygons = polygons_list
+
         org_shape = image.size
 
-        item = OrderedDict(image=image, image_filename=image_filename, image_path=str(image_path), shape=org_shape)
+        item = OrderedDict(
+            image=image,
+            image_filename=image_filename,
+            image_path=str(image_path),
+            shape=org_shape,
+            raw_size=(raw_width, raw_height),
+            orientation=orientation,
+            polygon_frame=polygon_frame,
+        )
 
         if self.transform is None:
             raise ValueError("Transform function is a required value.")
@@ -128,17 +178,17 @@ class OCRDataset(Dataset):
         }
 
         if orientation == 2:
-            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.transpose(FLIP_LEFT_RIGHT)
         elif orientation == 3:
             image = image.rotate(180, **rotate_kwargs)
         elif orientation == 4:
-            image = image.rotate(180, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(180, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
         elif orientation == 5:
-            image = image.rotate(-90, expand=True, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(-90, expand=True, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
         elif orientation == 6:
             image = image.rotate(-90, expand=True, **rotate_kwargs)
         elif orientation == 7:
-            image = image.rotate(90, expand=True, **rotate_kwargs).transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(90, expand=True, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
         elif orientation == 8:
             image = image.rotate(90, expand=True, **rotate_kwargs)
         # Orientation 1 (normal) and any other values: no rotation needed

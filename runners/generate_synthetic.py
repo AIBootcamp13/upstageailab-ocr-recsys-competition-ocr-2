@@ -1,16 +1,13 @@
-import os
 from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from ocr.utils.path_utils import setup_paths
+from ocr.utils.path_utils import get_path_resolver, setup_paths
 
 setup_paths()
 
 from ocr.synthetic_data.dataset import SyntheticDatasetGenerator  # noqa: E402
-
-CONFIG_DIR = os.environ.get("OP_CONFIG_DIR") or "../configs"
 
 
 def _create_preview_grid(entries: list[dict], output_dir: str | Path) -> None:
@@ -84,7 +81,7 @@ def _export_manifest(entries: list[dict], output_dir: str | Path, config: DictCo
     print(f"Manifest exported to {manifest_path}")
 
 
-@hydra.main(config_path=CONFIG_DIR, config_name="synthetic", version_base="1.2")
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="synthetic", version_base="1.2")
 def generate_synthetic(config: DictConfig) -> None:
     """
     Generate synthetic OCR datasets using configurable backends.

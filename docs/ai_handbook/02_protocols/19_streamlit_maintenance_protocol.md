@@ -14,6 +14,7 @@ All Streamlit surfaces live in `ui/`. Each runnable app sits under `ui/apps/<app
 
 - UI configuration: `configs/ui/<app_name>.yaml` (e.g., `configs/ui/inference.yaml`).
 - Runtime defaults & schemas: `configs/schemas/` (notably `default_model.yaml` and `ui_inference_compat.yaml`).
+- UI schemas: `ui/apps/<app_name>/schemas/` (e.g., `ui/apps/command_builder/schemas/` for the command builder).
 - UI metadata: `ui_meta/` (naming, copy, experiment storyboards, and sample payloads).
 - App-local packages such as `components/`, `services/`, `models/`, and `state.py` within `ui/apps/<app_name>/`.
 

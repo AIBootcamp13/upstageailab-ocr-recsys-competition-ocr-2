@@ -108,4 +108,3 @@ ui_elements:
         value: "doctr_demo"
     default: "none"
     help: "⚠️ CRITICAL: Use the SAME preprocessing profile that was used during training! When selected, 'data=preprocessing' will be used automatically."
-    hydra_override: "__preprocessing_profile__"

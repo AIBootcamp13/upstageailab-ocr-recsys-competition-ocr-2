@@ -225,4 +225,3 @@ ui_elements:
     default: "none"
     help: "Microsoft Lens-style preprocessing with document detection, perspective correction, and enhancement. When selected, 'data=preprocessing' will be used automatically."
     visible_if: "resume_training == false"
-    hydra_override: "__preprocessing_profile__"

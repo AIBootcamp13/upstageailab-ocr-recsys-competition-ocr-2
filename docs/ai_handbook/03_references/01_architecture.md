@@ -14,6 +14,7 @@ This is achieved through a combination of:
 * **Component Registry:** A central catalog of all available components.
 * **Model Factory:** A builder that assembles a complete model from registered components based on a Hydra config.
 * **Hydra Configuration:** The declarative system for defining which components to use for an experiment.
+* **UI Schemas:** Dynamic UI generation using YAML schemas located in `ui/apps/<app_name>/schemas/` for different UI components.
 
 ## **2. Target Directory Structure (src/)**
 

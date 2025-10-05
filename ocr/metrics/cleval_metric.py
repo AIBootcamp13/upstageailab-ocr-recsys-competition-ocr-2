@@ -224,24 +224,27 @@ class CLEvalMetric(Metric):
         gran_score_precision,
         num_char_tp_precision,
     ):
-        total_gt = num_char_gt
-        total_det = num_char_det
-        gran_gt = gran_score_recall
-        tp_gt = num_char_tp_recall
-        gran_det = gran_score_precision
-        tp_det = num_char_tp_precision
+        device = self.device
 
-        # Sample Score : Character correct length - Granularity Penalty
-        recall = torch.tensor(0.0, dtype=torch.float32, device=self.device) if total_gt == 0 else (max(0.0, tp_gt - gran_gt) / total_gt)
-        precision = (
-            torch.tensor(0.0, dtype=torch.float32, device=self.device) if total_det == 0 else max(0.0, tp_det - gran_det) / total_det
-        )
+        total_gt = num_char_gt.to(dtype=torch.float32, device=device)
+        total_det = num_char_det.to(dtype=torch.float32, device=device)
+        gran_gt = gran_score_recall.to(dtype=torch.float32, device=device)
+        tp_gt = num_char_tp_recall.to(dtype=torch.float32, device=device)
+        gran_det = gran_score_precision.to(dtype=torch.float32, device=device)
+        tp_det = num_char_tp_precision.to(dtype=torch.float32, device=device)
+
+        zero = torch.zeros((), dtype=torch.float32, device=device)
+
+        recall_numerator = torch.clamp(tp_gt - gran_gt, min=0.0)
+        precision_numerator = torch.clamp(tp_det - gran_det, min=0.0)
+
+        recall = torch.where(total_gt > 0, recall_numerator / torch.clamp(total_gt, min=1.0), zero)
+        precision = torch.where(total_det > 0, precision_numerator / torch.clamp(total_det, min=1.0), zero)
         hmean = self.harmonic_mean(recall, precision)
         return recall, precision, hmean
 
     def harmonic_mean(self, score1, score2):
         """get harmonic mean value"""
-        if score1 + score2 == 0:
-            return torch.tensor(0.0, dtype=torch.float32, device=self.device)
-        else:
-            return (2 * score1 * score2) / (score1 + score2)
+        denominator = score1 + score2
+        zero = torch.zeros((), dtype=torch.float32, device=self.device)
+        return torch.where(denominator > 0, (2 * score1 * score2) / denominator, zero)

@@ -209,6 +209,31 @@ python scripts/process_monitor.py --cleanup --dry-run
 python run_ui.py resource_monitor
 ```
 
+#### AI System Monitor (`scripts/monitoring/monitor.sh`) - ✅ New!
+AI 에이전트가 시스템 리소스를 모니터링하고 프로세스를 관리할 수 있는 도구입니다.
+
+**주요 기능:**
+- AI 기반 자연어 쿼리로 시스템 모니터링
+- CPU, 메모리, 디스크 사용량 종합 분석
+- 고아 프로세스와 좀비 프로세스 감지
+- 안전한 프로세스 종료 기능
+- Qwen MCP 서버를 통한 AI 에이전트 통합
+
+**사용법:**
+```bash
+# 시스템 상태 확인
+./scripts/monitoring/monitor.sh "Show system health status"
+
+# 고아 프로세스 검사
+./scripts/monitoring/monitor.sh "Monitor system resources and check for orphaned processes"
+
+# 상위 CPU 사용 프로세스 목록
+./scripts/monitoring/monitor.sh "List top 10 processes by CPU usage"
+
+# 메모리 사용량 분석
+./scripts/monitoring/monitor.sh "Check memory usage and identify high consumers"
+```
+
 ### 주요 구성 파일
 
 - `train.yaml`, `test.yaml`, `predict.yaml`: 러너 실행 설정

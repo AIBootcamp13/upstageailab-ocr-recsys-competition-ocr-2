@@ -7,33 +7,36 @@ This script provides convenient commands to run the Streamlit UI applications.
 
 import subprocess
 import sys
-from pathlib import Path
+
+from ocr.utils.path_utils import get_path_resolver, setup_paths
+
+setup_paths()
 
 
 def run_command_builder():
     """Run the command builder UI."""
-    ui_path = Path(__file__).parent / "ui" / "command_builder.py"
+    ui_path = get_path_resolver().config.project_root / "ui" / "command_builder.py"
     cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
     subprocess.run(cmd)
 
 
 def run_evaluation_viewer():
     """Run the evaluation results viewer UI."""
-    ui_path = Path(__file__).parent / "ui" / "evaluation_viewer.py"
+    ui_path = get_path_resolver().config.project_root / "ui" / "evaluation_viewer.py"
     cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
     subprocess.run(cmd)
 
 
 def run_inference_ui():
     """Run the real-time inference UI."""
-    ui_path = Path(__file__).parent / "ui" / "inference_ui.py"
+    ui_path = get_path_resolver().config.project_root / "ui" / "inference_ui.py"
     cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
     subprocess.run(cmd)
 
 
 def run_resource_monitor():
     """Run the resource monitor UI."""
-    ui_path = Path(__file__).parent / "ui" / "resource_monitor.py"
+    ui_path = get_path_resolver().config.project_root / "ui" / "resource_monitor.py"
     cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
     subprocess.run(cmd)
 

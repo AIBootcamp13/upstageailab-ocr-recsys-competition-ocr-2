@@ -124,7 +124,12 @@ _llm_code_gen_workflow_exp/
 *.png
 notepad.md
 
-
-.repomixignore
-repomix.config.json
+LOW_PERFORMANCE_IMGS/*.jpg
+# .repomixignore
+# repomix.config.json
 data_gen_exp/
+root-cause.md
+qwen_coder_integration.md
+image_rotation_mismatch.svg
+package-lock.json
+package.json

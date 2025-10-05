@@ -1,8 +1,11 @@
 defaults:
   - _self_
-  - base
-  - preset/models/model_example
-  - preset/lightning_modules/base
+  - base                  # Keep for other settings
+  - data: base            # Compose data group
+  - transforms: base      # Compose transforms group
+  - dataloaders: default  # Compose dataloaders group
+  - /preset/models/model_example
+  - /preset/lightning_modules/base
   - override hydra/hydra_logging: disabled
   - override hydra/job_logging: disabled
 

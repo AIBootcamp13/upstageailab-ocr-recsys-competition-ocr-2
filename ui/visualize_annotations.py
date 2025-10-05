@@ -8,9 +8,13 @@ then draws bounding boxes to show the detected text regions.
 
 import json
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+from ocr.utils.orientation import normalize_pil_image, remap_polygons
 
 
 def load_annotation(annotation_path: str) -> dict:
@@ -19,40 +23,92 @@ def load_annotation(annotation_path: str) -> dict:
         return json.load(f)
 
 
-def draw_bounding_boxes(image_path: str, annotations: dict, max_boxes: int = 20) -> Image.Image:
-    """Draw bounding boxes on image"""
-    # Load image
-    image = Image.open(image_path).convert("RGB")
-    draw = ImageDraw.Draw(image)
+def _extract_polygons(annotation_payload: dict) -> list[dict[str, Any]]:
+    """Return valid polygons alongside their source annotations."""
+    polygons: list[dict[str, object]] = []
+    for item in annotation_payload.get("annotations", []):
+        polygon = item.get("polygon")
+        if not polygon:
+            continue
+        coords = np.asarray(polygon, dtype=np.float32)
+        if coords.size < 6:
+            continue
+        polygons.append({"coords": coords.reshape(-1, 2), "annotation": item})
+    return polygons
 
-    # Try to load a font, fallback to default if not available
+
+def _normalize_image_and_polygons(image_path: str, annotations: dict) -> tuple[Image.Image, list[dict[str, Any]]]:
+    """Normalize the image via EXIF metadata and remap polygons accordingly."""
+    pil_image = Image.open(image_path)
+    normalized_image, orientation = normalize_pil_image(pil_image)
+
+    if normalized_image.mode != "RGB":
+        display_image = normalized_image.convert("RGB")
+    else:
+        display_image = normalized_image.copy()
+
+    raw_width, raw_height = pil_image.size
+
+    polygon_entries = _extract_polygons(annotations)
+    if polygon_entries and orientation != 1:
+        coords_list = [np.asarray(entry["coords"], dtype=np.float32) for entry in polygon_entries]
+        transformed = remap_polygons(coords_list, raw_width, raw_height, orientation)
+        for entry, remapped in zip(polygon_entries, transformed, strict=True):
+            entry["coords"] = np.asarray(remapped, dtype=np.float32).reshape(-1, 2)
+
+    # Close original images after copying to avoid resource leaks
+    if normalized_image is not pil_image:
+        pil_image.close()
+        normalized_image.close()
+    else:
+        pil_image.close()
+
+    return display_image, polygon_entries
+
+
+def draw_bounding_boxes(image_path: str, annotations: dict, max_boxes: int = 20) -> Image.Image:
+    """Draw polygon overlays aligned with EXIF-aware orientation."""
+    image, polygon_entries = _normalize_image_and_polygons(image_path, annotations)
+    draw = ImageDraw.Draw(image, "RGBA")
+
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except:
+    except OSError:
         font = ImageFont.load_default()
 
-    # Draw bounding boxes
-    colors = ["red", "blue", "green", "orange", "purple", "brown", "pink", "gray", "olive", "cyan"]
+    colors = [
+        (255, 0, 0),
+        (0, 0, 255),
+        (0, 128, 0),
+        (255, 165, 0),
+        (128, 0, 128),
+        (165, 42, 42),
+        (255, 192, 203),
+        (128, 128, 128),
+        (128, 128, 0),
+        (0, 255, 255),
+    ]
 
-    for i, annotation in enumerate(annotations["annotations"][:max_boxes]):
-        polygon = annotation["polygon"]
-        text = annotation["text"]
+    for index, entry in enumerate(polygon_entries[:max_boxes]):
+        color = colors[index % len(colors)]
+        polygon = entry["coords"]
+        annotation = entry["annotation"]
+        points = [(float(x), float(y)) for x, y in np.asarray(polygon).reshape(-1, 2)]
+        if len(points) < 3:
+            continue
 
-        # Convert polygon to bounding box (rectangle)
-        if len(polygon) >= 4:
-            x_coords = [point[0] for point in polygon]
-            y_coords = [point[1] for point in polygon]
+        outline = color + (255,)
+        fill = color + (50,)
+        draw.polygon(points, outline=outline, fill=fill)
 
-            x_min, x_max = min(x_coords), max(x_coords)
-            y_min, y_max = min(y_coords), max(y_coords)
-
-            # Draw rectangle
-            color = colors[i % len(colors)]
-            draw.rectangle((x_min, y_min, x_max, y_max), outline=color, width=2)
-
-            # Draw text label
-            label = f"{text[:15]}{'...' if len(text) > 15 else ''}"
-            draw.text((x_min, y_min - 15), label, fill=color, font=font)
+        text = ""
+        if isinstance(annotation, dict):
+            text = annotation.get("text", "")
+        if points:
+            x_min = min(point[0] for point in points)
+            y_min = min(point[1] for point in points)
+            label = f"{text[:15]}{'...' if len(text) > 15 else ''}" if text else f"T{index + 1}"
+            draw.text((x_min, y_min - 15), label, fill=outline, font=font)
 
     return image
 
