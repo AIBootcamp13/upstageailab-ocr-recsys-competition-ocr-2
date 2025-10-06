@@ -23,8 +23,9 @@ def test(config):
 
     if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
+        from omegaconf import OmegaConf  # noqa: E402
 
-        logger = Logger(config.exp_name, project=config.logger.project_name, config=dict(config))
+        logger = Logger(config.exp_name, project=config.logger.project_name, config=OmegaConf.to_container(config, resolve=False))
     else:
         from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 

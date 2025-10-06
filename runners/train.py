@@ -116,6 +116,7 @@ def train(config: DictConfig):
 
     if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
+        from omegaconf import OmegaConf  # noqa: E402
 
         from ocr.utils.wandb_utils import generate_run_name, load_env_variables  # noqa: E402
 
@@ -123,10 +124,19 @@ def train(config: DictConfig):
         load_env_variables()
 
         run_name = generate_run_name(config)
+
+        # Properly serialize config for wandb, handling hydra interpolations
+        try:
+            # Try to resolve interpolations for cleaner config
+            wandb_config = OmegaConf.to_container(config, resolve=True)
+        except Exception:
+            # Fall back to unresolved config if resolution fails
+            wandb_config = OmegaConf.to_container(config, resolve=False)
+
         logger = Logger(
             run_name,
             project=config.logger.project_name,
-            config=dict(config),
+            config=wandb_config,
         )
     else:
         from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402

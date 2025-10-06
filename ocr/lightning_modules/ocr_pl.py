@@ -77,21 +77,50 @@ class OCRPLModule(pl.LightningModule):
         self.log(f"batch_{batch_idx}/precision", batch_metrics["precision"], batch_size=batch["images"].shape[0])
         self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
 
-        # Log problematic batch image paths
+        # Log problematic batch images
         if batch_metrics["recall"] < 0.8:
-            image_paths = [str(path) for path in batch["image_path"]]
-            # Use wandb.log if available for image paths
             try:
                 import wandb
 
-                table = wandb.Table(columns=["image_path"], data=[[path] for path in image_paths])
-                wandb.log(
-                    {
-                        f"problematic_batch_{batch_idx}": table,
-                        f"problematic_batch_{batch_idx}_paths": ", ".join(image_paths),
-                        f"problematic_batch_{batch_idx}_count": len(image_paths),
-                    }
-                )
+                # Load images for the problematic batch
+                problematic_images = []
+                image_paths = []
+
+                for path in batch["image_path"]:
+                    try:
+                        pil_image = Image.open(path)
+                        # Convert to RGB if necessary
+                        if pil_image.mode != "RGB":
+                            pil_image = pil_image.convert("RGB")
+                        problematic_images.append(pil_image)
+                        image_paths.append(str(path))
+                    except Exception as e:
+                        print(f"Warning: Failed to load image {path} for wandb logging: {e}")
+                        continue
+
+                if problematic_images:
+                    # Create wandb.Image objects with captions
+                    wandb_images = []
+                    for idx, (img, path) in enumerate(zip(problematic_images, image_paths, strict=True)):
+                        filename = Path(path).name
+                        caption = f"Problematic batch {batch_idx} - {filename} (recall: {batch_metrics['recall']:.3f})"
+                        wandb_images.append(wandb.Image(img, caption=caption))
+
+                    # Log the images and metadata
+                    wandb.log(
+                        {
+                            f"problematic_batch_{batch_idx}_images": wandb_images,
+                            f"problematic_batch_{batch_idx}_count": len(wandb_images),
+                            f"problematic_batch_{batch_idx}_recall": batch_metrics["recall"],
+                            f"problematic_batch_{batch_idx}_precision": batch_metrics["precision"],
+                            f"problematic_batch_{batch_idx}_hmean": batch_metrics["hmean"],
+                        }
+                    )
+
+                    # Close PIL images to free memory
+                    for img in problematic_images:
+                        img.close()
+
             except ImportError:
                 pass  # wandb not available
 
