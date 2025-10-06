@@ -26,21 +26,21 @@ class UniqueModelCheckpoint(ModelCheckpoint):
 
     def format_checkpoint_name(
         self,
-        metrics: dict[str, torch.Tensor],
-        filename: str | None = None,
-        ver: int | None = None,
-        prefix: str | None = None,
+        epoch: int,
+        step: int,
+        metrics: dict[str, torch.Tensor] | None = None,
+        auto_insert_metric_name: bool = True,
     ) -> str:
         """
         Format checkpoint name with additional unique identifiers and model information.
         """
-        base_path = super().format_checkpoint_name(metrics, filename=filename, ver=ver, prefix=prefix)
+        base_path = super().format_checkpoint_name(epoch, step, metrics, auto_insert_metric_name)
 
         dirpath, base_name = os.path.split(base_path)
         stem, ext = os.path.splitext(base_name)
 
         # Preserve Lightning's reserved "last" checkpoints so cleanup utilities keep working.
-        reserved_name = (filename or "") in {self.CHECKPOINT_NAME_LAST}
+        reserved_name = base_name == self.CHECKPOINT_NAME_LAST
 
         if not reserved_name:
             stem = stem.replace("=", "_")

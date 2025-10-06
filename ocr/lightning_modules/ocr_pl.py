@@ -8,7 +8,7 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 from hydra.utils import instantiate
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -28,6 +28,7 @@ class OCRPLModule(pl.LightningModule):
         self.config = config
         self.lr_scheduler = None
         self._per_batch_logged_batches = 0
+        self._normalize_mean, self._normalize_std = self._extract_normalize_stats()
 
         self.validation_step_outputs: OrderedDict[str, Any] = OrderedDict()
         self.test_step_outputs: OrderedDict[str, Any] = OrderedDict()
@@ -44,6 +45,42 @@ class OCRPLModule(pl.LightningModule):
 
         cfg_dict.pop("_target_", None)
         return cfg_dict
+
+    def _extract_normalize_stats(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+        transforms_cfg = getattr(self.config, "transforms", None)
+        if transforms_cfg is None:
+            return None, None
+
+        sections: list[ListConfig] = []
+        for attr in ("train_transform", "val_transform", "test_transform", "predict_transform"):
+            section = getattr(transforms_cfg, attr, None)
+            if section is None:
+                continue
+            transforms = getattr(section, "transforms", None)
+            if isinstance(transforms, ListConfig):
+                sections.append(transforms)
+
+        for transforms in sections:
+            for transform in transforms:
+                transform_dict = OmegaConf.to_container(transform, resolve=True)
+                if not isinstance(transform_dict, dict):
+                    continue
+                target = transform_dict.get("_target_")
+                if target != "albumentations.Normalize":
+                    continue
+                mean = transform_dict.get("mean")
+                std = transform_dict.get("std")
+                if mean is None or std is None:
+                    continue
+                try:
+                    mean_array = np.array(mean, dtype=np.float32)
+                    std_array = np.array(std, dtype=np.float32)
+                except Exception:  # noqa: BLE001
+                    continue
+                if mean_array.size == std_array.size and mean_array.size in {1, 3}:
+                    return mean_array, std_array
+
+        return None, None
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -176,8 +213,7 @@ class OCRPLModule(pl.LightningModule):
     def on_validation_epoch_start(self) -> None:
         self._per_batch_logged_batches = 0
 
-    @staticmethod
-    def _tensor_to_pil_image(tensor: torch.Tensor) -> Image.Image:
+    def _tensor_to_pil_image(self, tensor: torch.Tensor) -> Image.Image:
         if tensor.ndim not in (3, 4):
             raise ValueError("Expected tensor with 3 or 4 dimensions for image conversion.")
 
@@ -196,12 +232,21 @@ class OCRPLModule(pl.LightningModule):
         else:
             raise ValueError("Unsupported tensor shape for image conversion.")
 
+        if array.dtype != np.float32:
+            array = array.astype(np.float32)
+
+        # Attempt to denormalize using ImageNet defaults when statistics are known.
+        mean = self._normalize_mean
+        std = self._normalize_std
+        if isinstance(mean, np.ndarray) and isinstance(std, np.ndarray) and mean.size == std.size:
+            if mean.size == array.shape[2]:
+                array = array * std.reshape(1, 1, -1) + mean.reshape(1, 1, -1)
+
         if array.shape[2] == 1:
             array = np.repeat(array, 3, axis=2)
 
-        if array.dtype != np.uint8:
-            array = np.clip(array, 0.0, 1.0)
-            array = (array * 255).astype(np.uint8)
+        array = np.clip(array, 0.0, 1.0)
+        array = (array * 255).astype(np.uint8)
 
         return Image.fromarray(array)
 

@@ -8,3 +8,5 @@ defaults:
 datasets:
   val_dataset:
     image_path: ${dataset_base_path}images_val_canonical
+  test_dataset:
+    image_path: ${dataset_base_path}images_val_canonical
