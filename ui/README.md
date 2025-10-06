@@ -63,11 +63,20 @@ Real-time OCR inference interface for instant predictions on uploaded images.
 
 **Features:**
 - Drag-and-drop image upload (supports JPG, PNG, BMP)
-- Model checkpoint selection from trained models
+- **Automatic checkpoint catalog discovery** - Scans all trained model checkpoints
+- Model checkpoint selection from trained models with metadata display
 - Real-time inference with progress tracking
 - Interactive visualization of OCR predictions
 - Batch processing for multiple images
 - Demo mode with mock predictions when models aren't available
+
+**Checkpoint Catalog:**
+The inference UI automatically discovers and catalogs all trained model checkpoints from the `outputs/` directory. Each checkpoint entry includes:
+- Experiment name and training configuration
+- Model architecture (encoder/decoder/head)
+- Training metrics (epoch, step, validation loss)
+- Timestamp and file size information
+- Compatibility validation for inference
 
 **Setup Requirements:**
 ```bash
@@ -92,10 +101,11 @@ uv run streamlit run ui/inference_ui.py
 
 **Inference Workflow:**
 1. Upload one or more images via drag-and-drop
-2. Select a trained model checkpoint (or use demo mode)
-3. Click "Run Inference" for instant results
-4. View predictions overlaid on images
-5. Extract and copy recognized text
+2. **Browse available checkpoints** in the catalog with metadata preview
+3. Select a trained model checkpoint (or use demo mode)
+4. Click "Run Inference" for instant results
+5. View predictions overlaid on images
+6. Extract and copy recognized text
 
 **Demo Mode:**
 If no trained models are available, the UI automatically switches to demo mode with mock predictions, allowing you to test the interface and workflow before training models.

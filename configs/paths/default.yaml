@@ -1,5 +1,5 @@
 
 # Paths config
 log_dir: 'outputs/${exp_name}/logs'
-checkpoint_dir: 'outputs/${exp_name}/checkpoints/${model.architecture_name}_${model.encoder.model_name}'
+checkpoint_dir: 'outputs/${exp_name}/checkpoints'
 submission_dir: 'outputs/${exp_name}/submissions'

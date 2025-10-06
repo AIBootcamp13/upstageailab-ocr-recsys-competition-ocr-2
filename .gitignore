@@ -124,7 +124,7 @@ _llm_code_gen_workflow_exp/
 *.png
 notepad.md
 
-LOW_PERFORMANCE_IMGS/*.jpg
+/LOW_PERFORMANCE_IMGS/*.jpg
 # .repomixignore
 # repomix.config.json
 data_gen_exp/

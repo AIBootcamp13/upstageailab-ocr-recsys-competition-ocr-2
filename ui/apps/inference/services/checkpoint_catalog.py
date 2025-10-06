@@ -16,7 +16,7 @@ from .schema_validator import ModelCompatibilitySchema, load_schema
 
 LOGGER = logging.getLogger(__name__)
 
-_EPOCH_PATTERN = re.compile(r"epoch[=\-](?P<epoch>\d+)")
+_EPOCH_PATTERN = re.compile(r"epoch[=\-_](?P<epoch>\d+)")
 DEFAULT_OUTPUTS_RELATIVE_PATH = Path("outputs")
 
 
@@ -62,7 +62,10 @@ def _discover_outputs_path(relative_path: Path) -> Path:
 
 def _collect_metadata(checkpoint_path: Path, options: CatalogOptions) -> CheckpointMetadata:
     metadata = CheckpointMetadata(checkpoint_path=checkpoint_path)
-    metadata.exp_name = checkpoint_path.parents[1].name if len(checkpoint_path.parents) > 1 else None
+    # Extract experiment name from the correct parent directory
+    # Structure: outputs/{exp_name}/checkpoints/{model_name}/{checkpoint_file}
+    # So parents[2] should be the experiment directory
+    metadata.exp_name = checkpoint_path.parents[2].name if len(checkpoint_path.parents) > 2 else None
     metadata.display_name = checkpoint_path.stem
     metadata.epochs = _parse_epoch(checkpoint_path.name)
 
@@ -74,12 +77,33 @@ def _collect_metadata(checkpoint_path: Path, options: CatalogOptions) -> Checkpo
             with config_path.open("r", encoding="utf-8") as fp:
                 config = yaml.safe_load(fp) or {}
             model_cfg = config.get("model", {})
+
+            # Extract architecture and encoder info
             metadata.architecture = _extract_architecture(model_cfg)
             metadata.encoder_name = _extract_encoder_name(model_cfg)
-            metadata.backbone = metadata.encoder_name or metadata.backbone
+
+            # If not found in model section, try root level (for configs that don't use model section)
+            if not metadata.architecture and not metadata.encoder_name:
+                metadata.architecture = _extract_architecture(config)
+                metadata.encoder_name = _extract_encoder_name(config)
+
+            # For Hydra configs with defaults, try to parse referenced preset files
+            if (not metadata.architecture or not metadata.encoder_name) and "defaults" in config:
+                metadata = _parse_hydra_defaults(config_path.parent, config, metadata)
+
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning("Failed to parse model config at %s: %s", config_path, exc)
             metadata.issues.append(f"Unable to parse config: {exc}")
+            # Fallback to directory-based extraction
+            metadata = _extract_from_directory_structure(checkpoint_path, metadata)
+
+    # If no config found, or config parsing didn't give useful results, try directory-based extraction
+    if not config_path or (metadata.architecture == "custom" and metadata.encoder_name is None):
+        metadata = _extract_from_directory_structure(checkpoint_path, metadata)
+
+    # Set backbone from encoder name if not already set
+    if metadata.encoder_name and metadata.backbone == "unknown":
+        metadata.backbone = metadata.encoder_name
 
     decoder_sig, head_sig = _extract_state_signatures(checkpoint_path)
     metadata.decoder = decoder_sig
@@ -98,13 +122,126 @@ def _parse_epoch(filename: str) -> int | None:
 
 
 def _find_config_path(checkpoint_path: Path, filenames: Iterable[str]) -> Path | None:
-    candidate_dirs = [checkpoint_path.parent, checkpoint_path.parent.parent / ".hydra"]
+    # Look up to 4 levels up the directory tree for config files in various locations
+    candidate_dirs = [
+        # Standard Hydra location
+        checkpoint_path.parent,  # immediate parent
+        checkpoint_path.parent.parent / ".hydra",  # grandparent/.hydra
+        checkpoint_path.parent.parent.parent / ".hydra",  # great-grandparent/.hydra
+        checkpoint_path.parent.parent.parent.parent / ".hydra",  # great-great-grandparent/.hydra
+        # Alternative locations for older checkpoints
+        checkpoint_path.parent.parent / "baseline_code" / "configs",  # grandparent/baseline_code/configs
+        checkpoint_path.parent.parent.parent / "baseline_code" / "configs",  # great-grandparent/baseline_code/configs
+        checkpoint_path.parent.parent.parent.parent / "baseline_code" / "configs",  # great-great-grandparent/baseline_code/configs
+        # Generic configs directory
+        checkpoint_path.parent.parent / "configs",  # grandparent/configs
+        checkpoint_path.parent.parent.parent / "configs",  # great-grandparent/configs
+        checkpoint_path.parent.parent.parent.parent / "configs",  # great-great-grandparent/configs
+    ]
+
+    # Add project-level configs directory as fallback
+    project_root = _discover_project_root(checkpoint_path)
+    if project_root:
+        candidate_dirs.extend(
+            [
+                project_root / "configs",  # project/configs
+            ]
+        )
+
     for directory in candidate_dirs:
+        if not directory.exists():
+            continue
         for filename in filenames:
             candidate = directory / filename
             if candidate.exists():
                 return candidate
     return None
+
+
+def _discover_project_root(checkpoint_path: Path) -> Path | None:
+    """Find the project root by looking for common project markers."""
+    for parent in checkpoint_path.parents:
+        if (parent / "pyproject.toml").exists() or (parent / "setup.py").exists() or (parent / "requirements.txt").exists():
+            return parent
+    return None
+
+
+def _parse_hydra_defaults(config_dir: Path, config: dict[str, object], metadata: CheckpointMetadata) -> CheckpointMetadata:
+    """Parse Hydra defaults to find model configuration in referenced preset files."""
+    try:
+        defaults = config.get("defaults", [])
+        if not isinstance(defaults, list):
+            return metadata
+
+        # Look for model-related preset files
+        model_preset_paths = [
+            config_dir / "preset" / "models" / "model_example.yaml",
+            config_dir / "preset" / "models" / "encoder" / "timm_backbone.yaml",
+        ]
+
+        for preset_path in model_preset_paths:
+            if preset_path.exists():
+                try:
+                    with preset_path.open("r", encoding="utf-8") as fp:
+                        preset_config = yaml.safe_load(fp) or {}
+
+                    # Extract model info from preset
+                    model_cfg = preset_config.get("models", {})
+                    if not metadata.architecture:
+                        metadata.architecture = _extract_architecture(model_cfg)
+                    if not metadata.encoder_name:
+                        metadata.encoder_name = _extract_encoder_name(model_cfg)
+
+                except Exception as exc:  # noqa: BLE001
+                    LOGGER.debug("Failed to parse preset %s: %s", preset_path, exc)
+
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.debug("Failed to parse Hydra defaults: %s", exc)
+
+    return metadata
+
+
+def _extract_from_directory_structure(checkpoint_path: Path, metadata: CheckpointMetadata) -> CheckpointMetadata:
+    """Extract model information from directory names and checkpoint filenames when config is unavailable."""
+    try:
+        # Try to extract from checkpoint directory name
+        # Examples: "craft_resnet50", "dbnetpp_resnet50", "dbnet_mobilenetv3_small_050"
+        checkpoint_dir = checkpoint_path.parent.name
+
+        # Common patterns: {architecture}_{encoder} or just {encoder}
+        if "_" in checkpoint_dir:
+            parts = checkpoint_dir.split("_", 1)  # Split only on first underscore
+            potential_arch = parts[0].lower()
+            potential_encoder = parts[1]
+
+            # Map common architecture names
+            arch_mapping = {"dbnet": "dbnet", "dbnetpp": "dbnetpp", "craft": "craft", "pan": "pan", "psenet": "psenet"}
+
+            if potential_arch in arch_mapping:
+                metadata.architecture = arch_mapping[potential_arch]
+                metadata.encoder_name = potential_encoder
+            else:
+                # Assume the whole directory name is the encoder
+                metadata.encoder_name = checkpoint_dir
+
+        # Try to extract from parent directory name (experiment name)
+        exp_dir = checkpoint_path.parents[1].name if len(checkpoint_path.parents) > 1 else ""
+        if exp_dir and not metadata.architecture:
+            # Look for architecture keywords in experiment name
+            exp_lower = exp_dir.lower()
+            for arch_name in ["dbnet", "craft", "pan", "psenet", "dbnetpp"]:
+                if arch_name in exp_lower:
+                    metadata.architecture = arch_name
+                    break
+
+        # Set backbone from encoder if available
+        if metadata.encoder_name and not metadata.backbone:
+            metadata.backbone = metadata.encoder_name
+
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.debug("Failed to extract from directory structure: %s", exc)
+
+    return metadata
 
 
 def _extract_architecture(model_cfg: dict[str, object]) -> str:
@@ -115,11 +252,22 @@ def _extract_architecture(model_cfg: dict[str, object]) -> str:
 
 
 def _extract_encoder_name(model_cfg: dict[str, object]) -> str | None:
+    # First try the direct encoder config
     encoder_cfg = model_cfg.get("encoder")
     if isinstance(encoder_cfg, dict):
         model_name = encoder_cfg.get("model_name")
         if isinstance(model_name, str):
             return model_name
+
+    # Then try component_overrides.encoder
+    component_overrides = model_cfg.get("component_overrides")
+    if isinstance(component_overrides, dict):
+        encoder_override = component_overrides.get("encoder")
+        if isinstance(encoder_override, dict):
+            model_name = encoder_override.get("model_name")
+            if isinstance(model_name, str):
+                return model_name
+
     return None
 
 
@@ -136,30 +284,76 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
 
     state_dict = checkpoint.get("state_dict") or checkpoint.get("model_state_dict") or checkpoint
 
-    # Decoder channels
+    # Try UNet-style decoder first (most common)
+    decoder_found = False
     for key in ("model.decoder.outers.0.0.weight", "model.decoder.outers.0.weight"):
         if key in state_dict:
             weight = state_dict[key]
             decoder_sig.output_channels = int(weight.shape[0])
             decoder_sig.inner_channels = int(weight.shape[1])
+            decoder_found = True
             break
 
-    in_channels: list[int] = []
-    index = 0
-    while True:
-        weight_key = f"model.decoder.inners.{index}.weight"
-        if weight_key not in state_dict:
-            break
-        weight = state_dict[weight_key]
-        in_channels.append(int(weight.shape[1]))
-        index += 1
-    decoder_sig.in_channels = in_channels
+    if not decoder_found:
+        # Try PAN decoder structure
+        pan_key = "model.decoder.bottom_up.0.0.weight"
+        if pan_key in state_dict:
+            weight = state_dict[pan_key]
+            decoder_sig.output_channels = int(weight.shape[0])
+            decoder_sig.inner_channels = int(weight.shape[1])
+            decoder_found = True
 
-    # Head signature
-    head_key = "model.head.binarize.0.weight"
-    if head_key in state_dict:
-        head_weight = state_dict[head_key]
-        head_sig.in_channels = int(head_weight.shape[1])
+    if not decoder_found:
+        # Try FPN decoder structure (used by mobilenetv3_small_050 checkpoints)
+        fpn_fusion_key = "model.decoder.fusion.0.weight"
+        if fpn_fusion_key in state_dict:
+            fusion_weight = state_dict[fpn_fusion_key]
+            decoder_sig.output_channels = int(fusion_weight.shape[0])  # Output channels from fusion
+            # For FPN, inner_channels is the output channels of lateral convs (typically 256)
+            # Check first lateral conv output channels
+            first_lateral_key = "model.decoder.lateral_convs.0.0.weight"
+            if first_lateral_key in state_dict:
+                lateral_weight = state_dict[first_lateral_key]
+                decoder_sig.inner_channels = int(lateral_weight.shape[0])  # Output channels of lateral conv
+            else:
+                decoder_sig.inner_channels = int(fusion_weight.shape[1]) // 4  # Fallback: assume 4 inputs
+            decoder_found = True
+
+            # Extract in_channels from lateral convs
+            in_channels: list[int] = []
+            index = 0
+            while True:
+                lateral_key = f"model.decoder.lateral_convs.{index}.0.weight"
+                if lateral_key not in state_dict:
+                    break
+                lateral_weight = state_dict[lateral_key]
+                in_channels.append(int(lateral_weight.shape[1]))  # Input channels to lateral conv
+                index += 1
+            decoder_sig.in_channels = in_channels
+
+    # Extract in_channels for UNet-style decoders (if not already set by FPN)
+    if not decoder_sig.in_channels:
+        in_channels: list[int] = []
+        index = 0
+        while True:
+            weight_key = f"model.decoder.inners.{index}.weight"
+            if weight_key not in state_dict:
+                break
+            weight = state_dict[weight_key]
+            in_channels.append(int(weight.shape[1]))
+            index += 1
+        decoder_sig.in_channels = in_channels
+
+    # Head signature - try multiple possible head structures
+    head_keys = [
+        "model.head.binarize.0.weight",  # DBHead
+        "model.head.0.weight",  # Other head types
+    ]
+    for head_key in head_keys:
+        if head_key in state_dict:
+            head_weight = state_dict[head_key]
+            head_sig.in_channels = int(head_weight.shape[1])
+            break
 
     return decoder_sig, head_sig
 

@@ -42,6 +42,9 @@ class CheckpointMetadata:
     def to_display_option(self) -> str:
         # Create concise display name
         model_info = f"{self.backbone}" if self.backbone and self.backbone != "unknown" else self.architecture
+        if model_info == "unknown" and self.exp_name:
+            # Use experiment name if model info is unknown
+            model_info = self.exp_name.split("-")[-1] if "-" in self.exp_name else self.exp_name
 
         # Add key training info
         if self.epochs is not None:
@@ -50,8 +53,13 @@ class CheckpointMetadata:
             # Extract step count from filename for concise display
             import re
 
-            step_match = re.search(r"step_(\d+)", self.checkpoint_path.stem)
-            training_info = f"step_{step_match.group(1)}" if step_match else self.checkpoint_path.stem[:20]
+            step_match = re.search(r"step[=_-](\d+)", self.checkpoint_path.stem)
+            if step_match:
+                step_count = int(step_match.group(1))
+                training_info = f"step{step_count}"
+            else:
+                # Use a more descriptive fallback
+                training_info = self.checkpoint_path.stem[:15] + "..." if len(self.checkpoint_path.stem) > 15 else self.checkpoint_path.stem
 
         return f"{model_info} · {training_info}"
 
