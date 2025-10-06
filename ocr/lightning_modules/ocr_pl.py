@@ -6,6 +6,7 @@ from typing import Any
 
 import lightning.pytorch as pl
 import numpy as np
+import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from PIL import Image
@@ -26,6 +27,7 @@ class OCRPLModule(pl.LightningModule):
         self.metric = instantiate(metric_cfg) if metric_cfg is not None else CLEvalMetric(**self.metric_kwargs)
         self.config = config
         self.lr_scheduler = None
+        self._per_batch_logged_batches = 0
 
         self.validation_step_outputs: OrderedDict[str, Any] = OrderedDict()
         self.test_step_outputs: OrderedDict[str, Any] = OrderedDict()
@@ -78,38 +80,76 @@ class OCRPLModule(pl.LightningModule):
         self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
 
         # Log problematic batch images
+        per_batch_cfg = getattr(self.config.logger, "per_batch_image_logging", None)
+        max_batches_per_epoch = None
+        if per_batch_cfg is not None:
+            max_batches_per_epoch = getattr(per_batch_cfg, "max_batches_per_epoch", None)
+
+        use_transformed_batch = bool(getattr(per_batch_cfg, "use_transformed_batch", False)) if per_batch_cfg else False
+        image_format = str(getattr(per_batch_cfg, "image_format", "")).lower() if per_batch_cfg else ""
+        max_image_side = None
+        if per_batch_cfg is not None:
+            max_image_side = getattr(per_batch_cfg, "max_image_side", None)
+
         if (
-            self.config.logger.per_batch_image_logging.enabled
-            and batch_metrics["recall"] < self.config.logger.per_batch_image_logging.recall_threshold
+            per_batch_cfg
+            and per_batch_cfg.enabled
+            and batch_metrics["recall"] < per_batch_cfg.recall_threshold
+            and (max_batches_per_epoch is None or max_batches_per_epoch <= 0 or self._per_batch_logged_batches < max_batches_per_epoch)
         ):
             try:
                 import wandb
 
-                # Load images for the problematic batch
-                problematic_images = []
-                image_paths = []
+                max_images = getattr(per_batch_cfg, "max_images_per_batch", len(batch["image_path"]))
+                if max_images <= 0:
+                    max_images = len(batch["image_path"])
 
-                for path in batch["image_path"]:
-                    try:
-                        pil_image = Image.open(path)
-                        # Convert to RGB if necessary
-                        if pil_image.mode != "RGB":
-                            pil_image = pil_image.convert("RGB")
-                        problematic_images.append(pil_image)
-                        image_paths.append(str(path))
-                    except Exception as e:
-                        print(f"Warning: Failed to load image {path} for wandb logging: {e}")
-                        continue
+                batch_images_tensor = batch.get("images")
+                if batch_images_tensor is not None and use_transformed_batch:
+                    batch_images_tensor = batch_images_tensor.detach().cpu()
 
-                if problematic_images:
-                    # Create wandb.Image objects with captions
-                    wandb_images = []
-                    for idx, (img, path) in enumerate(zip(problematic_images, image_paths, strict=True)):
-                        filename = Path(path).name
-                        caption = f"Problematic batch {batch_idx} - {filename} (recall: {batch_metrics['recall']:.3f})"
-                        wandb_images.append(wandb.Image(img, caption=caption))
+                wandb_images = []
+                pil_images_to_close: list[Image.Image] = []
 
-                    # Log the images and metadata
+                for local_idx, path in enumerate(batch["image_path"]):
+                    if len(wandb_images) >= max_images:
+                        break
+
+                    pil_image = None
+
+                    if use_transformed_batch and batch_images_tensor is not None:
+                        try:
+                            pil_image = self._tensor_to_pil_image(batch_images_tensor[local_idx])
+                        except Exception as exc:  # noqa: BLE001
+                            print(f"Warning: Failed to convert transformed image for wandb logging: {exc}")
+
+                    if pil_image is None:
+                        try:
+                            pil_image = Image.open(path)
+                            if pil_image.mode != "RGB":
+                                pil_image = pil_image.convert("RGB")
+                        except Exception as e:  # noqa: BLE001
+                            print(f"Warning: Failed to load image {path} for wandb logging: {e}")
+                            continue
+
+                    processed_image = self._prepare_wandb_image(pil_image, max_image_side)
+
+                    filename = Path(path).name
+                    caption = f"Problematic batch {batch_idx} - {filename} (recall: {batch_metrics['recall']:.3f})"
+
+                    wandb_kwargs: dict[str, Any] = {}
+                    if image_format in {"jpeg", "jpg"}:
+                        wandb_kwargs["file_type"] = "jpg"
+                    elif image_format == "png":
+                        wandb_kwargs["file_type"] = "png"
+
+                    wandb_images.append(wandb.Image(processed_image, caption=caption, **wandb_kwargs))
+
+                    if processed_image is not pil_image:
+                        pil_images_to_close.append(processed_image)
+                    pil_images_to_close.append(pil_image)
+
+                if wandb_images:
                     wandb.log(
                         {
                             f"problematic_batch_{batch_idx}_images": wandb_images,
@@ -120,14 +160,69 @@ class OCRPLModule(pl.LightningModule):
                         }
                     )
 
-                    # Close PIL images to free memory
-                    for img in problematic_images:
+                    self._per_batch_logged_batches += 1
+
+                for img in pil_images_to_close:
+                    try:
                         img.close()
+                    except Exception:
+                        pass
 
             except ImportError:
                 pass  # wandb not available
 
         return pred["loss"]
+
+    def on_validation_epoch_start(self) -> None:
+        self._per_batch_logged_batches = 0
+
+    @staticmethod
+    def _tensor_to_pil_image(tensor: torch.Tensor) -> Image.Image:
+        if tensor.ndim not in (3, 4):
+            raise ValueError("Expected tensor with 3 or 4 dimensions for image conversion.")
+
+        if tensor.ndim == 4:
+            tensor = tensor.squeeze(0)
+
+        tensor = tensor.detach().cpu()
+
+        if tensor.ndim != 3:
+            raise ValueError("Expected a 3D tensor after squeezing for image conversion.")
+
+        if tensor.shape[0] in (1, 3):
+            array = tensor.permute(1, 2, 0).numpy()
+        elif tensor.shape[2] in (1, 3):
+            array = tensor.numpy()
+        else:
+            raise ValueError("Unsupported tensor shape for image conversion.")
+
+        if array.shape[2] == 1:
+            array = np.repeat(array, 3, axis=2)
+
+        if array.dtype != np.uint8:
+            array = np.clip(array, 0.0, 1.0)
+            array = (array * 255).astype(np.uint8)
+
+        return Image.fromarray(array)
+
+    @staticmethod
+    def _prepare_wandb_image(pil_image: Image.Image, max_side: int | None) -> Image.Image:
+        image = pil_image
+        if max_side is not None and max_side > 0:
+            width, height = pil_image.size
+            if width > max_side or height > max_side:
+                image = pil_image.copy()
+                resampling: Any
+                try:
+                    resampling = Image.Resampling.LANCZOS
+                except AttributeError:  # Pillow<9 compatibility
+                    resampling = getattr(Image, "LANCZOS", None)
+                    if resampling is None:
+                        resampling = Image.BICUBIC
+                image.thumbnail((max_side, max_side), resampling)
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+        return image
 
     def _compute_batch_metrics(self, batch, boxes_batch):
         """Compute validation metrics for a batch of images."""

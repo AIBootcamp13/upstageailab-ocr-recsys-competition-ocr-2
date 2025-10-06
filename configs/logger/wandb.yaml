@@ -8,3 +8,8 @@ exp_version: "v1.0"
 per_batch_image_logging:
   enabled: true
   recall_threshold: 0.4
+  max_batches_per_epoch: 2
+  max_images_per_batch: 4
+  use_transformed_batch: true
+  image_format: jpeg
+  max_image_side: 640

@@ -9,6 +9,11 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor
 from omegaconf import DictConfig
 
+import wandb
+
+# Clean up any lingering W&B session to prevent warnings
+wandb.finish()
+
 from ocr.utils.path_utils import get_path_resolver, setup_project_paths
 
 setup_project_paths()

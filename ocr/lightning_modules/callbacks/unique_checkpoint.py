@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 import torch
@@ -23,42 +24,34 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         if self.add_timestamp:
             self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    def format_checkpoint_name(self, metrics: dict[str, torch.Tensor], *args, **kwargs) -> str:
+    def format_checkpoint_name(
+        self,
+        metrics: dict[str, torch.Tensor],
+        filename: str | None = None,
+        ver: int | None = None,
+        prefix: str | None = None,
+    ) -> str:
         """
         Format checkpoint name with additional unique identifiers and model information.
         """
-        # Extract metrics values for template formatting
-        epoch = metrics.get("epoch", torch.tensor(0)).item()
-        step = metrics.get("step", torch.tensor(0)).item()
+        base_path = super().format_checkpoint_name(metrics, filename=filename, ver=ver, prefix=prefix)
 
-        # Format the template manually since parent class doesn't do it
-        if hasattr(self, "filename") and self.filename:
-            template = self.filename
-            try:
-                formatted_name = template.format(epoch=epoch, step=step)
-                # Remove .ckpt extension if present in template, we'll add it back
-                if formatted_name.endswith(".ckpt"):
-                    formatted_name = formatted_name[:-5]
-            except (KeyError, ValueError):
-                # Fallback if formatting fails
-                formatted_name = f"epoch_{epoch:02d}_step_{step:06d}"
-        else:
-            formatted_name = f"epoch_{epoch:02d}_step_{step:06d}"
+        dirpath, base_name = os.path.split(base_path)
+        stem, ext = os.path.splitext(base_name)
 
-        # Add model information if available
-        model_info = self._get_model_info()
-        if model_info:
-            formatted_name = f"{formatted_name}_{model_info}"
+        # Preserve Lightning's reserved "last" checkpoints so cleanup utilities keep working.
+        reserved_name = (filename or "") in {self.CHECKPOINT_NAME_LAST}
 
-        # Add timestamp to prevent overwrites
-        if self.add_timestamp:
-            formatted_name = f"{formatted_name}_{self.timestamp}"
+        if not reserved_name:
+            stem = stem.replace("=", "_")
+            model_info = self._get_model_info()
+            if model_info:
+                stem = f"{stem}_{model_info}"
+            if self.add_timestamp:
+                stem = f"{stem}_{self.timestamp}"
 
-        # Add .ckpt extension
-        if not formatted_name.endswith(".ckpt"):
-            formatted_name += ".ckpt"
-
-        return formatted_name
+        final_name = f"{stem}{ext or self.FILE_EXTENSION}"
+        return os.path.join(dirpath, final_name) if dirpath else final_name
 
     def _get_model_info(self) -> str | None:
         """
@@ -104,6 +97,7 @@ class UniqueModelCheckpoint(ModelCheckpoint):
 
         except Exception:
             # If anything fails, just return None - don't break checkpointing
+            print("Failed to get model info for checkpoint naming.")
             pass
 
         return None
