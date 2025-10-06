@@ -4,6 +4,7 @@ import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -63,9 +64,20 @@ def _discover_outputs_path(relative_path: Path) -> Path:
 def _collect_metadata(checkpoint_path: Path, options: CatalogOptions) -> CheckpointMetadata:
     metadata = CheckpointMetadata(checkpoint_path=checkpoint_path)
     # Extract experiment name from the correct parent directory
-    # Structure: outputs/{exp_name}/checkpoints/{model_name}/{checkpoint_file}
-    # So parents[2] should be the experiment directory
-    metadata.exp_name = checkpoint_path.parents[2].name if len(checkpoint_path.parents) > 2 else None
+    # Structure can be: outputs/{exp_name}/checkpoints/{checkpoint_file}
+    # Or: outputs/{exp_name}/checkpoints/{model_name}/{checkpoint_file}
+    # Find the experiment directory (parent of checkpoints)
+    checkpoints_parent = None
+    for parent in checkpoint_path.parents:
+        if parent.name == "checkpoints":
+            checkpoints_parent = parent
+            break
+
+    if checkpoints_parent and len(checkpoints_parent.parents) > 0:
+        metadata.exp_name = checkpoints_parent.parents[0].name
+    else:
+        metadata.exp_name = None
+
     metadata.display_name = checkpoint_path.stem
     metadata.epochs = _parse_epoch(checkpoint_path.name)
 
@@ -109,6 +121,16 @@ def _collect_metadata(checkpoint_path: Path, options: CatalogOptions) -> Checkpo
     metadata.decoder = decoder_sig
     metadata.head = head_sig
 
+    # Extract validation loss from checkpoint
+    metadata.validation_loss = _extract_validation_loss(checkpoint_path)
+
+    # Extract creation timestamp from experiment directory
+    metadata.created_timestamp = _extract_creation_timestamp(checkpoint_path)
+
+    # Extract recall and hmean (currently not available from checkpoints)
+    metadata.recall = _extract_recall(checkpoint_path)
+    metadata.hmean = _extract_hmean(checkpoint_path)
+    metadata.precision = _extract_precision(checkpoint_path)
     return metadata
 
 
@@ -333,16 +355,16 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
 
     # Extract in_channels for UNet-style decoders (if not already set by FPN)
     if not decoder_sig.in_channels:
-        in_channels: list[int] = []
+        unet_in_channels: list[int] = []
         index = 0
         while True:
             weight_key = f"model.decoder.inners.{index}.weight"
             if weight_key not in state_dict:
                 break
             weight = state_dict[weight_key]
-            in_channels.append(int(weight.shape[1]))
+            unet_in_channels.append(int(weight.shape[1]))
             index += 1
-        decoder_sig.in_channels = in_channels
+        decoder_sig.in_channels = unet_in_channels
 
     # Head signature - try multiple possible head structures
     head_keys = [
@@ -356,6 +378,98 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
             break
 
     return decoder_sig, head_sig
+
+
+def _extract_validation_loss(checkpoint_path: Path) -> float | None:
+    """Extract the best validation loss from the checkpoint."""
+    checkpoint_data = _load_checkpoint(checkpoint_path)
+    if checkpoint_data is None:
+        return None
+
+    # Look for validation loss in callbacks
+    callbacks = checkpoint_data.get("callbacks", {})
+    if not callbacks:
+        return None
+
+    # Look for ModelCheckpoint callback (it may have different names)
+    for callback_key, callback_data in callbacks.items():
+        if "ModelCheckpoint" in callback_key or "checkpoint" in callback_key.lower():
+            if isinstance(callback_data, dict) and "best_model_score" in callback_data:
+                score = callback_data["best_model_score"]
+                # Handle torch.Tensor
+                if hasattr(score, "item"):
+                    score = score.item()
+                if isinstance(score, int | float):
+                    return float(score)
+
+    return None
+
+
+def _extract_precision(checkpoint_path: Path) -> float | None:
+    """Extract precision score from checkpoint."""
+    checkpoint_data = _load_checkpoint(checkpoint_path)
+    if checkpoint_data is None:
+        return None
+
+    # Look for CLEval metrics stored in checkpoint
+    cleval_metrics = checkpoint_data.get("cleval_metrics", {})
+    if isinstance(cleval_metrics, dict) and "precision" in cleval_metrics:
+        precision = cleval_metrics["precision"]
+        if isinstance(precision, int | float):
+            return float(precision)
+        elif hasattr(precision, "item"):  # Handle torch.Tensor
+            return float(precision.item())
+
+    return None
+
+
+def _extract_recall(checkpoint_path: Path) -> float | None:
+    """Extract recall score from checkpoint."""
+    checkpoint_data = _load_checkpoint(checkpoint_path)
+    if checkpoint_data is None:
+        return None
+
+    # Look for CLEval metrics stored in checkpoint
+    cleval_metrics = checkpoint_data.get("cleval_metrics", {})
+    if isinstance(cleval_metrics, dict) and "recall" in cleval_metrics:
+        recall = cleval_metrics["recall"]
+        if isinstance(recall, int | float):
+            return float(recall)
+        elif hasattr(recall, "item"):  # Handle torch.Tensor
+            return float(recall.item())
+
+    return None
+
+
+def _extract_hmean(checkpoint_path: Path) -> float | None:
+    """Extract hmean (F1) score from checkpoint."""
+    checkpoint_data = _load_checkpoint(checkpoint_path)
+    if checkpoint_data is None:
+        return None
+
+    # Look for CLEval metrics stored in checkpoint
+    cleval_metrics = checkpoint_data.get("cleval_metrics", {})
+    if isinstance(cleval_metrics, dict) and "hmean" in cleval_metrics:
+        hmean = cleval_metrics["hmean"]
+        if isinstance(hmean, int | float):
+            return float(hmean)
+        elif hasattr(hmean, "item"):  # Handle torch.Tensor
+            return float(hmean.item())
+
+    return None
+
+
+def _extract_creation_timestamp(experiment_dir: Path) -> str | None:
+    """Extract creation timestamp from the experiment directory."""
+    try:
+        # Get the creation time of the experiment directory
+        stat = experiment_dir.stat()
+        # Use creation time if available, otherwise modification time
+        timestamp = getattr(stat, "st_birthtime", stat.st_mtime)
+        dt = datetime.fromtimestamp(timestamp)
+        return dt.strftime("%Y%m%d_%H%M")
+    except (OSError, ValueError):
+        return None
 
 
 def _load_checkpoint(checkpoint_path: Path) -> dict | None:

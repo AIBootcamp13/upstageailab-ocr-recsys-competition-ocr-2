@@ -394,7 +394,25 @@ class OCRPLModule(pl.LightningModule):
         self.log("val/precision", precision, on_epoch=True, prog_bar=True)
         self.log("val/hmean", hmean, on_epoch=True, prog_bar=True)
 
+        # Store final metrics for checkpoint saving
+        self._checkpoint_metrics = {
+            "recall": recall,
+            "precision": precision,
+            "hmean": hmean,
+        }
+
         self.validation_step_outputs.clear()
+
+    def on_save_checkpoint(self, checkpoint):
+        """Save additional metrics in the checkpoint."""
+        if hasattr(self, "_checkpoint_metrics"):
+            checkpoint["cleval_metrics"] = self._checkpoint_metrics
+        return checkpoint
+
+    def on_load_checkpoint(self, checkpoint):
+        """Restore metrics from checkpoint (optional)."""
+        if "cleval_metrics" in checkpoint:
+            self._checkpoint_metrics = checkpoint["cleval_metrics"]
 
     def test_step(self, batch):
         pred = self.model(return_loss=False, **batch)
