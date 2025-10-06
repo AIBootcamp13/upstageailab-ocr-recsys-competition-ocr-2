@@ -1,13 +1,13 @@
 """Hydra configuration schemas and validation utilities for modular OCR architectures."""
 
-from pathlib import Path
 from typing import Any
 
 import yaml
 
 from ocr.models.core import registry
+from ocr.utils.path_utils import get_path_resolver
 
-CONFIG_ROOT = Path(__file__).parent.parent.parent / "configs"
+CONFIG_ROOT = get_path_resolver().config.config_dir
 SCHEMA_DIR = CONFIG_ROOT / "schemas"
 
 

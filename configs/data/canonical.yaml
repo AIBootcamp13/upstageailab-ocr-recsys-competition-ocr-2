@@ -1,0 +1,10 @@
+# @package _global_
+
+defaults:
+  - /data/base
+  - /transforms/base
+  - /dataloaders/default
+
+datasets:
+  val_dataset:
+    image_path: ${dataset_base_path}images_val_canonical

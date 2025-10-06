@@ -9,9 +9,9 @@ by loading and analyzing prediction data.
 import pandas as pd
 
 # Setup project paths automatically
-from ocr.utils.path_utils import get_outputs_path, setup_paths
+from ocr.utils.path_utils import get_outputs_path, setup_project_paths
 
-project_root = setup_paths()
+setup_project_paths()
 
 from ui.utils.config_parser import ConfigParser
 

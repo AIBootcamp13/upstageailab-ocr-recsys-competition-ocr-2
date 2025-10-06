@@ -3,3 +3,8 @@ wandb:
   enabled: True
 project_name: "receipt-text-recognition-ocr-project"
 exp_version: "v1.0"
+
+# Per batch image logging for error analysis
+per_batch_image_logging:
+  enabled: true
+  recall_threshold: 0.4

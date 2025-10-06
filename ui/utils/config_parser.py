@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 from ocr.models.core import registry
+from ocr.utils.path_utils import get_path_resolver
 
 
 class ConfigParser:
@@ -24,8 +25,7 @@ class ConfigParser:
         """
         if config_dir is None:
             # Default to configs directory relative to project root
-            project_root = Path(__file__).parent.parent.parent
-            self.config_dir = project_root / "configs"
+            self.config_dir = get_path_resolver().config.config_dir
         else:
             self.config_dir = Path(config_dir)
 

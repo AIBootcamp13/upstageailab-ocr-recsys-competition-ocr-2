@@ -10,9 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Import our preprocessing module
-from ocr.utils.path_utils import setup_paths
+from ocr.utils.path_utils import setup_project_paths
 
-setup_paths()
+setup_project_paths()
 from ocr.datasets.preprocessing import DocumentPreprocessor
 
 

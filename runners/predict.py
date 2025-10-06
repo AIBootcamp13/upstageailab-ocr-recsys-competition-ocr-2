@@ -2,9 +2,9 @@ import hydra
 import lightning.pytorch as pl
 
 # Setup project paths automatically
-from ocr.utils.path_utils import get_path_resolver, setup_paths
+from ocr.utils.path_utils import get_path_resolver, setup_project_paths
 
-setup_paths()
+setup_project_paths()
 
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 

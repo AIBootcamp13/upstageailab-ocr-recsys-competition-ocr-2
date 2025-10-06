@@ -18,10 +18,10 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.append("/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2")
 
 from ocr.utils.orientation import normalize_pil_image, remap_polygons
-from ocr.utils.path_utils import setup_paths
+from ocr.utils.path_utils import get_path_resolver, setup_project_paths
 from ui.utils.inference import InferenceEngine
 
-setup_paths()
+setup_project_paths()
 
 
 def _maybe_float(value: Any) -> float | None:
@@ -209,7 +209,7 @@ def draw_predictions_on_image(image_path: str, predictions: dict[str, Any]) -> I
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 15)
     except OSError:
-        font = ImageFont.load_default()
+        font = ImageFont.load_default()  # type: ignore[assignment]
 
     filename = Path(image_path).name
     pred_data = predictions.get(filename)
@@ -244,7 +244,7 @@ def draw_predictions_on_image(image_path: str, predictions: dict[str, Any]) -> I
     return image
 
 
-@hydra.main(config_path="../configs", config_name="predict", version_base="1.2")
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="predict", version_base="1.2")
 def main(cfg: DictConfig) -> None:
     print("--- Configuration ---")
     print(OmegaConf.to_yaml(cfg))

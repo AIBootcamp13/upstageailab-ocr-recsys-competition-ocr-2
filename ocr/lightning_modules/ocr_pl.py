@@ -78,7 +78,10 @@ class OCRPLModule(pl.LightningModule):
         self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
 
         # Log problematic batch images
-        if batch_metrics["recall"] < 0.8:
+        if (
+            self.config.logger.per_batch_image_logging.enabled
+            and batch_metrics["recall"] < self.config.logger.per_batch_image_logging.recall_threshold
+        ):
             try:
                 import wandb
 

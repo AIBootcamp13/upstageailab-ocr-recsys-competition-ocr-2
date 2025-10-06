@@ -23,6 +23,7 @@ Example:
 """
 
 import sys
+from typing import Any
 
 import hydra
 import lightning.pytorch as pl
@@ -30,6 +31,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import wandb
 from ocr.lightning_modules import get_pl_modules_by_cfg
+from ocr.utils.path_utils import get_path_resolver
 
 
 def _normalize_multirun_flag() -> None:
@@ -123,8 +125,8 @@ def run_single_experiment(cfg: DictConfig) -> dict:
             wandb.finish()
 
 
-@hydra.main(config_path="../configs", config_name="train", version_base="1.2")
-def main(cfg: DictConfig) -> None:
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="train", version_base="1.2")
+def main(cfg: DictConfig) -> dict[str, Any]:
     """Main function for running ablation studies."""
     print(f"Running ablation study with config: {cfg.get('experiment_tag', 'unnamed')}")
 

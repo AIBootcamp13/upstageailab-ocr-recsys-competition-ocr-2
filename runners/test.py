@@ -2,9 +2,9 @@ import hydra
 import lightning.pytorch as pl
 
 # Setup project paths automatically
-from ocr.utils.path_utils import get_path_resolver, setup_paths
+from ocr.utils.path_utils import get_path_resolver, setup_project_paths
 
-setup_paths()
+setup_project_paths()
 
 from ocr.lightning_modules import get_pl_modules_by_cfg  # noqa: E402
 
@@ -25,7 +25,15 @@ def test(config):
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
         from omegaconf import OmegaConf  # noqa: E402
 
-        logger = Logger(config.exp_name, project=config.logger.project_name, config=OmegaConf.to_container(config, resolve=False))
+        # Properly serialize config for wandb, handling hydra interpolations
+        try:
+            # Try to resolve interpolations for cleaner config
+            wandb_config = OmegaConf.to_container(config, resolve=True)
+        except Exception:
+            # Fall back to unresolved config if resolution fails
+            wandb_config = OmegaConf.to_container(config, resolve=False)
+
+        logger = Logger(config.exp_name, project=config.logger.project_name, config=wandb_config)
     else:
         from lightning.pytorch.loggers.tensorboard import TensorBoardLogger  # noqa: E402
 

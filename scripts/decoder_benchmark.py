@@ -25,6 +25,7 @@ from lightning.pytorch.callbacks import Callback
 from omegaconf import DictConfig, OmegaConf
 
 from ocr.lightning_modules import get_pl_modules_by_cfg
+from ocr.utils.path_utils import get_path_resolver
 
 
 @dataclass(slots=True)
@@ -421,7 +422,7 @@ def _run_single_decoder(
     return metrics_summary
 
 
-@hydra.main(config_path="../configs", config_name="benchmark/decoder", version_base="1.2")
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="benchmark/decoder", version_base="1.2")
 def main(cfg: DictConfig) -> None:
     """Benchmark multiple decoder configurations sequentially."""
 

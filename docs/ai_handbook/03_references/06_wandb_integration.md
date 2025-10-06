@@ -7,6 +7,7 @@ This document serves as a comprehensive reference for working with Weights & Bia
 ## Table of Contents
 
 - [Configuration and Setup](#configuration-and-setup)
+- [Per Batch Image Logging](#per-batch-image-logging)
 - [Common Issues and Solutions](#common-issues-and-solutions)
 - [Config Serialization Issues](#config-serialization-issues)
 - [Best Practices](#best-practices)
@@ -36,6 +37,11 @@ wandb:
   enabled: True
 project_name: "receipt-text-recognition-ocr-project"
 exp_version: "v1.0"
+
+# Per batch image logging for error analysis
+per_batch_image_logging:
+  enabled: true
+  recall_threshold: 0.8
 ```
 
 The logger is composed via `configs/logger/default.yaml`:
@@ -63,6 +69,68 @@ Wandb can be enabled in several ways:
    ```
 
 3. **Via UI parameter** (when using the web interface)
+
+## Per Batch Image Logging
+
+The per batch image logging feature automatically logs images from validation batches that perform poorly, helping with error analysis and debugging.
+
+### How It Works
+
+During validation, the system computes per-batch metrics (recall, precision, hmean) for each batch. When a batch's recall falls below the configured threshold, the system:
+
+1. Loads all images from that problematic batch
+2. Creates WandB Image objects with captions showing the batch index and recall score
+3. Logs the images, batch metrics, and metadata to WandB
+
+### Configuration
+
+Configure this feature in `configs/logger/wandb.yaml`:
+
+```yaml
+per_batch_image_logging:
+  enabled: true          # Enable/disable the feature
+  recall_threshold: 0.8  # Threshold below which batches are logged (0.0-1.0)
+```
+
+### Usage Examples
+
+**Enable with default threshold:**
+```bash
+python runners/train.py
+```
+
+**Disable the feature:**
+```bash
+python runners/train.py logger.per_batch_image_logging.enabled=false
+```
+
+**Adjust threshold:**
+```bash
+python runners/train.py logger.per_batch_image_logging.recall_threshold=0.7
+```
+
+### What Gets Logged
+
+For each problematic batch, WandB receives:
+- `problematic_batch_{idx}_images`: Array of WandB Image objects with captions
+- `problematic_batch_{idx}_count`: Number of images in the batch
+- `problematic_batch_{idx}_recall`: The batch's recall score
+- `problematic_batch_{idx}_precision`: The batch's precision score
+- `problematic_batch_{idx}_hmean`: The batch's harmonic mean score
+
+### Use Cases
+
+- **Error Analysis**: Identify which types of images cause model failures
+- **Data Quality**: Detect batches with consistently poor performance
+- **Debugging**: Visualize problematic inputs during development
+- **Model Comparison**: Compare which images different models struggle with
+
+### Performance Considerations
+
+- Only triggers when batches perform poorly (below threshold)
+- Images are loaded from disk and converted to RGB format
+- Memory usage scales with batch size and number of problematic batches
+- Consider disabling in production or for very large datasets
 
 ## Common Issues and Solutions
 
@@ -98,8 +166,8 @@ logger = WandbLogger(
 ```
 
 **Files affected:**
-- `runners/train.py`
-- `runners/test.py`
+- `runners/train.py` ✅ (already fixed)
+- `runners/test.py` ✅ (fixed in this update)
 
 ### Summary Metrics Not Appearing
 
