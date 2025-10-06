@@ -14,7 +14,7 @@ hydra:
 
 # More epochs to allow each backbone to converge.
 trainer:
-  max_epochs: 10
+  max_epochs: 15
 
 # Enable wandb logging for ablation runs and tag outputs consistently.
 wandb: true

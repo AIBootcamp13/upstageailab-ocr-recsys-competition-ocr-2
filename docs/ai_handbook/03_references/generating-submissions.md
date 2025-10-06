@@ -30,7 +30,8 @@ uv run python runners/predict.py \
   model.component_overrides.decoder.name=pan_decoder \
   model.component_overrides.head.name=db_head \
   model.component_overrides.loss.name=db_loss \
-  minified_json=false
+  minified_json=false \
+  include_confidence=true
 ```
 
 **Output Location:**
@@ -42,6 +43,47 @@ Example:
 ```
 outputs/final_submission/submissions/20251003_143022.json
 ```
+
+### Prediction Output Options
+
+The predict command supports two important output formatting options:
+
+- **`minified_json`**: Controls JSON formatting
+  - `false` (default): Pretty-printed JSON with indentation
+  - `true`: Minified JSON (no whitespace, smaller file size)
+
+- **`include_confidence`**: Controls whether confidence scores are included
+  - `false` (default): Only polygon coordinates
+  - `true`: Includes confidence scores for each detected text region
+
+### JSON Output Structure
+
+The prediction results are saved in JSON format with the following structure:
+
+```json
+{
+  "images": {
+    "image001.jpg": {
+      "words": {
+        "0001": {
+          "points": [[x1,y1], [x2,y2], [x3,y3], [x4,y4]],
+          "confidence": 0.95
+        },
+        "0002": {
+          "points": [[x1,y1], [x2,y2], [x3,y3], [x4,y4]],
+          "confidence": 0.87
+        }
+      }
+    }
+  }
+}
+```
+
+**Structure Details:**
+- `images`: Dictionary with image filenames as keys
+- `words`: Dictionary with 4-digit zero-padded word IDs (0001, 0002, etc.)
+- `points`: Array of [x,y] coordinate pairs forming the polygon
+- `confidence`: Detection confidence score (0.0-1.0, only present when `include_confidence=true`)
 
 ### Step 2: Convert JSON to CSV
 
@@ -134,7 +176,8 @@ uv run python runners/predict.py \
   model.component_overrides.decoder.name=pan_decoder \
   model.component_overrides.head.name=db_head \
   model.component_overrides.loss.name=db_loss \
-  minified_json=true
+  minified_json=true \
+  include_confidence=true
 ```
 
 **Output:**
@@ -242,13 +285,15 @@ Expected structure:
   "images": {
     "image001.jpg": {
       "words": {
-        "0001": {"points": [[x1,y1], [x2,y2], ...]},
-        "0002": {"points": [[x1,y1], [x2,y2], ...]}
+        "0001": {"points": [[x1,y1], [x2,y2], ...], "confidence": 0.95},
+        "0002": {"points": [[x1,y1], [x2,y2], ...], "confidence": 0.87}
       }
     }
   }
 }
 ```
+
+**Note:** The `confidence` field is only present when `include_confidence=true` is set in the predict command.
 
 ### Wrong Component Configuration
 **Problem:** `state_dict` mismatch error during prediction

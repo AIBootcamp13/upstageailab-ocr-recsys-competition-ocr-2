@@ -137,7 +137,7 @@ def render_submission_export_panel(page: CommandPageData, values: dict, json_fil
             json_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
             if json_files:
-                json_options = [""] + [str(f.relative_to(Path.cwd())) for f in json_files]
+                json_options = [""] + [str(f) for f in json_files]
                 selected_json_option = st.selectbox(
                     "Select JSON File",
                     options=json_options,

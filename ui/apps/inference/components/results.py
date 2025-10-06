@@ -37,6 +37,12 @@ def render_results(state: InferenceState, config: UIConfig) -> None:
         _render_summary(state)
         st.divider()
 
+    # New table view for multiple results
+    _render_results_table(state, config)
+    st.divider()
+
+    # Keep detailed expandable view
+    st.subheader("📋 Detailed Results")
     for index, result in enumerate(state.inference_results):
         title = f"Image {index + 1}: {result.get('filename', 'unknown')}"
         expanded = config.results.expand_first_result and index == 0
@@ -57,6 +63,51 @@ def _render_summary(state: InferenceState) -> None:
     col2.metric("Successful", successes)
     col3.metric("Failed", failures)
     col4.metric("Avg. Confidence", f"{avg_confidence:.2%}")
+
+
+def _render_results_table(state: InferenceState, config: UIConfig) -> None:
+    st.subheader("📋 Results Overview")
+
+    if not state.inference_results:
+        return
+
+    # Create table data
+    table_data = []
+
+    for result in state.inference_results:
+        filename = result.get("filename", "unknown")
+        success = result.get("success", False)
+
+        if success:
+            predictions = result.get("predictions", {})
+            confidences = predictions.get("confidences", [])
+            num_detections = len(confidences)
+            avg_confidence = sum(confidences) / num_detections if num_detections else 0
+
+            table_data.append(
+                {
+                    "Filename": filename,
+                    "Status": "✅ Success",
+                    "Detections": num_detections,
+                    "Avg Confidence": f"{avg_confidence:.1%}",
+                }
+            )
+        else:
+            error = result.get("error", "Unknown error")
+            table_data.append(
+                {
+                    "Filename": filename,
+                    "Status": f"❌ Failed: {error[:50]}...",
+                    "Detections": 0,
+                    "Avg Confidence": "N/A",
+                }
+            )
+
+    # Display as a clean table
+    import pandas as pd
+
+    df = pd.DataFrame(table_data)
+    st.dataframe(df, use_container_width=True)
 
 
 def _render_single_result(result: dict[str, Any], config: UIConfig) -> None:

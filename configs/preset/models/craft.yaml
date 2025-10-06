@@ -2,7 +2,7 @@
 
 defaults:
   - /model/architectures: craft
-  - /model/optimizers: adam
+  - /model/optimizers: adamw
   - /preset/models/encoder/craft_vgg
   - /preset/models/decoder/craft_decoder
   - /preset/models/head/craft_head

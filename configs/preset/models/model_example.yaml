@@ -2,7 +2,7 @@
 
 defaults:
   - /model/architectures: dbnet
-  - /model/optimizers: adam
+  - /model/optimizers: adamw
   - /preset/models/encoder/timm_backbone
   - /preset/models/decoder/unet
   - /preset/models/head/db_head

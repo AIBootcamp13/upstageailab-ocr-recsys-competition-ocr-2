@@ -98,6 +98,20 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         except Exception:
             # If anything fails, just return None - don't break checkpointing
             print("Failed to get model info for checkpoint naming.")
-            pass
-
         return None
+
+    def load_state_dict(self, state_dict: dict) -> None:
+        """
+        Load state dict but handle dirpath mismatches gracefully.
+
+        During prediction, the dirpath may differ from training, which causes
+        warnings. We update the dirpath in the state_dict to match current
+        dirpath to avoid warnings.
+        """
+        # Update dirpath in state_dict to match current dirpath
+        if "dirpath" in state_dict and hasattr(self, "dirpath"):
+            if state_dict["dirpath"] != self.dirpath:
+                state_dict = state_dict.copy()
+                state_dict["dirpath"] = self.dirpath
+
+        super().load_state_dict(state_dict)

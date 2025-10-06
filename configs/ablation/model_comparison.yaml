@@ -1,0 +1,25 @@
+# Model Comparison Ablation Study
+# Usage: python ablation_study/run_ablation.py +ablation=model_comparison -m
+
+# @package _global_
+
+defaults:
+  - _self_
+
+hydra:
+  sweeper:
+    params:
+      +preset/models: dbnetpp,craft,model_example
+
+# 15 epochs as specified
+trainer:
+  max_epochs: 15
+
+# Use canonical dataset
+data: canonical
+
+# Enable wandb logging
+wandb: true
+
+# Tag for the experiment
+experiment_tag: "model_comparison_dbnetpp_craft_dbnet"
