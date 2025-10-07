@@ -1,0 +1,52 @@
+Starting (1/5) *Review preprocessing modules*
+
+## Findings
+
+- **docTR steps are gated by corner detection.** In `DocumentPreprocessor.__call__`, every docTR-specific step (orientation, rcrop warp, padding cleanup) only runs if `_detect_document_boundaries` returns 4 corners. On scans with weak contrast or heavy backgrounds, that contour routine often yields `None`, so the pipeline skips straight to the legacy “office-lens” enhancements and final resize—hence no background removal or rectification. You can confirm by inspecting `metadata["processing_steps"]` in the UI’s “📋 Preprocessing Metadata” expander; if `document_detection` is missing, docTR never fired.
+- **No hidden config overrides, but defaults still favor the legacy path.** Hydra’s baseline data presets (default.yaml, db.yaml) stick to `LongestMaxSize` + `PadIfNeeded`, so docTR preprocessing isn’t active unless you opt into `preset.datasets=preprocessing[_docTR_demo]`. The Streamlit UI does pass the richer `PreprocessingConfig`, yet it still requests `enhancement_method: "office_lens"`—so even when docTR succeeds, the older photometric pass always runs afterward. The abandoned “office-lens” feature is effectively still the default enhancement stage.
+- **3× magnified outputs are a direct consequence of the resizing rules.** Both the docTR preprocessor (`_resize_to_target`) and the standard Albumentations presets upscale inputs to a 640×640 canvas. The UI shows that upscaled image for the “After docTR” column, while W&B logging captures tensors that already went through the same resize, padding them again to the largest batch image. Caps and captions still note the original dimensions, but what you see is the transformed size. (Side note: the W&B un-normalisation assumes `mean=std=0.5`; it’s harmless for size, though it does slightly skew colors compared to the 0.485/0.229 stats.)
+- **Documentation is solid but could flag the corner-detection dependency.** 11_docTR_preprocessing_workflow.md gives the right entry points; it would be even more actionable with a note explaining that the docTR branch is skipped whenever `metadata["document_corners"]` is `None`, plus a quick reminder to inspect the Streamlit metadata panel.
+
+## Recommendations
+
+- **Validate docTR on troublesome samples.** Use the UI metadata or run a quick script to dump `processing_steps` so you can see whether detection is the culprit. You can flip `enable_document_detection` off to test docTR’s padding cleanup on the full image, but the proper fix is to harden `_detect_document_boundaries` (e.g., include adaptive thresholding or fall back to docTR’s own detection when contours fail).
+- **Expose configuration knobs more clearly.**
+  - For experiments, switch to the docTR preset explicitly:
+    ```bash
+    uv run python runners/predict.py preset.datasets=preprocessing_docTR_demo
+    ```
+  - In the UI, consider defaulting `enhancement_method` to `"conservative"` when docTR is enabled so legacy tuning doesn’t swamp the rectified output. Also surface `orientation_angle_threshold`, `enable_padding_cleanup`, etc., as advanced controls so you can tweak without code edits.
+- **Tame the magnification.** Make resizing optional (for example, skip `_resize_to_target` when `target_size=None` or when the image already sits within the bounds) and add a UI toggle to display the original upload alongside the resized inference input. For W&B, log both the original (if available) and the transformed tensor so reviewers can judge true-scale quality; optionally unpad before logging to reduce the visual blow-up.
+- **Doc feedback.** Augment the protocol doc with a short “Debug checklist” section: check `processing_steps`, validate `document_corners`, and remind folks how to run test_preprocessing.py. That’ll keep future sessions from having to rediscover the gating behaviour.
+
+## Refactor timing
+
+Following the Modular Refactor protocol (05_modular_refactor.md), it’s worth scheduling a focused refactor once you’ve verified docTR detection on a representative batch (i.e., after you tighten `_detect_document_boundaries` and confirm tests like `uv run pytest tests/test_preprocessing.py` pass). The file currently mixes three responsibilities—geometry detection, docTR integration, and photometric enhancement—so a clean split into detectors, geometry handlers, and enhancement stages would improve cohesion and testability. When you kick that off:
+
+- Treat the existing docTR preset as the baseline scenario (Phase 1: capture current behaviour + failing examples).
+- Extract the detection layer first, keeping configs authoritative (Phase 2); introduce interfaces so UI, Hydra transforms, and scripts can share the same preprocessor contract.
+- Keep the current `DocumentPreprocessor` as a façade until all call sites move to the modular pieces, then retire the “office-lens” naming to avoid confusion.
+
+If the handbook’s refactor guidance still leaves questions (e.g., no explicit example for dataset/preprocessor modules), note that in the doc update so the playbook can gain a concrete preprocessing case study.
+
+## Quality gates
+
+- Build: not run (analysis only).
+- Lint/Typecheck: not run.
+- Tests: not run (no code changes). Suggested quick check:
+  ```bash
+  uv run pytest tests/test_preprocessing.py
+  ```
+
+## Requirements coverage
+
+- Diagnose docTR effectiveness issues → **Done** (root cause: contour detection gating + legacy enhancements).
+- Check for conflicting preprocessing configs → **Done** (no hidden overrides; defaults still legacy-focused).
+- Investigate Streamlit/W&B magnification → **Done** (forced resize to 640, padding in logger).
+- Recommend refactor timing w/ handbook alignment → **Done**, plus doc feedback.
+
+## Next steps
+
+1. Harden `_detect_document_boundaries` or add a docTR-based fallback so the geometry branch actually runs.
+2. Add optional scaling controls (skip resize when undesired, log originals) to stop blowing up outputs.
+3. Update the docTR protocol doc with the detection-debug checklist and capture any adjustments you make.

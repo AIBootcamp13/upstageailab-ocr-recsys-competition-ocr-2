@@ -67,7 +67,7 @@ docs/_deprecated/
 !docs/next_job_log/
 !docs/next_job_log/**
 # IDE
-.vscode/
+# .vscode/
 .idea/
 *.swp
 *.swo
@@ -83,8 +83,8 @@ ehthumbs.db
 Thumbs.db
 
 # Logs
-*.log
-logs/
+# *.log
+# logs/
 
 # Model checkpoints and outputs
 outputs/
@@ -117,7 +117,7 @@ CamScanner-Web-App/
 OpenCV-Document-Scanner/
 
 _archive/docs
-QWEN.md
+# QWEN.md
 continuation-prompt-streamlit-ui.md
 sample_bounding_boxes.png
 _llm_code_gen_workflow_exp/
@@ -129,7 +129,7 @@ notepad.md
 # repomix.config.json
 data_gen_exp/
 root-cause.md
-qwen_coder_integration.md
+# qwen_coder_integration.md
 image_rotation_mismatch.svg
 package-lock.json
 package.json

@@ -1,0 +1,101 @@
+{
+  // ------------------------------------------------------------------
+  // General Editor & File Settings
+  // ------------------------------------------------------------------
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.rulers": [
+    140 // Set to match the 'line-length' in your pyproject.toml
+  ],
+  "editor.fontSize": 16,
+  "workbench.colorTheme": "Default Dark Modern",
+  "git.autofetch": true,
+  "git.enableSmartCommit": true,
+  // ------------------------------------------------------------------
+  // Ruff Integration (Formatter & Linter)
+  // ------------------------------------------------------------------
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      // Runs ruff --fix and organize imports on save
+      "source.fixAll": "explicit",
+      "source.organizeImports": "never" // Let ruff handle this via fixAll
+    }
+  },
+  // ------------------------------------------------------------------
+  // Python Environment & IntelliSense
+  // ------------------------------------------------------------------
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.extraPaths": [
+    ".",
+    "ocr"
+  ],
+  // ------------------------------------------------------------------
+  // File & Search Exclusions
+  // ------------------------------------------------------------------
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.venv": true,
+    "**/.mypy_cache": true,
+    "**/.ipynb_checkpoints": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/.venv": true,
+    "**/.mypy_cache": true,
+    "**/__pycache__": true,
+    "**/wandb": true,
+    "**/outputs": true,
+    "**/data": true,
+    "**/logs": true
+  },
+  "python.analysis.exclude": [
+    "**/wandb",
+    "**/outputs",
+    "**/data",
+    "**/notebooks"
+  ],
+  // ------------------------------------------------------------------
+  // Testing Configuration
+  // ------------------------------------------------------------------
+  "python.testing.pytestArgs": [
+    "tests",
+    "-v",
+    "--tb=short"
+  ],
+  // ------------------------------------------------------------------
+  // Other Formatter & Language Settings
+  // ------------------------------------------------------------------
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "files.associations": {
+    "*.yaml": "yaml",
+    "*.yml": "yaml",
+    "Dockerfile*": "dockerfile"
+  },
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "chat.mcp.serverSampling": {
+    "upstageailab-ocr-recsys-competition-ocr-2/.vscode/mcp.json: ElevenLabs": {
+      "allowedModels": [
+        "copilot/auto"
+      ]
+    },
+  },
+    "python.analysis.autoImportCompletions": false,
+    "python.analysis.indexing": false,
+    "python.analysis.packageIndexDepths": [
+        {"name": "", "depth": 1}
+    ]
+}
