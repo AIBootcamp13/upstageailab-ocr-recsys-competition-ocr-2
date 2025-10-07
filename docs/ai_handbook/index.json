@@ -63,7 +63,7 @@
     {
       "id": "changelog-latest",
       "title": "2025-09-29 Legacy UI Cleanup",
-      "path": "./05_changelog/2025-09-29_legacy-ui-cleanup.md",
+      "path": "./05_changelog/2025-09/29_legacy-ui-cleanup.md",
       "section": "05. Changelog",
       "tags": ["changelog"],
       "priority": "medium",
@@ -351,7 +351,7 @@
     {
       "id": "changelog-doc-refactor",
       "title": "2025-09-28 Documentation Refactor Complete",
-      "path": "./05_changelog/2025-09-28_documentation-refactor-complete.md",
+      "path": "./05_changelog/2025-09/28_documentation-refactor-complete.md",
       "section": "05. Changelog",
       "tags": ["changelog"],
       "priority": "low",
@@ -363,7 +363,7 @@
     {
       "id": "changelog-initial-state",
       "title": "2025-09-28 Initial State & Architecture Refactor",
-      "path": "./05_changelog/2025-09-28_initial_state.md",
+      "path": "./05_changelog/2025-09/28_initial_state.md",
       "section": "05. Changelog",
       "tags": ["changelog"],
       "priority": "medium",
@@ -375,7 +375,7 @@
     {
       "id": "changelog-evaluation-viewer",
       "title": "2025-09-29 Evaluation Viewer Modular Refactor",
-      "path": "./05_changelog/2025-09-29_evaluation_viewer_modular_refactor.md",
+      "path": "./05_changelog/2025-09/29_evaluation_viewer_modular_refactor.md",
       "section": "05. Changelog",
       "tags": ["changelog", "streamlit"],
       "priority": "medium",
