@@ -1,0 +1,12 @@
+profiler:
+  _target_: ocr.callbacks.profiler.ProfilerCallback
+  enabled: false  # Disabled by default (performance overhead)
+  profile_epochs: [1, 5, 10]  # Profile epochs 1, 5, and 10
+  profile_steps: 100
+  warmup_steps: 5
+  activities: ["cpu", "cuda"]
+  record_shapes: true
+  with_stack: false  # Enable for detailed traces (slower)
+  output_dir: "profiler_traces"
+  export_chrome_trace: true
+  log_top_k_ops: 15

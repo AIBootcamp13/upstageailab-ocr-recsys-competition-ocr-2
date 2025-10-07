@@ -4,6 +4,7 @@ defaults:
   - data: base            # Compose data group
   - transforms: base      # Compose transforms group
   - dataloaders: default  # Compose dataloaders group
+  - callbacks: default    # Compose callbacks group
   - /preset/models/model_example
   - /preset/lightning_modules/base
   - override hydra/hydra_logging: disabled

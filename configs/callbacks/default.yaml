@@ -1,15 +1,7 @@
-# This file defines the callbacks that will be instantiated by Hydra.
-# The `defaults` section includes individual callback configurations.
-# Custom callbacks that don't have separate files are defined below.
+# Default callbacks configuration
+# Add common callbacks here that should be enabled by default
 
-defaults:
-  - model_checkpoint
-  - early_stopping
-  - _self_
+defaults: []
 
-wandb_completion:
-  _target_: ocr.lightning_modules.callbacks.wandb_completion.WandbCompletionCallback
-
-wandb_image_logging:
-  _target_: ocr.lightning_modules.callbacks.wandb_image_logging.WandbImageLoggingCallback
-  log_every_n_epochs: 5
+# Example of how to include callbacks by default
+# This can be overridden by specific experiments
