@@ -191,8 +191,8 @@ def get_dataset_statistics(df: pd.DataFrame) -> dict[str, Any]:
         "max_predictions_per_image": df["prediction_count"].max(),
         "total_area": df["total_area"].sum(),
         "avg_area_per_image": df["total_area"].mean(),
-        "images_with_predictions": (df["prediction_count"] > 0).sum(),
-        "empty_predictions": (df["prediction_count"] == 0).sum(),
+        "images_with_predictions": int((df["prediction_count"] > 0).sum()),
+        "empty_predictions": int((df["prediction_count"] == 0).sum()),
     }
 
 

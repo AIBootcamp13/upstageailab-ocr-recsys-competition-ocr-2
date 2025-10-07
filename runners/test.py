@@ -21,6 +21,18 @@ def test(config):
 
     model_module, data_module = get_pl_modules_by_cfg(config)
 
+    # --- Callback Configuration ---
+    # This is the new, Hydra-native way to handle callbacks.
+    # It iterates through the 'callbacks' config group and instantiates each one.
+    callbacks = []
+    if config.get("callbacks"):
+        from omegaconf import DictConfig  # noqa: E402
+
+        for _, cb_conf in config.callbacks.items():
+            if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
+                print(f"Instantiating callback <{cb_conf._target_}>")
+                callbacks.append(hydra.utils.instantiate(cb_conf))
+
     if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
         from omegaconf import OmegaConf  # noqa: E402
@@ -46,6 +58,7 @@ def test(config):
 
     trainer = pl.Trainer(
         logger=logger,
+        callbacks=callbacks,
     )
 
     ckpt_path = config.get("checkpoint_path")

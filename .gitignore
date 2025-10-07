@@ -93,7 +93,7 @@ checkpoints/
 *.ckpt
 
 # WandB
-wandb/
+/wandb/
 
 # Temporary files
 *.tmp
@@ -127,6 +127,7 @@ notepad.md
 /LOW_PERFORMANCE_IMGS/*.jpg
 # .repomixignore
 # repomix.config.json
+repomix-output.xml
 data_gen_exp/
 root-cause.md
 # qwen_coder_integration.md

@@ -1,0 +1,29 @@
+# tests/performance/baselines/thresholds.yaml
+# Performance SLOs (Service Level Objectives)
+
+validation:
+  # Validation time must not exceed baseline by this percentage
+  time_regression_threshold_pct: 10
+
+  # Absolute maximum validation time (fallback if no baseline)
+  max_time_seconds: 300
+
+  # Minimum batch throughput
+  min_samples_per_second: 50
+
+memory:
+  # GPU memory usage limits
+  max_gpu_memory_pct: 80
+  max_gpu_memory_gb: 12
+
+  # CPU memory usage limits
+  max_cpu_memory_pct: 80
+
+cache:
+  # Cache performance (when caching is enabled)
+  min_hit_rate_pct: 80
+  warmup_batches: 10  # Ignore first N batches for hit rate
+
+tolerance:
+  # Measurement noise tolerance
+  measurement_noise_pct: 2

@@ -257,17 +257,8 @@ class LensStylePreprocessorAlbumentations:
 
     def __call__(self, image, **kwargs):  # type: ignore[override]
         result = self.preprocessor(image)
-        output = {"image": result["image"]}
-
-        metadata = result.get("metadata")
-        if metadata is not None:
-            output["metadata"] = metadata
-
-        # Preserve any additional Albumentations kwargs (e.g., keypoints)
-        for key, value in kwargs.items():
-            output.setdefault(key, value)
-
-        return output
+        # Return just the processed image for Albumentations compatibility
+        return result["image"]
 
     def get_transform_init_args_names(self):
         return []

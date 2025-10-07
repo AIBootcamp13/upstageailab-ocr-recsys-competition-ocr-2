@@ -1,0 +1,9 @@
+# Performance Profiler Callback Configuration
+# Tracks validation performance to identify bottlenecks (Phase 1.1)
+
+performance_profiler:
+  _target_: ocr.lightning_modules.callbacks.PerformanceProfilerCallback
+  enabled: true
+  log_interval: 10  # Log batch metrics every N batches
+  profile_memory: true  # Track GPU/CPU memory usage
+  verbose: false  # Set to true for console output during debugging

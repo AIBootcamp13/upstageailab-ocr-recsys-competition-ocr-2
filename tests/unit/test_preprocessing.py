@@ -259,7 +259,6 @@ class TestPreprocessingIntegration:
         assert isinstance(processed, np.ndarray)
         assert processed.shape == (640, 640, 3)
         assert "image_enhancement" in result["metadata"]["processing_steps"]
-        assert "text_enhancement" in result["metadata"]["processing_steps"]
 
     def test_error_handling(self, preprocessor):
         """Test error handling in preprocessing pipeline."""

@@ -133,9 +133,26 @@ class WandbImageLoggingCallback(pl.Callback):
         if not polygons:
             return []
 
-        processed = [np.array(polygon, copy=True) for polygon in polygons if polygon.size > 0]
-        if not processed:
-            return []
+        def _is_degenerate_polygon(polygon: np.ndarray) -> bool:
+            """Check if a polygon is degenerate (has duplicate consecutive points or all points same)."""
+            if polygon.size == 0:
+                return True
+
+            # Flatten to (N, 2) shape
+            poly_2d = polygon.reshape(-1, 2)
+
+            # Check if all points are the same
+            if np.allclose(poly_2d[0], poly_2d):
+                return True
+
+            # Check for duplicate consecutive points
+            for i in range(len(poly_2d)):
+                if np.allclose(poly_2d[i], poly_2d[(i + 1) % len(poly_2d)]):
+                    return True
+
+            return False
+
+        processed = [np.array(polygon, copy=True) for polygon in polygons if not _is_degenerate_polygon(polygon)]
 
         width, height = image_size
         return processed

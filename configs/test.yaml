@@ -10,5 +10,7 @@ defaults:
   - override hydra/job_logging: disabled
 
 seed: 42
-exp_name: "ocr_training"
+project_name: null
+exp_name: "ocr_testing"
 checkpoint_path: null
+wandb: true

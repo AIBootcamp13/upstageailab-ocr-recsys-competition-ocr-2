@@ -9,6 +9,16 @@ defaults:
   - override hydra/hydra_logging: disabled
   - override hydra/job_logging: disabled
 
+# Override callbacks to match the checkpoint
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    monitor: "val/loss"
+    mode: "min"
+    every_n_train_steps: 0
+    every_n_epochs: 1
+    train_time_interval: null
+
 seed: 42
 exp_name: "ocr_prediction"
 checkpoint_path: "outputs/ocr_training-dbnet-pan_decoder-resnet34/checkpoints/epoch_28_step_023722.ckpt" # resnet18 · step_014454 works too

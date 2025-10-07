@@ -8,7 +8,7 @@ component_overrides:
     select_features: [1, 2, 3, 4]
     pretrained: true
   decoder:
-    name: "unet"
+    name: "fpn_decoder"
     params:
       inner_channels: 256
       output_channels: 256
