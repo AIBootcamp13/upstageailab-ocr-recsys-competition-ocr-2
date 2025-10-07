@@ -579,7 +579,23 @@ class OCRDataPLModule(pl.LightningDataModule):
         self.collate_cfg = self.config.collate_fn
 
     def _build_collate_fn(self, *, inference_mode: bool) -> Any:
-        collate_fn = instantiate(self.collate_cfg)
+        # Check if polygon caching is enabled
+        polygon_cache_cfg = getattr(self.config, "polygon_cache", None)
+        cache = None
+
+        if polygon_cache_cfg and polygon_cache_cfg.get("enabled", False):
+            # Import here to avoid circular dependency
+            from ocr.datasets.polygon_cache import PolygonCache
+
+            cache = PolygonCache(
+                max_size=polygon_cache_cfg.get("max_size", 1000),
+                persist_to_disk=polygon_cache_cfg.get("persist_to_disk", False),
+                cache_dir=polygon_cache_cfg.get("cache_dir", ".cache/polygon_cache"),
+            )
+            print(f"✅ PolygonCache enabled: max_size={cache.max_size}, persist={cache.persist_to_disk}")
+
+        # Create collate function with optional cache
+        collate_fn = instantiate(self.collate_cfg, cache=cache)
         if hasattr(collate_fn, "inference_mode"):
             collate_fn.inference_mode = inference_mode
         return collate_fn

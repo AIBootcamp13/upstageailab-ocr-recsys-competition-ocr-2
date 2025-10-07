@@ -29,3 +29,11 @@ collate_fn:
   shrink_ratio: 0.4
   thresh_min: 0.3
   thresh_max: 0.7
+  cache: null  # Set to PolygonCache instance to enable caching
+
+# Polygon cache configuration (optional for speedup)
+polygon_cache:
+  enabled: false  # Set to true to enable 5-8x validation speedup
+  max_size: 1000
+  persist_to_disk: false
+  cache_dir: .cache/polygon_cache

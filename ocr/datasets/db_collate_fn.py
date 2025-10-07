@@ -20,11 +20,12 @@ import torch
 
 
 class DBCollateFN:
-    def __init__(self, shrink_ratio=0.4, thresh_min=0.3, thresh_max=0.7):
+    def __init__(self, shrink_ratio=0.4, thresh_min=0.3, thresh_max=0.7, cache=None):
         self.shrink_ratio = shrink_ratio
         self.thresh_min = thresh_min
         self.thresh_max = thresh_max
         self.inference_mode = False
+        self.cache = cache  # Optional PolygonCache instance
 
     def __call__(self, batch):
         images = [item["image"] for item in batch]
@@ -70,6 +71,22 @@ class DBCollateFN:
 
     def make_prob_thresh_map(self, image, polygons, filename):
         _, h, w = image.shape
+
+        # Check cache first if available
+        if self.cache is not None and len(polygons) > 0:
+            # Generate cache key from polygons and parameters
+            polygons_array = np.array(polygons)
+            cache_key = self.cache._generate_key(
+                polygons_array,
+                image.shape,
+                (self.shrink_ratio, self.thresh_min, self.thresh_max),
+            )
+
+            # Try to get from cache
+            cached_result = self.cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+
         prob_map = np.zeros((h, w), dtype=np.float32)
         thresh_map = np.zeros((h, w), dtype=np.float32)
 
@@ -152,7 +169,19 @@ class DBCollateFN:
         # Normalize the threshold map
         thresh_map = thresh_map * (self.thresh_max - self.thresh_min) + self.thresh_min
 
-        return OrderedDict(prob_map=prob_map, thresh_map=thresh_map)
+        result = OrderedDict(prob_map=prob_map, thresh_map=thresh_map)
+
+        # Cache the result if cache is available
+        if self.cache is not None and len(polygons) > 0:
+            polygons_array = np.array(polygons)
+            cache_key = self.cache._generate_key(
+                polygons_array,
+                image.shape,
+                (self.shrink_ratio, self.thresh_min, self.thresh_max),
+            )
+            self.cache.set(cache_key, result)
+
+        return result
 
     def distance(self, xs, ys, point_1, point_2):
         """
