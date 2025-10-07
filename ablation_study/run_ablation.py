@@ -73,7 +73,9 @@ def run_single_experiment(cfg: DictConfig) -> dict:
         project_name = project_name or "OCR_Ablation"
 
         exp_name = cfg.get("exp_name", "ablation_run")
-        experiment_tag = cfg.get("experiment_tag") or exp_name
+        experiment_tag = (
+            cfg.get("experiment_tag") or (cfg.get("ablation", {}).get("experiment_tag") if cfg.get("ablation") else None) or exp_name
+        )
 
         wandb.init(
             project=project_name,
@@ -128,7 +130,10 @@ def run_single_experiment(cfg: DictConfig) -> dict:
 @hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="train", version_base="1.2")
 def main(cfg: DictConfig) -> dict[str, Any]:
     """Main function for running ablation studies."""
-    print(f"Running ablation study with config: {cfg.get('experiment_tag', 'unnamed')}")
+    experiment_tag = (
+        cfg.get("experiment_tag") or (cfg.get("ablation", {}).get("experiment_tag") if cfg.get("ablation") else None) or "unnamed"
+    )
+    print(f"Running ablation study with config: {experiment_tag}")
 
     # Run the experiment
     result = run_single_experiment(cfg)
