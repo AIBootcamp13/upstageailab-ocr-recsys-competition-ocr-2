@@ -7,7 +7,6 @@ defaults:
   - override /data: base
   - override /model: default
   - override /lightning_module: base
-  - override /callbacks: throughput_monitor  # Include our throughput monitor
   - override /trainer: debug
   - override /logger: mlflow
 

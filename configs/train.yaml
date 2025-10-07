@@ -17,7 +17,8 @@ project_name: null
 experiment_tag: null
 wandb: false
 
-callbacks: {}
+# Callbacks are now configured via callbacks/default.yaml
+# Individual experiments can override with +callbacks.specific_callback.enabled=true/false
 
 runtime:
   auto_gpu_devices: true

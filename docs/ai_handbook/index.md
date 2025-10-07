@@ -93,6 +93,8 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 * [Hydra & Component Registry](./03_references/02_hydra_and_registry.md)
 * [Utility Functions](./03_references/03_utility_functions.md)
 * [Evaluation Metrics](./03_references/04_evaluation_metrics.md)
+* [Performance Monitoring Callbacks](./03_references/performance_monitoring_callbacks_usage.md)
+* [Performance Profiler Usage](./03_references/performance_profiler_usage.md)
 
 ### **04. Experiments**
 

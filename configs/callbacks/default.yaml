@@ -1,7 +1,8 @@
 # Default callbacks configuration
 # Add common callbacks here that should be enabled by default
 
-defaults: []
+defaults:
+  - throughput_monitor
 
 # Example of how to include callbacks by default
 # This can be overridden by specific experiments
