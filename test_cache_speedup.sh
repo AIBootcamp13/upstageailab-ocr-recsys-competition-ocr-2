@@ -11,8 +11,8 @@ uv run python runners/test.py \
   checkpoint_path="$CHECKPOINT" \
   callbacks=performance_profiler \
   callbacks.performance_profiler.verbose=true \
-  data.polygon_cache.enabled=true \
-  data.polygon_cache.max_size=1000 \
+  +data.polygon_cache.enabled=true \
+  +data.polygon_cache.max_size=1000 \
   project_name=OCR_Performance_Cache \
   exp_name=with_cache_validation
 

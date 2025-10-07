@@ -144,6 +144,22 @@ class PolygonCache:
             return 0.0
         return self.hit_count / total
 
+    def get_stats(self) -> dict[str, int | float]:
+        """
+        Get cache statistics.
+
+        Returns:
+            Dict with hit_count, miss_count, total_requests, hit_rate, cache_size
+        """
+        total = self.hit_count + self.miss_count
+        return {
+            "hit_count": self.hit_count,
+            "miss_count": self.miss_count,
+            "total_requests": total,
+            "hit_rate": self.hit_count / total if total > 0 else 0.0,
+            "cache_size": len(self._cache),
+        }
+
     def _save_to_disk(self) -> None:
         """Save cache to disk (internal method)."""
         if not self.persist_to_disk:

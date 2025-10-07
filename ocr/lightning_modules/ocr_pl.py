@@ -580,7 +580,7 @@ class OCRDataPLModule(pl.LightningDataModule):
 
     def _build_collate_fn(self, *, inference_mode: bool) -> Any:
         # Check if polygon caching is enabled
-        polygon_cache_cfg = getattr(self.config, "polygon_cache", None)
+        polygon_cache_cfg = getattr(self.config.data, "polygon_cache", None)
         cache = None
 
         if polygon_cache_cfg and polygon_cache_cfg.get("enabled", False):
