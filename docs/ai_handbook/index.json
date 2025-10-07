@@ -229,6 +229,18 @@
       "bundles": ["debugging", "new-feature", "training-analysis"]
     },
     {
+      "id": "performance-monitoring-callbacks",
+      "title": "Performance Monitoring Callbacks",
+      "path": "./03_references/performance_monitoring_callbacks_usage.md",
+      "section": "03. References (Factual Information)",
+      "tags": ["performance", "monitoring", "callbacks", "profiling"],
+      "priority": "high",
+      "summary": "Usage guide for ThroughputMonitor, Profiler, and ResourceMonitor callbacks for training pipeline optimization.",
+      "last_reviewed": "2025-10-07",
+      "owner": "ml-platform",
+      "bundles": ["training-analysis", "debugging"]
+    },
+    {
       "id": "project-setup",
       "title": "Project & Environment Setup",
       "path": "./01_onboarding/01_setup_and_tooling.md",
