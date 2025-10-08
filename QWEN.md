@@ -16,7 +16,7 @@ This is an OCR (Optical Character Recognition) project focused on receipt text d
 ### Documentation
 - `docs/ai_handbook/index.md` - Your primary source of truth with comprehensive project documentation
 - `docs/ai_handbook/01_onboarding/01_setup_and_tooling.md` - Start here if new to the project
-- `docs/ai_handbook/02_protocols/command_builder_testing_guide.md` - Testing guide for Command Builder module
+- `docs/ai_handbook/02_protocols/configuration/20_command_builder_testing_guide.md` - Testing guide for Command Builder module
 
 ### Setup Scripts
 - `scripts/setup/` - Contains numbered setup scripts for environment setup, linting, and aliases
@@ -53,6 +53,7 @@ For specific tasks, refer to the following context bundles in the AI handbook:
 - Debugging: Debugging Workflow → Command Registry → Experiment Logs
 - Utilities: Utility Adoption Guide → Existing Utility Functions
 - Streamlit apps: Command Registry → run_ui.py → Streamlit maintenance bundle
+- Command Builder: Configuration → Command Builder Testing Guide → UI Architecture
 
 ## Getting Started
 
