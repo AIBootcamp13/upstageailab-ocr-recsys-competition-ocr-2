@@ -1,9 +1,8 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.10 (2025-10-08)",
-  "generated_at": "2025-10-08T10:00:00Z",
+  "version": "1.11 (2025-10-09)",
+  "generated_at": "2025-10-08T15:57:45.445332+00:00",
   "schema": {
-    "__comment__": "This schema defines the rules for the ai_handbook directory. AI agents MUST follow these rules.",
     "01_onboarding": {
       "purpose": "Contains introductory documents for new contributors (human or AI).",
       "naming_convention": "NN_descriptive_topic.md",
@@ -11,22 +10,41 @@
       "prohibited_content": "Code, outputs, logs, experimental notes."
     },
     "02_protocols": {
-      "purpose": "Actionable, step-by-step instructions for recurring tasks (e.g., refactoring, debugging).",
+      "purpose": "Actionable, step-by-step instructions for recurring tasks, organized by category.",
       "naming_convention": "NN_protocol_name.md",
       "allowed_content": "Only Markdown (.md) documents defining a process.",
-      "prohibited_content": "Generated outputs, work-in-progress notes. Outputs from protocol execution belong in the root /outputs directory."
+      "prohibited_content": "Generated outputs, work-in-progress notes. Outputs from protocol execution belong in the root /outputs directory.",
+      "subdirectories": {
+        "development": "Core development practices and workflows",
+        "components": "Component-specific protocols",
+        "configuration": "Configuration management protocols",
+        "governance": "Documentation and maintenance protocols"
+      }
     },
     "03_references": {
-      "purpose": "Factual, descriptive information about the project's architecture, tools, and data.",
+      "purpose": "Factual, descriptive information about the project's architecture, tools, and data, organized by category.",
       "naming_convention": "NN_reference_topic.md",
       "allowed_content": "Only Markdown (.md) documents.",
-      "prohibited_content": "Tutorials, step-by-step guides (these are protocols)."
+      "prohibited_content": "Tutorials, step-by-step guides (these are protocols).",
+      "subdirectories": {
+        "architecture": "Core system architecture documentation",
+        "guides": "Usage guides and tutorials",
+        "integrations": "Third-party integration documentation",
+        "workflows": "Workflow examples and patterns",
+        "frameworks": "Development frameworks and methodologies"
+      }
     },
     "04_experiments": {
-      "purpose": "Logs and summaries of completed experiments.",
+      "purpose": "Logs and summaries of completed experiments, organized by type.",
       "naming_convention": "YYYY-MM-DD_experiment_summary.md or run_summary_TIMESTAMP.md",
       "allowed_content": "Markdown (.md) summaries of experimental results. Templates for logging are also allowed.",
-      "prohibited_content": "Protocols, planning documents, raw output files."
+      "prohibited_content": "Protocols, planning documents, raw output files.",
+      "subdirectories": {
+        "experiment_logs": "Core experiment documentation and results",
+        "debugging": "Debug sessions and troubleshooting documentation",
+        "sessions": "Session handovers and knowledge transfer",
+        "agent_runs": "Automated agent activity logs"
+      }
     },
     "05_changelog": {
       "purpose": "A chronological record of significant, completed changes to the project.",
@@ -40,576 +58,1523 @@
       "allowed_content": "Only Markdown (.md) documents explaining concepts.",
       "prohibited_content": "Actionable protocols or factual references."
     },
-    "07_project_management": {
-      "purpose": "Project management artifacts, including planning documents, work-in-progress notes, and task tracking.",
-      "naming_convention": "NN_project_management_topic.md",
-      "allowed_content": "Only Markdown (.md) documents for project management purposes.",
-      "prohibited_content": "Generated outputs, protocols, factual references."
+    "07_planning": {
+      "purpose": "Planning documents, assessments, and operational logs for development activities.",
+      "naming_convention": "NN_planning_topic.md",
+      "allowed_content": "Only Markdown (.md) documents for planning purposes.",
+      "prohibited_content": "Generated outputs, protocols, factual references.",
+      "subdirectories": {
+        "assessments": "AI agent and system assessments",
+        "plans": "Development and optimization plans",
+        "logs": "Delegation and operational logs",
+        "data": "Data generation and management plans",
+        "phases": "Phase-specific documentation and prompts"
+      }
     }
   },
   "entries": [
     {
-      "id": "training-protocol",
-      "title": "Training & Experimentation Protocol",
-      "path": "./02_protocols/13_training_protocol.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["training", "workflow", "experiments"],
-      "priority": "high",
-      "summary": "The main protocol for planning, running, analyzing, and iterating on model training experiments.",
-      "last_reviewed": "2025-10-01",
-      "owner": "core-team",
-      "bundles": ["training-analysis", "onboarding"]
-    },
-    {
-      "id": "changelog-latest",
-      "title": "2025-10-08 Hydra Logging and Extras Configuration Implementation",
-      "path": "./05_changelog/2025-10/08_hydra-logging-extras-implementation.md",
-      "section": "05. Changelog",
-      "tags": ["changelog", "hydra", "logging", "configuration"],
-      "priority": "high",
-      "summary": "Implemented comprehensive Hydra logging configuration and added extras configuration for managing miscellaneous settings.",
-      "last_reviewed": "2025-10-08",
-      "owner": "configuration",
-      "bundles": ["hydra-management", "documentation-history"]
-    },
-    {
-      "id": "coding-standards",
-      "title": "Coding Standards & Workflow",
-      "path": "./02_protocols/01_coding_standards.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["engineering", "workflow"],
-      "priority": "medium",
-      "summary": "Core conventions for code style, branching, reviews, and automation etiquette.",
-      "last_reviewed": "2025-09-28",
-      "owner": "core-team",
-      "bundles": ["new-feature", "refactor"]
-    },
-    {
-      "id": "architecture",
-      "title": "Architecture",
-      "path": "./03_references/01_architecture.md",
-      "section": "03. References (Factual Information)",
-      "tags": ["architecture", "models"],
-      "priority": "medium",
-      "summary": "System overview, component registries, and DBNet data flow diagrams.",
-      "last_reviewed": "2025-09-28",
-      "owner": "core-team",
-      "bundles": ["new-feature", "refactor"]
-    },
-    {
-      "id": "hydra-registry",
-      "title": "Hydra & Component Registry",
-      "path": "./03_references/02_hydra_and_registry.md",
-      "section": "03. References (Factual Information)",
-      "tags": ["hydra", "registry"],
-      "priority": "medium",
-      "summary": "Guidance for defining, registering, and configuring modular components.",
-      "last_reviewed": "2025-09-28",
-      "owner": "ml-platform",
-      "bundles": ["new-feature", "refactor", "training-analysis", "hydra-management"]
-    },
-    {
-      "id": "command-registry",
-      "title": "Command Registry",
-      "path": "./02_protocols/02_command_registry.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["automation", "commands"],
-      "priority": "high",
-      "summary": "Curated list of safe commands, including Streamlit launchers and validation utilities.",
-      "last_reviewed": "2025-10-03",
-      "owner": "automation",
-      "bundles": ["streamlit-maintenance", "debugging", "new-feature"]
-    },
-    {
-      "id": "debugging-workflow",
-      "title": "Debugging Workflow",
-      "path": "./02_protocols/03_debugging_workflow.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["debugging"],
-      "priority": "medium",
-      "summary": "Step-by-step flow for triaging failures across training, evaluation, and UI layers.",
-      "last_reviewed": "2025-09-28",
-      "owner": "core-team",
-      "bundles": ["debugging", "training-analysis"]
-    },
-    {
-      "id": "utility-adoption",
-      "title": "Utility Adoption Guide",
-      "path": "./02_protocols/04_utility_adoption.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["utilities"],
-      "priority": "low",
-      "summary": "Checklist for integrating shared utilities safely and consistently.",
-      "last_reviewed": "2025-09-28",
-      "owner": "core-team",
-      "bundles": ["new-feature"]
-    },
-    {
-      "id": "modular-refactor",
-      "title": "Modular Refactoring Guide",
-      "path": "./02_protocols/05_modular_refactor.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["refactor", "architecture"],
-      "priority": "high",
-      "summary": "Four-phase playbook for extracting modular components with registry + config updates.",
-      "last_reviewed": "2025-09-29",
-      "owner": "architecture",
-      "bundles": ["refactor", "streamlit-maintenance"]
-    },
-    {
-      "id": "context-logging",
-      "title": "Context Logging and Summarization",
-      "path": "./02_protocols/06_context_logging.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["context", "logging"],
-      "priority": "medium",
-      "summary": "How to capture logs and summarize long-running tasks for agents.",
-      "last_reviewed": "2025-09-28",
-      "owner": "automation",
-      "bundles": ["context-management"]
-    },
-    {
-      "id": "context-checkpointing",
-      "title": "Context Checkpointing & Restoration",
-      "path": "./02_protocols/08_context_checkpointing.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["context", "checkpointing"],
-      "priority": "high",
-      "summary": "Procedure for pausing, summarizing, and resuming large tasks without context loss.",
-      "last_reviewed": "2025-09-29",
-      "owner": "automation",
-      "bundles": ["context-management", "streamlit-maintenance"]
-    },
-    {
-      "id": "hydra-config-refactor",
-      "title": "Hydra Configuration Refactoring",
-      "path": "./02_protocols/09_hydra_config_refactoring.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["hydra", "refactor"],
-      "priority": "medium",
-      "summary": "Guidelines for restructuring Hydra configs while maintaining compatibility.",
-      "last_reviewed": "2025-09-28",
-      "owner": "ml-platform",
-      "bundles": ["refactor", "hydra-management"]
-    },
-    {
-      "id": "streamlit-maintenance",
-      "title": "Protocol: Streamlit Maintenance",
-      "path": "./02_protocols/19_streamlit_maintenance_protocol.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["ui", "streamlit", "maintenance"],
-      "priority": "high",
-      "summary": "Maintenance loop for Streamlit apps covering sanity checks, catalog health, and documentation.",
-      "last_reviewed": "2025-09-29",
-      "owner": "ui-team",
-      "bundles": ["streamlit-maintenance"]
-    },
-    {
-      "id": "utility-functions",
-      "title": "Utility Functions",
-      "path": "./03_references/03_utility_functions.md",
-      "section": "03. References (Factual Information)",
-      "tags": ["utilities"],
-      "priority": "low",
-      "summary": "Catalogue of shared utility helpers and their intended use cases.",
-      "last_reviewed": "2025-09-28",
-      "owner": "core-team",
-      "bundles": ["new-feature"]
-    },
-    {
-      "id": "evaluation-metrics",
-      "title": "Evaluation Metrics",
-      "path": "./03_references/04_evaluation_metrics.md",
-      "section": "03. References (Factual Information)",
-      "tags": ["metrics", "evaluation"],
-      "priority": "medium",
-      "summary": "Descriptions of key OCR evaluation metrics and interpretation notes.",
-      "last_reviewed": "2025-09-28",
-      "owner": "ml-platform",
-      "bundles": ["debugging", "new-feature", "training-analysis"]
-    },
-    {
-      "id": "performance-monitoring-callbacks",
-      "title": "Performance Monitoring Callbacks",
-      "path": "./03_references/performance_monitoring_callbacks_usage.md",
-      "section": "03. References (Factual Information)",
-      "tags": ["performance", "monitoring", "callbacks", "profiling"],
-      "priority": "high",
-      "summary": "Usage guide for ThroughputMonitor, Profiler, and ResourceMonitor callbacks for training pipeline optimization.",
-      "last_reviewed": "2025-10-07",
-      "owner": "ml-platform",
-      "bundles": ["training-analysis", "debugging"]
-    },
-    {
-      "id": "project-setup",
-      "title": "Project & Environment Setup",
+      "id": "01_setup_and_tooling",
+      "title": "filename: docs/ai_handbook/01_onboarding/01_setup_and_tooling.md",
       "path": "./01_onboarding/01_setup_and_tooling.md",
-      "section": "01. Onboarding",
-      "tags": ["onboarding"],
-      "priority": "medium",
-      "summary": "Environment provisioning, tooling expectations, and first-run checks.",
-      "last_reviewed": "2025-09-28",
-      "owner": "devrel",
-      "bundles": ["onboarding"]
-    },
-    {
-      "id": "data-overview",
-      "title": "Data Overview",
-      "path": "./01_onboarding/02_data_overview.md",
-      "section": "01. Onboarding",
-      "tags": ["onboarding", "data"],
-      "priority": "medium",
-      "summary": "Summary of available datasets and labeling conventions.",
-      "last_reviewed": "2025-09-28",
-      "owner": "data-team",
-      "bundles": ["onboarding"]
-    },
-    {
-      "id": "iterative-debugging",
-      "title": "Iterative Debugging & RCA",
-      "path": "./02_protocols/07_iterative_debugging.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["debugging", "workflow"],
-      "priority": "high",
-      "summary": "Structured process for bisecting regressions, logging hypotheses, and producing root cause summaries.",
-      "last_reviewed": "2025-09-30",
-      "owner": "automation",
-      "bundles": ["debugging", "context-management"]
-    },
-    {
-      "id": "refactoring-guide-redirect",
-      "title": "Refactoring Guide (Redirect)",
-      "path": "./02_protocols/10_refactoring_guide.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["refactor"],
+      "section": "Onboarding (Onboarding)",
+      "tags": [
+        "onboarding"
+      ],
       "priority": "low",
-      "summary": "Deprecated stub pointing readers to the consolidated modular refactor protocol.",
-      "last_reviewed": "2025-09-30",
-      "owner": "documentation",
-      "bundles": ["refactor"]
-    },
-    {
-      "id": "doctr-preprocessing-workflow",
-      "title": "docTR Preprocessing Workflow",
-      "path": "./02_protocols/11_docTR_preprocessing_workflow.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["preprocessing", "docTR", "ui"],
-      "priority": "high",
-      "summary": "End-to-end checklist for enabling docTR-powered preprocessing, configs, tests, and UI integrations.",
-      "last_reviewed": "2025-09-30",
-      "owner": "ml-platform",
-      "bundles": ["streamlit-maintenance", "new-feature"]
-    },
-    {
-      "id": "streamlit-refactor-protocol",
-      "title": "Streamlit Refactoring Protocol",
-      "path": "./02_protocols/12_streamlit_refactoring_protocol.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["ui", "streamlit", "refactor"],
-      "priority": "high",
-      "summary": "Playbook for structural Streamlit changes covering architecture constraints, configs, and testing.",
-      "last_reviewed": "2025-09-30",
-      "owner": "ui-team",
-      "bundles": ["streamlit-maintenance", "refactor"]
-    },
-    {
-      "id": "template-adoption-protocol",
-      "title": "Template Adoption & Best Practices",
-      "path": "./02_protocols/16_template_adoption_protocol.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["refactor", "architecture", "onboarding", "hydra"],
-      "priority": "high",
-      "summary": "Protocol for systematically adopting patterns from external templates like lightning-hydra-template.",
-      "last_reviewed": "2025-10-01",
-      "owner": "architecture",
-      "bundles": ["refactor", "new-feature", "hydra-management"]
-    },
-    {
-      "id": "advanced-training-techniques",
-      "title": "Advanced Training Techniques",
-      "path": "./02_protocols/17_advanced_training_techniques.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["training", "parallel", "multirun", "architecture"],
-      "priority": "high",
-      "summary": "Guide to parallel training, multirun experimentation, and architecture selection for specific use cases.",
-      "last_reviewed": "2025-10-03",
-      "owner": "ml-platform",
-      "bundles": ["training-analysis", "parallel-processing"]
-    },
-    {
-      "id": "model-architecture-selection",
-      "title": "Model Architecture Selection",
-      "path": "./06_concepts/01_model_architecture_selection.md",
-      "section": "06. Concepts (Core Understanding)",
-      "tags": ["architecture", "models", "ocr", "selection"],
-      "priority": "high",
-      "summary": "Decision framework for choosing between DBNet, DBNet++, and CRAFT architectures based on dataset characteristics.",
-      "last_reviewed": "2025-10-03",
-      "owner": "ml-platform",
-      "bundles": ["architecture", "training-analysis"]
-    },
-    {
-      "id": "experiment-log-template",
-      "title": "Experiment Log Template",
-      "path": "./04_experiments/TEMPLATE.md",
-      "section": "04. Experiments",
-      "tags": ["experiments"],
-      "priority": "medium",
-      "summary": "Markdown template for recording experiment goals, setups, observations, and follow-ups.",
-      "last_reviewed": "2025-09-30",
+      "summary": "Documentation for filename: docs/ai_handbook/01_onboarding/01_setup_and_tooling.md",
+      "last_reviewed": "2025-10-08",
       "owner": "core-team",
-      "bundles": ["experiments", "training-analysis"]
+      "bundles": []
     },
     {
-      "id": "changelog-doc-refactor",
+      "id": "02_data_overview",
+      "title": "filename: docs/ai_handbook/01_onboarding/02_data_overview.md",
+      "path": "./01_onboarding/02_data_overview.md",
+      "section": "Onboarding (Onboarding)",
+      "tags": [
+        "onboarding"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/01_onboarding/02_data_overview.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "documentation_update_protocol",
+      "title": "Documentation Update Protocol",
+      "path": "./02_protocols/governance/documentation-update-protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "high",
+      "summary": "Documentation for documentation update protocol",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "18_documentation_governance_protocol",
+      "title": "filename: docs/ai_handbook/02_protocols/18_documentation_governance_protocol.md",
+      "path": "./02_protocols/governance/18_documentation_governance_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/18_documentation_governance_protocol.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "19_streamlit_maintenance_protocol",
+      "title": "filename: docs/ai_handbook/02_protocols/11_streamlit_maintenance_protocol.md",
+      "path": "./02_protocols/governance/19_streamlit_maintenance_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/11_streamlit_maintenance_protocol.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "17_advanced_training_techniques",
+      "title": "filename: docs/ai_handbook/02_protocols/17_advanced_training_techniques.md",
+      "path": "./02_protocols/components/17_advanced_training_techniques.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "training"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/17_advanced_training_techniques.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "ml-platform",
+      "bundles": []
+    },
+    {
+      "id": "11_doctr_preprocessing_workflow",
+      "title": "docTR-Enhanced Preprocessing Workflow",
+      "path": "./02_protocols/components/11_docTR_preprocessing_workflow.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for doctr-enhanced preprocessing workflow",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "12_streamlit_refactoring_protocol",
+      "title": "filename: docs/ai_handbook/02_protocols/12_streamlit_refactoring_protocol.md",
+      "path": "./02_protocols/components/12_streamlit_refactoring_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/12_streamlit_refactoring_protocol.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "16_template_adoption_protocol",
+      "title": "Protocol: Template Adoption & Best Practices",
+      "path": "./02_protocols/components/16_template_adoption_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for protocol: template adoption & best practices",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "13_training_protocol",
+      "title": "filename: docs/ai_handbook/02_protocols/13_training_protocol.md",
+      "path": "./02_protocols/components/13_training_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "training"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/13_training_protocol.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "ml-platform",
+      "bundles": []
+    },
+    {
+      "id": "22_command_builder_hydra_configuration_fixes",
+      "title": "Streamlit UI Command Builder Hydra Configuration Fixes",
+      "path": "./02_protocols/configuration/22_command_builder_hydra_configuration_fixes.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "ui",
+        "configuration"
+      ],
+      "priority": "high",
+      "summary": "Documentation for streamlit ui command builder hydra configuration fixes",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "20_command_builder_testing_guide",
+      "title": "Command Builder Testing Guide",
+      "path": "./02_protocols/configuration/20_command_builder_testing_guide.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for command builder testing guide",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "20_hydra_config_resolution_troubleshooting",
+      "title": "Protocol: Hydra Configuration Resolution Troubleshooting",
+      "path": "./02_protocols/configuration/20_hydra_config_resolution_troubleshooting.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "high",
+      "summary": "Documentation for protocol: hydra configuration resolution troubleshooting",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "21_experiment_analysis_framework_handbook",
+      "title": "Experiment Analysis Framework Handbook",
+      "path": "./02_protocols/configuration/21_experiment_analysis_framework_handbook.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "training"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for experiment analysis framework handbook",
+      "last_reviewed": "2025-10-08",
+      "owner": "ml-platform",
+      "bundles": []
+    },
+    {
+      "id": "23_hydra_configuration_testing_implementation_plan",
+      "title": "23_hydra_configuration_testing_implementation_plan",
+      "path": "./02_protocols/configuration/23_hydra_configuration_testing_implementation_plan.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "high",
+      "summary": "Documentation for 23_hydra_configuration_testing_implementation_plan",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "09_hydra_config_refactoring",
+      "title": "filename: docs/ai_handbook/02_protocols/08_hydra_config_refactoring.md",
+      "path": "./02_protocols/development/09_hydra_config_refactoring.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/08_hydra_config_refactoring.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "07_iterative_debugging",
+      "title": "filename: docs/ai_handbook/02_protocols/05_iterative_debugging.md",
+      "path": "./02_protocols/development/07_iterative_debugging.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/05_iterative_debugging.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "10_refactoring_guide",
+      "title": "filename: docs/ai_handbook/02_protocols/10_refactoring_guide.md",
+      "path": "./02_protocols/development/10_refactoring_guide.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/10_refactoring_guide.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "03_debugging_workflow",
+      "title": "filename: docs/ai_handbook/02_protocols/03_debugging_workflow.md",
+      "path": "./02_protocols/development/03_debugging_workflow.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/03_debugging_workflow.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "04_utility_adoption",
+      "title": "filename: docs/ai_handbook/02_protocols/04_utility_adoption.md",
+      "path": "./02_protocols/development/04_utility_adoption.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/04_utility_adoption.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "08_context_checkpointing",
+      "title": "filename: docs/ai_handbook/02_protocols/06_context_checkpointing.md",
+      "path": "./02_protocols/development/08_context_checkpointing.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/06_context_checkpointing.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_coding_standards",
+      "title": "filename: docs/ai_handbook/02_protocols/01_coding_standards.md",
+      "path": "./02_protocols/development/01_coding_standards.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/01_coding_standards.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "02_command_registry",
+      "title": "02_command_registry.md",
+      "path": "./02_protocols/development/02_command_registry.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "high",
+      "summary": "Documentation for 02_command_registry.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "automation",
+      "bundles": []
+    },
+    {
+      "id": "06_context_logging",
+      "title": "filename: docs/ai_handbook/02_protocols/04_context_logging.md",
+      "path": "./02_protocols/development/06_context_logging.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/04_context_logging.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "05_modular_refactor",
+      "title": "filename: docs/ai_handbook/02_protocols/05_modular_refactor.md",
+      "path": "./02_protocols/development/05_modular_refactor.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/02_protocols/05_modular_refactor.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "agentic_workflow_example",
+      "title": "Agentic Workflow Example",
+      "path": "./03_references/workflows/agentic-workflow-example.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for agentic workflow example",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "semantic_search_patterns",
+      "title": "Semantic Search Patterns for the OCR Project",
+      "path": "./03_references/integrations/semantic_search_patterns.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for semantic search patterns for the ocr project",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "qwen_coder_integration",
+      "title": "Integrating Qwen Coder via stdin for Multi-Agent Workflows",
+      "path": "./03_references/integrations/qwen_coder_integration.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for integrating qwen coder via stdin for multi-agent workflows",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "streamlit_component_compatibility_validation",
+      "title": "Component Compatibility Validation System",
+      "path": "./03_references/guides/streamlit-component-compatibility-validation.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for component compatibility validation system",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "generating_submissions",
+      "title": "Generating Submission Files (submission.csv)",
+      "path": "./03_references/guides/generating-submissions.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for generating submission files (submission.csv)",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "pytorch_lightning_checkpoint_callbacks",
+      "title": "PyTorch Lightning Callbacks and Checkpoint Loading",
+      "path": "./03_references/guides/pytorch_lightning_checkpoint_callbacks.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "low",
+      "summary": "Documentation for pytorch lightning callbacks and checkpoint loading",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "performance_profiler_usage",
+      "title": "Performance Profiler Usage Guide",
+      "path": "./03_references/guides/performance_profiler_usage.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for performance profiler usage guide",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "performance_monitoring_callbacks_usage",
+      "title": "Performance Monitoring Callbacks Usage Guide",
+      "path": "./03_references/guides/performance_monitoring_callbacks_usage.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for performance monitoring callbacks usage guide",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "submission_quick_reference",
+      "title": "Quick Reference: Generating Submission Files",
+      "path": "./03_references/guides/submission-quick-reference.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for quick reference: generating submission files",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "post_debugging_session_framework",
+      "title": "Post-Debugging Session Framework",
+      "path": "./03_references/frameworks/post_debugging_session_framework.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "high",
+      "summary": "Documentation for post-debugging session framework",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "02_hydra_and_registry",
+      "title": "filename: docs/ai_handbook/03_references/02_hydra_and_registry.md",
+      "path": "./03_references/architecture/02_hydra_and_registry.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/03_references/02_hydra_and_registry.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "automation",
+      "bundles": []
+    },
+    {
+      "id": "04_evaluation_metrics",
+      "title": "filename: docs/ai_handbook/03_references/04_evaluation_metrics.md",
+      "path": "./03_references/architecture/04_evaluation_metrics.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for filename: docs/ai_handbook/03_references/04_evaluation_metrics.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "05_preprocessing_profiles",
+      "title": "Reference: Preprocessing Profiles and Critical Matching Requirement",
+      "path": "./03_references/architecture/05_preprocessing_profiles.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for reference: preprocessing profiles and critical matching requirement",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_architecture",
+      "title": "filename: docs/ai_handbook/03_references/01_architecture.md",
+      "path": "./03_references/architecture/01_architecture.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "high",
+      "summary": "Documentation for filename: docs/ai_handbook/03_references/01_architecture.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "06_wandb_integration",
+      "title": "06. Wandb Integration Reference",
+      "path": "./03_references/architecture/06_wandb_integration.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for 06. wandb integration reference",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "03_utility_functions",
+      "title": "filename: docs/ai_handbook/03_references/03_utility_functions.md",
+      "path": "./03_references/architecture/03_utility_functions.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "references"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/03_references/03_utility_functions.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "05_ui_architecture",
+      "title": "Reference: UI Architecture",
+      "path": "./03_references/architecture/05_ui_architecture.md",
+      "section": "References (Factual Information)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for reference: ui architecture",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "2025_09_30_detection_pipeline_enhancements",
+      "title": "2025 09 30 Detection Pipeline Enhancements",
+      "path": "./04_experiments/agent_runs/2025-09-30_detection_pipeline_enhancements.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for 2025 09 30 detection pipeline enhancements",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "2025_10_08_performance_resolution_handover",
+      "title": "Session Handover: OCR Performance Regression Resolution",
+      "path": "./04_experiments/sessions/2025-10-08_performance_resolution_handover.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for session handover: ocr performance regression resolution",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "06_session_handover_polygon_cache",
+      "title": "Session Handover: Polygon Cache Optimization",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/06_session_handover_polygon_cache.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for session handover: polygon cache optimization",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "08_resolution_summary",
+      "title": "Polygon Cache & Configuration Debugging - Final Resolution Summary",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/08_resolution_summary.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for polygon cache & configuration debugging - final resolution summary",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "09_session_handover_polygon_cache",
+      "title": "Polygon Cache Performance Issue - Session Handover",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/09_session_handover_polygon_cache.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for polygon cache performance issue - session handover",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "05_debug_results",
+      "title": "Debug Results: Performance Features Assessment (2025-10-08)",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/05_debug_results.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for debug results: performance features assessment (2025-10-08)",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "10_continuation_prompt_polygon_cache",
+      "title": "Polygon Cache Performance Optimization - Continuation Prompt",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/10_continuation_prompt_polygon_cache.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for polygon cache performance optimization - continuation prompt",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "07_continuation_prompt_polygon_cache",
+      "title": "Continuation Prompt: Polygon Cache Debugging",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/07_continuation_prompt_polygon_cache.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for continuation prompt: polygon cache debugging",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "00_session_summary",
+      "title": "OCR Performance Assessment Session Summary",
+      "path": "./04_experiments/debugging/2025-10-08_performance_assessment/00_session_summary.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for ocr performance assessment session summary",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "2025_10_08_debug_summary",
+      "title": "OCR Performance Regression Debug Summary",
+      "path": "./04_experiments/debugging/summaries/2025-10-08_debug_summary.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for ocr performance regression debug summary",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "2025_10_01_initial_run_baseline",
+      "title": "Experiment: Initial Run Analysis & High Precision / Low Recall",
+      "path": "./04_experiments/experiment_logs/2025-10-01_initial_run_baseline.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for experiment: initial run analysis & high precision / low recall",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "2025_10_04_dbnetpp_vs_craft_analysis",
+      "title": "Experiment: DBNet++ vs CRAFT Curved Text Detection Analysis",
+      "path": "./04_experiments/experiment_logs/2025-10-04_dbnetpp_vs_craft_analysis.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "experiments"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for experiment: dbnet++ vs craft curved text detection analysis",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "experiment_log_template",
+      "title": "filename: docs/ai_handbook/04_experiments/TEMPLATE.md",
+      "path": "./04_experiments/experiment_logs/templates/experiment_log_template.md",
+      "section": "Experiments (Experiments)",
+      "tags": [
+        "training"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for filename: docs/ai_handbook/04_experiments/template.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "ml-platform",
+      "bundles": []
+    },
+    {
+      "id": "canonical_orientation_mismatch_bug",
+      "title": "Canonical Orientation Mismatch Bug",
+      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/canonical_orientation_mismatch_bug.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for canonical orientation mismatch bug",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_debugging_plan",
+      "title": "Dataloader Worker Crash Debug Plan",
+      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/01_debugging_plan.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "high",
+      "summary": "Documentation for dataloader worker crash debug plan",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "02_rolling_log",
+      "title": "Dataloader Debug Rolling Log",
+      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/02_rolling_log.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for dataloader debug rolling log",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "session_handover_rotation_debug",
+      "title": "Rotation Debug Continuation",
+      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/session_handover_rotation_debug.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "debugging"
+      ],
+      "priority": "low",
+      "summary": "Documentation for rotation debug continuation",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "28_initial_state",
+      "title": "filename: docs/ai_handbook/05_changelog/2025-09-28_initial_state.md",
+      "path": "./05_changelog/2025-09/28_initial_state.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for filename: docs/ai_handbook/05_changelog/2025-09-28_initial_state.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "28_documentation_refactor_complete",
       "title": "2025-09-28 Documentation Refactor Complete",
       "path": "./05_changelog/2025-09/28_documentation-refactor-complete.md",
-      "section": "05. Changelog",
-      "tags": ["changelog"],
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
       "priority": "low",
-      "summary": "Details the creation of the structured AI handbook and supporting automation tooling.",
-      "last_reviewed": "2025-09-30",
-      "owner": "documentation",
-      "bundles": ["documentation-history"]
-    },
-    {
-      "id": "changelog-initial-state",
-      "title": "2025-09-28 Initial State & Architecture Refactor",
-      "path": "./05_changelog/2025-09/28_initial_state.md",
-      "section": "05. Changelog",
-      "tags": ["changelog"],
-      "priority": "medium",
-      "summary": "Captures the baseline OCR architecture, automation, and process state at handbook inception.",
-      "last_reviewed": "2025-09-30",
+      "summary": "Documentation for 2025-09-28 documentation refactor complete",
+      "last_reviewed": "2025-10-08",
       "owner": "core-team",
-      "bundles": ["documentation-history"]
+      "bundles": []
     },
     {
-      "id": "changelog-evaluation-viewer",
-      "title": "2025-09-29 Evaluation Viewer Modular Refactor",
+      "id": "29_legacy_ui_cleanup",
+      "title": "2025-09-29 Legacy UI Cleanup",
+      "path": "./05_changelog/2025-09/29_legacy-ui-cleanup.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-09-29 legacy ui cleanup",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "29_evaluation_viewer_modular_refactor",
+      "title": "2025-09-29_evaluation_viewer_modular_refactor.md",
       "path": "./05_changelog/2025-09/29_evaluation_viewer_modular_refactor.md",
-      "section": "05. Changelog",
-      "tags": ["changelog", "streamlit"],
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-09-29_evaluation_viewer_modular_refactor.md",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "checkpoint_mismatch_fix",
+      "title": "Quick Fix: Checkpoint State Dict Mismatch",
+      "path": "./05_changelog/_deprecated/checkpoint-mismatch-fix.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for quick fix: checkpoint state dict mismatch",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "comments",
+      "title": "Document relocated# Session Handoff Notes — 2025-10-02 (Evening Update)",
+      "path": "./05_changelog/_deprecated/debugging_session_2025_10_01/comments.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for document relocated# session handoff notes — 2025-10-02 (evening update)",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_evaluation_metrics_doc_refresh",
+      "title": "2025-10-01 Evaluation Metrics Doc Refresh",
+      "path": "./05_changelog/2025-10/01_evaluation-metrics-doc-refresh.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-01 evaluation metrics doc refresh",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "03_command_builder_refactor_progress",
+      "title": "Command Builder Refactoring Progress",
+      "path": "./05_changelog/2025-10/03_command-builder-refactor-progress.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for command builder refactoring progress",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "03_preprocessing_command_builder_integration",
+      "title": "Preprocessing Profiles - Command Builder Integration",
+      "path": "./05_changelog/2025-10/03_preprocessing-command-builder-integration.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for preprocessing profiles - command builder integration",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "09_performance_assessment_session_complete",
+      "title": "Changelog: Performance Assessment Session (2025-10-08)",
+      "path": "./05_changelog/2025-10/09_performance_assessment_session_complete.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for changelog: performance assessment session (2025-10-08)",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "06_canonical_orientation_mismatch_bug_documentation",
+      "title": "2025-10-06 Canonical Orientation Mismatch Bug Documentation",
+      "path": "./05_changelog/2025-10/06_canonical-orientation-mismatch-bug-documentation.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-06 canonical orientation mismatch bug documentation",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "06_dataloader_worker_crash_and_validation_optimizations",
+      "title": "Changelog: Dataloader Worker Crash and Validation Optimizations (2025-10-06)",
+      "path": "./05_changelog/2025-10/06_dataloader-worker-crash-and-validation-optimizations.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for changelog: dataloader worker crash and validation optimizations (2025-10-06)",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "04_hydra_configuration_refactoring_complete",
+      "title": "2025-10-04_Hydra-Configuration-Refactoring-Complete",
+      "path": "./05_changelog/2025-10/04_hydra-configuration-refactoring-complete.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-04_hydra-configuration-refactoring-complete",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "08_hydra_logging_extras_implementation",
+      "title": "2025-10-08 Hydra Logging and Extras Configuration Implementation",
+      "path": "./05_changelog/2025-10/08_hydra-logging-extras-implementation.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-08 hydra logging and extras configuration implementation",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "07_summary_hydra_config_issues_fixes",
+      "title": "07 Summary Hydra Config Issues Fixes",
+      "path": "./05_changelog/2025-10/07_summary-hydra-config-issues-fixes.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 07 summary hydra config issues fixes",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "06_per_batch_image_logging_configuration",
+      "title": "2025-10-06 Per Batch Image Logging Configuration",
+      "path": "./05_changelog/2025-10/06_per-batch-image-logging-configuration.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-06 per batch image logging configuration",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "04_fixed_visualize_predictions_hydra_config_path",
+      "title": "2025-10-04_Fixed_Visualize_Predictions_Hydra_Config_Path",
+      "path": "./05_changelog/2025-10/04_fixed-visualize-predictions-hydra-config-path.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-04_fixed_visualize_predictions_hydra_config_path",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "04_path_management_standardization",
+      "title": "2025-10-04 Path Management Standardization",
+      "path": "./05_changelog/2025-10/04_path-management-standardization.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "changelog"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-04 path management standardization",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_cleval_config_preset",
+      "title": "2025-10-01 CLEval Config Preset",
+      "path": "./05_changelog/2025-10/01_cleval-config-preset.md",
+      "section": "Changelog (Changelog)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 2025-10-01 cleval config preset",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "concepts_template",
+      "title": "Concept:",
+      "path": "./06_concepts/concepts_template.md",
+      "section": "Concepts (Concepts)",
+      "tags": [
+        "concepts"
+      ],
       "priority": "medium",
-      "summary": "Notes the modularization of the evaluation Streamlit UI and related improvements.",
-      "last_reviewed": "2025-09-30",
-      "owner": "ui-team",
-      "bundles": ["streamlit-maintenance", "documentation-history"]
+      "summary": "Documentation for concept:",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
     },
     {
-      "id": "handbook-index",
-      "title": "AI Agent Handbook Landing Page",
-      "path": "./index.md",
-      "section": "00. Overview",
-      "tags": ["overview", "navigation"],
+      "id": "01_model_architecture_selection",
+      "title": "Concept: Model Architecture Selection for OCR",
+      "path": "./06_concepts/01_model_architecture_selection.md",
+      "section": "Concepts (Concepts)",
+      "tags": [
+        "concepts"
+      ],
       "priority": "high",
-      "summary": "Front-door guide with quick links, bundles, and table of contents for the AI handbook.",
-      "last_reviewed": "2025-09-30",
-      "owner": "documentation",
-      "bundles": ["onboarding", "documentation-history"]
-    },
-    {
-      "id": "doc-governance",
-      "title": "Documentation Governance Protocol",
-      "path": "./02_protocols/18_documentation_governance_protocol.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["documentation", "schema", "maintenance"],
-      "priority": "high",
-      "summary": "The master protocol for managing the ai_handbook directory structure and content.",
-      "last_reviewed": "2025-10-04",
-      "owner": "documentation-team",
-      "bundles": ["onboarding", "refactor"]
-    },
-    {
-      "id": "command-builder-testing",
-      "title": "Command Builder Testing Guide",
-      "path": "./02_protocols/20_command_builder_testing_guide.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["command", "builder", "testing", "validation"],
-      "priority": "high",
-      "summary": "Testing guide for Command Builder module with testing strategies and validation approaches.",
-      "last_reviewed": "2025-10-04",
-      "owner": "testing-team",
-      "bundles": ["onboarding", "refactor"]
-    },
-    {
-      "id": "experiment-analysis-framework",
-      "title": "Experiment Analysis Framework Handbook",
-      "path": "./02_protocols/21_experiment_analysis_framework_handbook.md",
-      "section": "02. Protocols (How-To Guides)",
-      "tags": ["experiment", "analysis", "framework", "metrics"],
-      "priority": "high",
-      "summary": "Handbook for the experiment analysis framework with methodology and tools.",
-      "last_reviewed": "2025-10-04",
+      "summary": "Documentation for concept: model architecture selection for ocr",
+      "last_reviewed": "2025-10-08",
       "owner": "ml-platform",
-      "bundles": ["training-analysis", "experiments"]
+      "bundles": []
+    },
+    {
+      "id": "01_qwen_delegation_log",
+      "title": "Qwen Coder Delegation Log",
+      "path": "./07_planning/logs/01_qwen_delegation_log.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for qwen coder delegation log",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_data_generator",
+      "title": "01 Data Generator",
+      "path": "./07_planning/data/01_data_generator.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for 01 data generator",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "08_phase_3_performance_monitoring_prompts_ready",
+      "title": "Qwen Phase 3 Performance Monitoring Prompts Ready",
+      "path": "./07_planning/phases/08_phase-3-performance-monitoring-prompts-ready.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for qwen phase 3 performance monitoring prompts ready",
+      "last_reviewed": "2025-10-08",
+      "owner": "platform",
+      "bundles": []
+    },
+    {
+      "id": "01_continuation_prompt",
+      "title": "Phase 3 Continuation Prompt: Monitoring and Profiling",
+      "path": "./07_planning/phases/phase3/01_continuation_prompt.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for phase 3 continuation prompt: monitoring and profiling",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "05_task_2_2_completion_summary",
+      "title": "Task 2.2 Completion Summary: Cache Integration",
+      "path": "./07_planning/phases/phase3/05_task-2-2-completion-summary.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for task 2.2 completion summary: cache integration",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "02_quick_reference",
+      "title": "Phase 3 Quick Reference",
+      "path": "./07_planning/phases/phase3/02_quick_reference.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "medium",
+      "summary": "Documentation for phase 3 quick reference",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "03_phase_1_2_completion_summary",
+      "title": "Phase 1 & 2.1 Completion Summary",
+      "path": "./07_planning/phases/phase3/03_phase-1-2-completion-summary.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for phase 1 & 2.1 completion summary",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "04_task_1_1_completion_summary",
+      "title": "Task 1.1 Completion Summary: Performance Profiler Callback",
+      "path": "./07_planning/phases/phase3/04_task-1-1-completion-summary.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for task 1.1 completion summary: performance profiler callback",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_collaboration_assessment",
+      "title": "AI Agent Selection and Collaboration Assessment for Performance Optimization",
+      "path": "./07_planning/assessments/01_collaboration_assessment.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for ai agent selection and collaboration assessment for performance optimization",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "02_performance_optimization_execution_plan",
+      "title": "Performance Optimization Execution Plan",
+      "path": "./07_planning/plans/performance/02_performance_optimization_execution_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for performance optimization execution plan",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_performance_optimization_plan",
+      "title": "Performance Optimization Plan: OCR Training Pipeline",
+      "path": "./07_planning/plans/performance/01_performance_optimization_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for performance optimization plan: ocr training pipeline",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "03_performance_bottlenecks_refactor_plan",
+      "title": "Actionable Refactor Plan: Address Performance Bottlenecks",
+      "path": "./07_planning/plans/performance/03_performance_bottlenecks_refactor_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for actionable refactor plan: address performance bottlenecks",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "01_command_builder_assessment",
+      "title": "Common parameters",
+      "path": "./07_planning/plans/refactor/01_command_builder_assessment.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "ui"
+      ],
+      "priority": "high",
+      "summary": "Documentation for common parameters",
+      "last_reviewed": "2025-10-08",
+      "owner": "frontend",
+      "bundles": []
+    },
+    {
+      "id": "02_consolidate_configs_plan",
+      "title": "Actionable Refactor Plan: Consolidate Redundant Configurations",
+      "path": "./07_planning/plans/refactor/02_consolidate_configs_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for actionable refactor plan: consolidate redundant configurations",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "05_consolidate_redundant_configuration",
+      "title": "Enhanced Actionable Refactor Plan: Consolidate Redundant Configurations",
+      "path": "./07_planning/plans/refactor/05_consolidate_redundant_configuration.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "configuration"
+      ],
+      "priority": "low",
+      "summary": "Documentation for enhanced actionable refactor plan: consolidate redundant configurations",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "03_decouple_lightning_module_plan",
+      "title": "Actionable Refactor Plan: Decouple the Lightning Module",
+      "path": "./07_planning/plans/refactor/03_decouple_lightning_module_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for actionable refactor plan: decouple the lightning module",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
+      "id": "04_standardize_paths_plan",
+      "title": "Actionable Refactor Plan: Standardize Path Management",
+      "path": "./07_planning/plans/refactor/04_standardize_paths_plan.md",
+      "section": "Planning (Planning)",
+      "tags": [
+        "planning"
+      ],
+      "priority": "low",
+      "summary": "Documentation for actionable refactor plan: standardize path management",
+      "last_reviewed": "2025-10-08",
+      "owner": "core-team",
+      "bundles": []
     }
   ],
   "bundles": {
-    "architecture": {
-      "title": "System Architecture",
-      "description": "Core system architecture, models, and architectural decision making.",
+    "onboarding": {
       "entries": [
-        "architecture",
-        "model-architecture-selection"
+        "01_setup_and_tooling",
+        "02_data_overview"
       ]
     },
-    "hydra-management": {
-      "title": "Hydra Configuration",
-      "description": "Guides and protocols for working with Hydra configurations.",
+    "protocols": {
       "entries": [
-        "hydra-config-refactor",
-        "template-adoption-protocol",
-        "hydra-registry"
+        "documentation_update_protocol",
+        "18_documentation_governance_protocol",
+        "11_doctr_preprocessing_workflow",
+        "16_template_adoption_protocol",
+        "04_utility_adoption",
+        "08_context_checkpointing",
+        "01_coding_standards",
+        "02_command_registry",
+        "06_context_logging",
+        "05_modular_refactor"
       ]
     },
-    "training-analysis": {
-      "title": "Analyze a training run",
-      "description": "Use when interpreting results and planning the next experiment.",
+    "ui": {
       "entries": [
-        "training-protocol",
-        "experiment-log-template",
-        "evaluation-metrics",
-        "debugging-workflow",
-        "hydra-registry",
-        "advanced-training-techniques",
-        "model-architecture-selection",
-        "experiment-analysis-framework"
+        "19_streamlit_maintenance_protocol",
+        "12_streamlit_refactoring_protocol",
+        "22_command_builder_hydra_configuration_fixes",
+        "20_command_builder_testing_guide",
+        "10_refactoring_guide",
+        "streamlit_component_compatibility_validation",
+        "submission_quick_reference",
+        "05_ui_architecture",
+        "29_legacy_ui_cleanup",
+        "03_command_builder_refactor_progress",
+        "03_preprocessing_command_builder_integration",
+        "02_quick_reference",
+        "01_command_builder_assessment"
       ]
     },
-    "parallel-processing": {
-      "title": "Parallel Training & Multirun",
-      "description": "Advanced techniques for running multiple experiments simultaneously.",
+    "training": {
       "entries": [
-        "advanced-training-techniques",
-        "model-architecture-selection",
-        "training-protocol"
+        "17_advanced_training_techniques",
+        "13_training_protocol",
+        "21_experiment_analysis_framework_handbook",
+        "experiment_log_template"
       ]
     },
-    "streamlit-maintenance": {
-      "title": "Streamlit maintenance workflow",
-      "description": "Use when editing Streamlit apps or inference services.",
+    "configuration": {
       "entries": [
-        "streamlit-maintenance",
-        "streamlit-refactor-protocol",
-        "modular-refactor",
-        "command-registry",
-        "doctr-preprocessing-workflow",
-        "context-checkpointing",
-        "changelog-latest",
-        "changelog-evaluation-viewer"
-      ]
-    },
-    "new-feature": {
-      "title": "Add a new feature or component",
-      "description": "Baseline docs for extending the OCR system.",
-      "entries": [
-        "coding-standards",
-        "architecture",
-        "hydra-registry",
-        "utility-adoption",
-        "utility-functions",
-        "doctr-preprocessing-workflow",
-        "template-adoption-protocol"
-      ]
-    },
-    "refactor": {
-      "title": "Modular refactor checklist",
-      "description": "Guidance for large code moves and cleanups.",
-      "entries": [
-        "modular-refactor",
-        "hydra-config-refactor",
-        "coding-standards",
-        "architecture",
-        "streamlit-refactor-protocol",
-        "template-adoption-protocol",
-        "refactoring-guide-redirect",
-        "doc-governance",
-        "command-builder-testing"
+        "22_command_builder_hydra_configuration_fixes",
+        "20_hydra_config_resolution_troubleshooting",
+        "23_hydra_configuration_testing_implementation_plan",
+        "09_hydra_config_refactoring",
+        "02_hydra_and_registry",
+        "04_hydra_configuration_refactoring_complete",
+        "08_hydra_logging_extras_implementation",
+        "07_summary_hydra_config_issues_fixes",
+        "06_per_batch_image_logging_configuration",
+        "04_fixed_visualize_predictions_hydra_config_path",
+        "01_cleval_config_preset",
+        "02_consolidate_configs_plan",
+        "05_consolidate_redundant_configuration"
       ]
     },
     "debugging": {
-      "title": "Debugging toolkit",
-      "description": "Follow when diagnosing regressions or flaky runs.",
       "entries": [
-        "debugging-workflow",
-        "command-registry",
-        "evaluation-metrics",
-        "iterative-debugging"
+        "07_iterative_debugging",
+        "03_debugging_workflow",
+        "post_debugging_session_framework",
+        "05_debug_results",
+        "2025_10_08_debug_summary",
+        "01_debugging_plan",
+        "session_handover_rotation_debug"
       ]
     },
-    "context-management": {
-      "title": "Context management protocols",
-      "description": "Keep long-running efforts safe for agents.",
+    "references": {
       "entries": [
-        "context-logging",
-        "context-checkpointing",
-        "iterative-debugging"
-      ]
-    },
-    "onboarding": {
-      "title": "New contributor starter pack",
-      "description": "Quick links for first-time contributors.",
-      "entries": [
-        "handbook-index",
-        "project-setup",
-        "data-overview",
-        "coding-standards",
-        "training-protocol",
-        "doc-governance",
-        "command-builder-testing"
-      ]
-    },
-    "documentation-history": {
-      "title": "Handbook changelog",
-      "description": "Chronological updates to handbook structure and UI maintenance work.",
-      "entries": [
-        "changelog-initial-state",
-        "changelog-doc-refactor",
-        "changelog-evaluation-viewer",
-        "changelog-latest",
-        "handbook-index"
+        "agentic_workflow_example",
+        "semantic_search_patterns",
+        "qwen_coder_integration",
+        "generating_submissions",
+        "pytorch_lightning_checkpoint_callbacks",
+        "performance_profiler_usage",
+        "performance_monitoring_callbacks_usage",
+        "04_evaluation_metrics",
+        "05_preprocessing_profiles",
+        "01_architecture",
+        "06_wandb_integration",
+        "03_utility_functions"
       ]
     },
     "experiments": {
-      "title": "Experiment logging support",
-      "description": "Assets for capturing experiment context and results.",
       "entries": [
-        "experiment-log-template",
-        "experiment-analysis-framework"
+        "2025_09_30_detection_pipeline_enhancements",
+        "2025_10_08_performance_resolution_handover",
+        "06_session_handover_polygon_cache",
+        "08_resolution_summary",
+        "09_session_handover_polygon_cache",
+        "10_continuation_prompt_polygon_cache",
+        "07_continuation_prompt_polygon_cache",
+        "00_session_summary",
+        "2025_10_01_initial_run_baseline",
+        "2025_10_04_dbnetpp_vs_craft_analysis"
+      ]
+    },
+    "changelog": {
+      "entries": [
+        "canonical_orientation_mismatch_bug",
+        "02_rolling_log",
+        "28_initial_state",
+        "28_documentation_refactor_complete",
+        "29_evaluation_viewer_modular_refactor",
+        "checkpoint_mismatch_fix",
+        "comments",
+        "01_evaluation_metrics_doc_refresh",
+        "09_performance_assessment_session_complete",
+        "06_canonical_orientation_mismatch_bug_documentation",
+        "06_dataloader_worker_crash_and_validation_optimizations",
+        "04_path_management_standardization"
+      ]
+    },
+    "concepts": {
+      "entries": [
+        "concepts_template",
+        "01_model_architecture_selection"
+      ]
+    },
+    "planning": {
+      "entries": [
+        "01_qwen_delegation_log",
+        "01_data_generator",
+        "08_phase_3_performance_monitoring_prompts_ready",
+        "01_continuation_prompt",
+        "05_task_2_2_completion_summary",
+        "03_phase_1_2_completion_summary",
+        "04_task_1_1_completion_summary",
+        "01_collaboration_assessment",
+        "02_performance_optimization_execution_plan",
+        "01_performance_optimization_plan",
+        "03_performance_bottlenecks_refactor_plan",
+        "03_decouple_lightning_module_plan",
+        "04_standardize_paths_plan"
       ]
     }
-  },
-  "commands": [
-    {
-      "name": "Propose next training run",
-      "command": "uv run python scripts/agent_tools/propose_next_run.py <wandb_run_id>",
-      "bundle": "training-analysis"
-    },
-    {
-      "name": "Launch inference UI",
-      "command": "uv run python run_ui.py inference",
-      "bundle": "streamlit-maintenance"
-    },
-    {
-      "name": "Launch evaluation viewer",
-      "command": "uv run python run_ui.py evaluation_viewer",
-      "bundle": "streamlit-maintenance"
-    },
-    {
-      "name": "Launch command builder UI",
-      "command": "uv run python run_ui.py command_builder",
-      "bundle": "streamlit-maintenance"
-    },
-    {
-      "name": "Start context log",
-      "command": "uv run python scripts/agent_tools/context_log.py start --label <short-label>",
-      "bundle": "context-management"
-    },
-    {
-      "name": "Summarize context log",
-      "command": "uv run python scripts/agent_tools/context_log.py summarize --log-file <path>",
-      "bundle": "context-management"
-    }
-  ]
+  }
 }
