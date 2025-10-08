@@ -31,6 +31,10 @@ class PolygonCache:
         persist_to_disk: bool = False,
         cache_dir: Path | str | None = None,
     ):
+        # Handle falsy max_size values (like False from config)
+        if not max_size or max_size <= 0:
+            max_size = 1000  # Default to reasonable size
+
         self.max_size = max_size
         self.persist_to_disk = persist_to_disk
         self.cache_dir = Path(cache_dir) if cache_dir else Path(".cache/polygon_cache")

@@ -1,0 +1,41 @@
+defaults:
+  - _self_
+  - base                  # Keep for other settings
+  - data: base            # Compose data group
+  - transforms: base      # Compose transforms group
+  - dataloaders: default  # Compose dataloaders group
+  - /preset/models/model_example
+  - /preset/lightning_modules/base
+
+seed: 42
+exp_name: "cache_performance_test"
+resume: null
+project_name: null
+experiment_tag: null
+wandb: false
+
+# Performance testing for polygon cache - multiple epochs, full dataset
+trainer:
+  max_epochs: 3           # Multiple epochs to see cache benefits build up
+  limit_train_batches: null  # No training batch limit - use full dataset
+  limit_val_batches: null   # No validation batch limit - use full dataset
+  enable_progress_bar: true
+  log_every_n_steps: 10
+
+# Remove dataset size limits to allow cache to show benefits
+data:
+  train_num_samples: null  # Use full training dataset
+  val_num_samples: null    # Use full validation dataset
+  test_num_samples: null   # Use full test dataset
+
+# Test performance features individually
+performance_test:
+  polygon_cache: false     # Will be enabled/disabled per test
+  callbacks: []           # Will be populated per test
+
+callbacks: {}
+
+runtime:
+  auto_gpu_devices: true
+  ddp_strategy: ddp_find_unused_parameters_false
+  min_auto_devices: 2
