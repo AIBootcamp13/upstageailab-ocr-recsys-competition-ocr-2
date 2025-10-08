@@ -183,10 +183,13 @@ def train(config: DictConfig):
         data_module,
         ckpt_path=config.get("resume", None),
     )
-    trainer.test(
-        model_module,
-        data_module,
-    )
+
+    # Run test evaluation unless explicitly skipped
+    if not config.get("skip_test", False):
+        trainer.test(
+            model_module,
+            data_module,
+        )
 
     # Finalize wandb run if wandb was used
     if config.logger.wandb:

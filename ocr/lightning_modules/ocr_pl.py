@@ -371,61 +371,61 @@ class OCRPLModule(pl.LightningModule):
             # Regular dataset, check all annotations
             filenames_to_check = list(val_dataset.anns.keys())
 
-        for gt_filename in tqdm(filenames_to_check, desc="Evaluation"):
-            gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
+        # Only evaluate files that have predictions to avoid warnings and incorrect metrics
+        processed_filenames = [gt_filename for gt_filename in filenames_to_check if gt_filename in self.validation_step_outputs]
 
-            if gt_filename not in self.validation_step_outputs:
-                import logging
+        if not processed_filenames:
+            # If no files were processed, log a warning and return zeros
+            import logging
 
-                logging.warning(
-                    f"Missing predictions for ground truth file '{gt_filename}' during validation epoch end. "
-                    "This may indicate a data loading or prediction issue."
-                )
-                cleval_metrics["recall"].append(0.0)
-                cleval_metrics["precision"].append(0.0)
-                cleval_metrics["hmean"].append(0.0)
-                continue
+            logging.warning("No validation predictions found. This may indicate a data loading or prediction issue.")
+            recall = 0.0
+            precision = 0.0
+            hmean = 0.0
+        else:
+            for gt_filename in tqdm(processed_filenames, desc="Evaluation"):
+                gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
 
-            entry = self.validation_step_outputs[gt_filename]
-            pred_polygons = entry.get("boxes", [])
-            orientation = entry.get("orientation", 1)
-            raw_size = entry.get("raw_size")
+                entry = self.validation_step_outputs[gt_filename]
+                pred_polygons = entry.get("boxes", [])
+                orientation = entry.get("orientation", 1)
+                raw_size = entry.get("raw_size")
 
-            if raw_size is None:
-                image_path = entry.get("image_path")
-                if image_path is None:
-                    image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
-                try:
-                    with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                        raw_width, raw_height = pil_image.size
-                except Exception:
-                    raw_width, raw_height = 0, 0
-            else:
-                raw_width, raw_height = map(int, raw_size)
-
-            det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-            canonical_gt = []
-            if gt_words is not None and len(gt_words) > 0:
-                if raw_width > 0 and raw_height > 0:
-                    canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                if raw_size is None:
+                    image_path = entry.get("image_path")
+                    if image_path is None:
+                        image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
+                    try:
+                        with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                            raw_width, raw_height = pil_image.size
+                    except Exception:
+                        raw_width, raw_height = 0, 0
                 else:
-                    canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-            gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
+                    raw_width, raw_height = map(int, raw_size)
 
-            metric = self.metric
-            metric.reset()
-            metric(det_quads, gt_quads)
-            result = metric.compute()
+                det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
 
-            cleval_metrics["recall"].append(result["recall"].item())
-            cleval_metrics["precision"].append(result["precision"].item())
-            cleval_metrics["hmean"].append(result["f1"].item())
-            metric.reset()
+                canonical_gt = []
+                if gt_words is not None and len(gt_words) > 0:
+                    if raw_width > 0 and raw_height > 0:
+                        canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                    else:
+                        canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+                gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
 
-        recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
-        precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
-        hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
+                metric = self.metric
+                metric.reset()
+                metric(det_quads, gt_quads)
+                result = metric.compute()
+
+                cleval_metrics["recall"].append(result["recall"].item())
+                cleval_metrics["precision"].append(result["precision"].item())
+                cleval_metrics["hmean"].append(result["f1"].item())
+                metric.reset()
+
+            recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
+            precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
+            hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
 
         self.log("val/recall", recall, on_epoch=True, prog_bar=True)
         self.log("val/precision", precision, on_epoch=True, prog_bar=True)
@@ -479,61 +479,61 @@ class OCRPLModule(pl.LightningModule):
             # Regular dataset, check all annotations
             filenames_to_check = list(test_dataset.anns.keys())
 
-        for gt_filename in tqdm(filenames_to_check, desc="Evaluation"):
-            gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
+        # Only evaluate files that have predictions to avoid warnings and incorrect metrics
+        processed_filenames = [gt_filename for gt_filename in filenames_to_check if gt_filename in self.test_step_outputs]
 
-            if gt_filename not in self.test_step_outputs:
-                import logging
+        if not processed_filenames:
+            # If no files were processed, log a warning and return zeros
+            import logging
 
-                logging.warning(
-                    f"Missing predictions for ground truth file '{gt_filename}' during test epoch end. "
-                    "This may indicate a data loading or prediction issue."
-                )
-                cleval_metrics["recall"].append(0.0)
-                cleval_metrics["precision"].append(0.0)
-                cleval_metrics["hmean"].append(0.0)
-                continue
+            logging.warning("No test predictions found. This may indicate a data loading or prediction issue.")
+            recall = 0.0
+            precision = 0.0
+            hmean = 0.0
+        else:
+            for gt_filename in tqdm(processed_filenames, desc="Evaluation"):
+                gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
 
-            entry = self.test_step_outputs[gt_filename]
-            pred_polygons = entry.get("boxes", [])
-            orientation = entry.get("orientation", 1)
-            raw_size = entry.get("raw_size")
+                entry = self.test_step_outputs[gt_filename]
+                pred_polygons = entry.get("boxes", [])
+                orientation = entry.get("orientation", 1)
+                raw_size = entry.get("raw_size")
 
-            if raw_size is None:
-                image_path = entry.get("image_path")
-                if image_path is None:
-                    image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
-                try:
-                    with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                        raw_width, raw_height = pil_image.size
-                except Exception:
-                    raw_width, raw_height = 0, 0
-            else:
-                raw_width, raw_height = map(int, raw_size)
-
-            det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-            canonical_gt = []
-            if gt_words is not None and len(gt_words) > 0:
-                if raw_width > 0 and raw_height > 0:
-                    canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                if raw_size is None:
+                    image_path = entry.get("image_path")
+                    if image_path is None:
+                        image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
+                    try:
+                        with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                            raw_width, raw_height = pil_image.size
+                    except Exception:
+                        raw_width, raw_height = 0, 0
                 else:
-                    canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-            gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
+                    raw_width, raw_height = map(int, raw_size)
 
-            metric = self.metric
-            metric.reset()
-            metric(det_quads, gt_quads)
-            result = metric.compute()
+                det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
 
-            cleval_metrics["recall"].append(result["recall"].item())
-            cleval_metrics["precision"].append(result["precision"].item())
-            cleval_metrics["hmean"].append(result["f1"].item())
-            metric.reset()
+                canonical_gt = []
+                if gt_words is not None and len(gt_words) > 0:
+                    if raw_width > 0 and raw_height > 0:
+                        canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                    else:
+                        canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+                gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
 
-        recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
-        precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
-        hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
+                metric = self.metric
+                metric.reset()
+                metric(det_quads, gt_quads)
+                result = metric.compute()
+
+                cleval_metrics["recall"].append(result["recall"].item())
+                cleval_metrics["precision"].append(result["precision"].item())
+                cleval_metrics["hmean"].append(result["f1"].item())
+                metric.reset()
+
+            recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
+            precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
+            hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
 
         self.log("test/recall", recall, on_epoch=True, prog_bar=True)
         self.log("test/precision", precision, on_epoch=True, prog_bar=True)
@@ -650,20 +650,32 @@ class OCRDataPLModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         train_loader_config = self.dataloaders_cfg.train_dataloader
+        # Filter out multiprocessing-only parameters when num_workers == 0
+        if train_loader_config.get("num_workers", 0) == 0:
+            train_loader_config = {k: v for k, v in train_loader_config.items() if k not in ["prefetch_factor", "persistent_workers"]}
         collate_fn = self._build_collate_fn(inference_mode=False)
         return DataLoader(self.dataset["train"], collate_fn=collate_fn, **train_loader_config)
 
     def val_dataloader(self):
         val_loader_config = self.dataloaders_cfg.val_dataloader
+        # Filter out multiprocessing-only parameters when num_workers == 0
+        if val_loader_config.get("num_workers", 0) == 0:
+            val_loader_config = {k: v for k, v in val_loader_config.items() if k not in ["prefetch_factor", "persistent_workers"]}
         collate_fn = self._build_collate_fn(inference_mode=False)
         return DataLoader(self.dataset["val"], collate_fn=collate_fn, **val_loader_config)
 
     def test_dataloader(self):
         test_loader_config = self.dataloaders_cfg.test_dataloader
+        # Filter out multiprocessing-only parameters when num_workers == 0
+        if test_loader_config.get("num_workers", 0) == 0:
+            test_loader_config = {k: v for k, v in test_loader_config.items() if k not in ["prefetch_factor", "persistent_workers"]}
         collate_fn = self._build_collate_fn(inference_mode=False)
         return DataLoader(self.dataset["test"], collate_fn=collate_fn, **test_loader_config)
 
     def predict_dataloader(self):
         predict_loader_config = self.dataloaders_cfg.predict_dataloader
+        # Filter out multiprocessing-only parameters when num_workers == 0
+        if predict_loader_config.get("num_workers", 0) == 0:
+            predict_loader_config = {k: v for k, v in predict_loader_config.items() if k not in ["prefetch_factor", "persistent_workers"]}
         collate_fn = self._build_collate_fn(inference_mode=True)
         return DataLoader(self.dataset["predict"], collate_fn=collate_fn, **predict_loader_config)

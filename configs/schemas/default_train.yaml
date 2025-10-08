@@ -6,6 +6,7 @@ checkpoint_dir: outputs/ocr_training/checkpoints
 seed: 42
 wandb: true
 resume: null
+skip_test: false  # Skip test evaluation after training for faster iterations
 trainer:
   max_epochs: 10
   num_sanity_val_steps: 1

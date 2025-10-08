@@ -15,28 +15,31 @@ The OCR training pipeline experienced a critical performance regression where va
 - **Training Stability:** Pipeline completes without crashes
 - **Callback Compatibility:** UniqueModelCheckpoint updated for PyTorch Lightning 2.5.5
 - **Config Interpolations:** Fixed `${data.batch_size}` → `${batch_size}` issues
+- **Dataloader Configuration:** Fixed DataLoader parameter conflicts when num_workers=0 (prefetch_factor, persistent_workers)
+- **Validation Coordinate Mismatch:** Fixed coordinate space mismatch between canonical images and ground truth polygons by using original images for validation
+- **Missing Predictions Warning:** Resolved by fixing underlying dataloader and coordinate issues
 
 ### ⚠️ Remaining Issues to Address
 
-#### 1. Missing Prediction GT Label Warnings
-**Problem:** Despite good metrics, training logs show numerous warnings:
-```
-Missing predictions for ground truth file 'drp.en_ko.in_house.selectstar_XXXXX.jpg'
-```
+#### 1. Performance Optimization Re-implementation Assessment
 
-**Impact:** Non-blocking (metrics are good), but indicates potential data processing issues
+**Problem:** Original performance features (5-8x validation speedup) were reverted due to incompatibility
 
-**Investigation Points:**
-- Check if warnings correlate with specific image types or preprocessing failures
-- Verify polygon coordinate transformations in DBTransforms
-- Examine DBCollateFN polygon handling
-- Test with num_workers=0 for better error traces
-  - Use 1 or 5% of dataset
-- Review validation data loading pipeline
+**Features to Re-assess:**
+- **Polygon Caching:** Intended to cache polygon computations for faster validation (currently disabled)
+- **Performance Callbacks:**
+  - `resource_monitor`: System resource tracking
+  - `throughput_monitor`: Training speed monitoring
+  - `profiler`: Performance profiling
+- **Component Overrides:** Custom encoder/decoder/head configurations
 
-**Expected Outcome:** Eliminate warnings while maintaining metric performance
+**Assessment Requirements:**
+- **Isolation Testing:** Test each feature individually in clean environment
+- **Compatibility Verification:** Ensure no interference with model forward pass
+- **Performance Measurement:** Quantify actual speedups vs overhead
+- **Integration Strategy:** Determine safe rollout approach (feature flags, gradual enablement)
 
-#### 2. Performance Optimization Re-implementation Assessment
+**Expected Outcome:** Working performance optimizations that don't break core functionality
 
 **Problem:** Original performance features (5-8x validation speedup) were reverted due to incompatibility
 
