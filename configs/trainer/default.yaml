@@ -14,3 +14,8 @@ gradient_clip_val: 5.0
 accelerator: gpu
 devices: 1
 strategy: auto # auto, ddp, ddp_spawn, deepspeed
+
+# Batch limits for debugging and performance testing (null = no limit)
+limit_train_batches: null
+limit_val_batches: null
+limit_test_batches: null

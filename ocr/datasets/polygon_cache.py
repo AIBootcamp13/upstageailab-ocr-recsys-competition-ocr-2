@@ -86,6 +86,37 @@ class PolygonCache:
 
         return hasher.hexdigest()
 
+    def _generate_key_from_hash(
+        self,
+        polygons_hash: str,
+        image_shape: tuple[int, int, int],
+        params: tuple[float, float, float],
+    ) -> str:
+        """
+        Generate cache key from pre-computed polygon hash.
+
+        Args:
+            polygons_hash: MD5 hash of polygon data
+            image_shape: (C, H, W) of image
+            params: (shrink_ratio, thresh_min, thresh_max)
+
+        Returns:
+            Hexadecimal hash string
+        """
+        # Create composite key from all inputs
+        key_data = [
+            polygons_hash.encode(),
+            str(image_shape).encode(),
+            str(params).encode(),
+        ]
+
+        # Use fast hash (blake2b)
+        hasher = hashlib.blake2b()
+        for data in key_data:
+            hasher.update(data)
+
+        return hasher.hexdigest()
+
     def get(self, key: str) -> dict[str, np.ndarray] | None:
         """
         Retrieve cached result.

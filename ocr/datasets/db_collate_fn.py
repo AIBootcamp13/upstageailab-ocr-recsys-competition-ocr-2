@@ -11,6 +11,7 @@
 *****************************************************************************************
 """
 
+import hashlib
 from collections import OrderedDict
 
 import cv2
@@ -82,32 +83,17 @@ class DBCollateFN:
 
         # Check cache first if available
         if self.cache is not None and len(polygons) > 0:
-            # Generate cache key from polygons and parameters
-            # Handle variable-length polygons by creating a deterministic hash
-            import hashlib
+            # Create hashable representation for variable-length polygons
+            # Convert each polygon to bytes and combine them
+            polygons_bytes = []
+            for poly in polygons:
+                poly_array = np.array(poly)
+                polygons_bytes.append(poly_array.tobytes())
+            polygons_hash = hashlib.md5(b"".join(polygons_bytes)).hexdigest()
 
-            # Convert polygons to tuples for hashing (handle numpy arrays)
-            poly_tuples = []
-            for p in polygons:
-                if isinstance(p, np.ndarray):
-                    # Convert numpy array to list of tuples
-                    poly_tuples.append(tuple(tuple(row) for row in p))
-                else:
-                    poly_tuples.append(tuple(p))
-
-            # Sort by string representation to avoid numpy comparison issues
-            poly_strings = [str(p) for p in poly_tuples]
-            poly_strings_sorted = sorted(poly_strings)
-
-            key_data = [
-                str(poly_strings_sorted).encode(),  # Sort polygons for consistency
-                str(image.shape).encode(),
-                str((self.shrink_ratio, self.thresh_min, self.thresh_max)).encode(),
-            ]
-            hasher = hashlib.blake2b()
-            for data in key_data:
-                hasher.update(data)
-            cache_key = hasher.hexdigest()
+            cache_key = self.cache._generate_key_from_hash(
+                polygons_hash, image.shape, (self.shrink_ratio, self.thresh_min, self.thresh_max)
+            )
 
             # Try to get from cache
             cached_result = self.cache.get(cache_key)
@@ -200,31 +186,17 @@ class DBCollateFN:
 
         # Cache the result if cache is available
         if self.cache is not None and len(polygons) > 0:
-            # Use the same cache key generation as above
-            import hashlib
+            # Create hashable representation for variable-length polygons
+            # Convert each polygon to bytes and combine them
+            polygons_bytes = []
+            for poly in polygons:
+                poly_array = np.array(poly)
+                polygons_bytes.append(poly_array.tobytes())
+            polygons_hash = hashlib.md5(b"".join(polygons_bytes)).hexdigest()
 
-            # Convert polygons to tuples for hashing (handle numpy arrays)
-            poly_tuples = []
-            for p in polygons:
-                if isinstance(p, np.ndarray):
-                    # Convert numpy array to list of tuples
-                    poly_tuples.append(tuple(tuple(row) for row in p))
-                else:
-                    poly_tuples.append(tuple(p))
-
-            # Sort by string representation to avoid numpy comparison issues
-            poly_strings = [str(p) for p in poly_tuples]
-            poly_strings_sorted = sorted(poly_strings)
-
-            key_data = [
-                str(poly_strings_sorted).encode(),  # Sort polygons for consistency
-                str(image.shape).encode(),
-                str((self.shrink_ratio, self.thresh_min, self.thresh_max)).encode(),
-            ]
-            hasher = hashlib.blake2b()
-            for data in key_data:
-                hasher.update(data)
-            cache_key = hasher.hexdigest()
+            cache_key = self.cache._generate_key_from_hash(
+                polygons_hash, image.shape, (self.shrink_ratio, self.thresh_min, self.thresh_max)
+            )
             self.cache.set(cache_key, result)
 
         return result

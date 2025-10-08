@@ -12,7 +12,7 @@ data:
 
   # Polygon cache configuration (optional for speedup)
   polygon_cache:
-    enabled: false  # Set to true to enable 5-8x validation speedup
+    enabled: true  # Set to true to enable 5-8x validation speedup
     max_size: 1000  # Maximum number of cached entries
     persist_to_disk: true
     cache_dir: .cache/polygon_cache
