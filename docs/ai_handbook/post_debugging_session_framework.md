@@ -1,19 +1,113 @@
 # Post-Debugging Session Framework
 
-**Version:** 1.0
-**Date:** 2025-10-08
-**Purpose:** Standardized workflow for organizing and documenting successful debugging sessions
+**Version:** 1.1
+**Last Updated:** 2025-10-08
+**Purpose:** Standardized workflow for organizing, documenting, and integrating results from successful debugging sessions
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Session Completion Checklist](#session-completion-checklist)
+- [File Organization Workflow](#file-organization-workflow)
+- [Workflow Phases](#workflow-phases)
+- [Automation Scripts](#automation-scripts)
+- [Success Criteria](#success-criteria)
+- [Usage Instructions](#usage-instructions)
+- [Framework Maintenance](#framework-maintenance)
 
 ## Overview
 
-This framework provides precise instructions for agents to follow after successfully resolving a debugging issue. It ensures consistent documentation, proper file organization, and comprehensive knowledge transfer.
+This framework provides a systematic approach to post-debugging session work, ensuring that:
+- Loose documents and scripts are properly organized
+- Session results are thoroughly documented
+- Project documentation stays current
+- Future sessions can easily reference past work
 
-## Prerequisites
+**Key Benefits:**
+- Eliminates manual record-keeping inconsistencies
+- Provides precise instructions for agents
+- Ensures comprehensive knowledge transfer
+- Maintains project documentation accuracy
+- Enables faster future debugging sessions
 
-- **Debugging Session Complete:** Issue has been identified and resolved
-- **Code Changes Committed:** All fixes have been tested and committed to repository
-- **Test Validation:** Changes pass relevant tests and validation
-- **Session Artifacts:** Debug logs, test results, and artifacts are available
+## Session Completion Checklist
+
+### Immediate Post-Session (Within 1 Hour)
+- [ ] Run artifact organization script
+- [ ] Rename files to follow naming conventions
+- [ ] Update session status in README.md
+- [ ] Create or update resolution summary
+
+### Short-term Documentation (Within 24 Hours)
+- [ ] Document all findings and insights gained
+- [ ] Update relevant project documentation
+- [ ] Create session handover document
+- [ ] Archive or remove temporary files
+
+### Integration (Within 1 Week)
+- [ ] Update project README if major changes
+- [ ] Add references to new documentation
+- [ ] Review and update related docs
+- [ ] Share key insights with team
+
+## File Organization Workflow
+
+### Step 1: Identify Loose Files
+```bash
+# Find all debugging-related files in workspace
+find . -name "*debug*" -o -name "*test*" -o -name "*profile*" -o -name "*cache*" | grep -v __pycache__ | grep -v .git
+```
+
+### Step 2: Categorize Files
+**Documentation Files:**
+- Analysis reports, findings, recommendations
+- Move to: `docs/ai_handbook/04_experiments/YYYY-MM-DD_experiment/`
+
+**Scripts:**
+- Investigation scripts, profiling tools
+- Move to: `docs/ai_handbook/04_experiments/YYYY-MM-DD_experiment/scripts/`
+
+**Artifacts:**
+- Cache dumps, performance profiles, test outputs
+- Move to: `docs/ai_handbook/04_experiments/YYYY-MM-DD_experiment/artifacts/`
+
+**Logs:**
+- Session logs, command outputs
+- Move to: `docs/ai_handbook/04_experiments/YYYY-MM-DD_experiment/logs/`
+
+### Step 3: Rename Files (Standard Convention)
+```bash
+# Automated renaming script
+rename_files_by_convention() {
+    local session_dir=$1
+
+    # Process each file type
+    for file in "$session_dir"/*; do
+        if [[ -f "$file" ]]; then
+            filename=$(basename "$file")
+            extension="${filename##*.}"
+            base_name="${filename%.*}"
+
+            # Skip if already properly named
+            if [[ $filename =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_ ]]; then
+                continue
+            fi
+
+            # Add date prefix and sequential number
+            date_prefix=$(date +"%Y-%m-%d")
+            sequential_num=$(get_next_sequential_num "$session_dir" "$extension")
+
+            new_name="${date_prefix}_${sequential_num}_${base_name}.${extension}"
+            mv "$file" "$(dirname "$file")/$new_name"
+        fi
+    done
+}
+```
+
+**Naming Convention:**
+- `YYYY-MM-DD_NN_descriptive_name.extension`
+- `NN`: Sequential number (01, 02, 03...)
+- `descriptive_name`: Clear, specific, no abbreviations
 
 ## Workflow Phases
 
@@ -337,7 +431,9 @@ def generate_session_summary(session_data):
 ---
 
 **Framework Author:** AI Assistant
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** 2025-10-08
-**Review Date:** 2026-01-08</content>
+**Review Date:** 2026-01-08
+
+**Purpose:** This framework addresses the core problem of inconsistent manual record-keeping in technical debugging sessions. By providing precise instructions and automation scripts, it ensures that complex technical changes are properly documented, organized, and integrated into the project knowledge base.</content>
 <parameter name="filePath">/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/docs/ai_handbook/post_debugging_session_framework.md
