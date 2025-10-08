@@ -1,0 +1,35 @@
+defaults:
+  - _self_
+  - base                  # Keep for other settings
+  - data: base            # Compose data group
+  - transforms: base      # Compose transforms group
+  - dataloaders: default  # Compose dataloaders group
+  - /preset/models/model_example
+  - /preset/lightning_modules/base
+
+seed: 42
+exp_name: "performance_test"
+resume: null
+project_name: null
+experiment_tag: null
+wandb: false
+
+# Performance testing specific settings
+trainer:
+  max_epochs: 1
+  limit_train_batches: 10  # Small batch for quick testing
+  limit_val_batches: 5     # Small validation set
+  enable_progress_bar: true
+  log_every_n_steps: 1
+
+# Test performance features individually
+performance_test:
+  polygon_cache: false     # Will be enabled/disabled per test
+  callbacks: []           # Will be populated per test
+
+callbacks: {}
+
+runtime:
+  auto_gpu_devices: true
+  ddp_strategy: ddp_find_unused_parameters_false
+  min_auto_devices: 2
