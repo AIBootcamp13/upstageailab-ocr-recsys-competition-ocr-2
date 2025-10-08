@@ -2,6 +2,9 @@ hydra:
   run:
     dir: 'outputs/${exp_name}'
 
+# Task name for hydra logging
+task_name: "train"
+
 defaults:
   - model: default
   - metrics: cleval
@@ -10,6 +13,8 @@ defaults:
   - trainer: default
   - callbacks: default
   - debug: default
+  - hydra: default
+  - extras: default
 
 # Model and component paths
 dataset_path: ocr.datasets
@@ -19,7 +24,3 @@ decoder_path: ocr.models.decoder
 head_path: ocr.models.head
 loss_path: ocr.models.loss
 lightning_path: ocr.lightning_modules
-
-# Global training data defaults
-data:
-  batch_size: 12

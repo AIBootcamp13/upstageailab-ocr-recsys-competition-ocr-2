@@ -12,7 +12,7 @@ import statistics
 import time
 
 import psutil
-from pytorch_lightning import Callback
+from lightning.pytorch import Callback
 
 
 class ThroughputMonitorCallback(Callback):

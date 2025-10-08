@@ -6,7 +6,7 @@ from .ocr_pl import OCRDataPLModule, OCRPLModule
 
 def get_pl_modules_by_cfg(config):
     model = get_model_by_cfg(config.model)
-    dataset = get_datasets_by_cfg(config.datasets)
+    dataset = get_datasets_by_cfg(config.datasets, config.data)
     metric_cfg = None
     if "metrics" in config and "eval" in config.metrics:
         metric_cfg = config.metrics.eval

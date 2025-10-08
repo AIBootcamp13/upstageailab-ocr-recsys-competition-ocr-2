@@ -3,24 +3,18 @@
 # Synthetic debug experiment configuration for quick testing
 # Uses minimal resources and data for rapid iteration
 
-defaults:
-  - override /data: base
-  - override /model: default
-  - override /lightning_module: base
-  - override /trainer: debug
-  - override /logger: mlflow
-
-# Short training run for debugging
+# Longer training for better model convergence
 trainer:
-  max_epochs: 2
+  max_epochs: 10
   log_every_n_steps: 5
 
-# Debug data configuration
+# More data for training
 data:
-  batch_size: 4
-  num_workers: 0  # Disable multiprocessing for easier debugging
-  train_num_samples: 32  # Small dataset for fast iteration
-  val_num_samples: 8
+  batch_size: 8  # Increased from 4 for better GPU utilization
+  num_workers: 2  # Enable multiprocessing (was 0, causing single-threaded loading)
+  train_num_samples: 100  # Increased from 32 for better training
+  val_num_samples: 20  # Increased from 8
+  test_num_samples: 20  # Increased from 8 for better evaluation
 
 # Experiment settings
 exp_name: "synthetic_debug"

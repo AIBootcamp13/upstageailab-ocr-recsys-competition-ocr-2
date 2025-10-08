@@ -22,7 +22,7 @@ from pathlib import Path
 import GPUtil
 import pandas as pd
 import psutil
-from pytorch_lightning import Callback
+from lightning.pytorch import Callback
 
 
 class ResourceMonitorCallback(Callback):
@@ -297,19 +297,19 @@ class ResourceMonitorCallback(Callback):
             gpu_util_key = "gpu_0_util"
             if gpu_util_key in metrics:
                 if metrics[gpu_util_key] < self.gpu_util_threshold * 100:
-                    alerts.append(f"GPU underutilized: {metrics[gpu_util_key]:.1f}% " f"(threshold: {self.gpu_util_threshold * 100}%)")
+                    alerts.append(f"GPU underutilized: {metrics[gpu_util_key]:.1f}% (threshold: {self.gpu_util_threshold * 100}%)")
 
         # Memory pressure
         if self.alert_memory_pressure and self.cpu_monitoring:
             memory_pct = metrics.get("memory_percent", 0)
             if memory_pct > self.memory_threshold * 100:
-                alerts.append(f"High memory usage: {memory_pct:.1f}% " f"(threshold: {self.memory_threshold * 100}%)")
+                alerts.append(f"High memory usage: {memory_pct:.1f}% (threshold: {self.memory_threshold * 100}%)")
 
         # I/O bottleneck
         if self.alert_io_bottleneck and self.io_monitoring:
             io_wait_pct = metrics.get("io_wait_pct", 0)
             if io_wait_pct > self.io_wait_threshold * 100:
-                alerts.append(f"I/O bottleneck: {io_wait_pct:.1f}% wait time " f"(threshold: {self.io_wait_threshold * 100}%)")
+                alerts.append(f"I/O bottleneck: {io_wait_pct:.1f}% wait time (threshold: {self.io_wait_threshold * 100}%)")
 
         # Temperature warning (if available)
         for key, value in metrics.items():

@@ -85,7 +85,7 @@ datasets:
           p: 0.5
   val:
     _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images/val
+    image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
     annotation_path: data/datasets/jsons/val.json
     transform:
       _target_: ocr.datasets.DBTransforms
@@ -100,7 +100,7 @@ datasets:
           p: 1.0
   test:
     _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images/val
+    image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
     annotation_path: data/datasets/jsons/val.json
     transform:
       _target_: ocr.datasets.DBTransforms

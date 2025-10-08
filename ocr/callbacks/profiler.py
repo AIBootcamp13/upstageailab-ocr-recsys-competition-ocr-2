@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 import torch
-from pytorch_lightning import Callback
+from lightning.pytorch import Callback
 from torch.profiler import ProfilerActivity, profile, schedule, tensorboard_trace_handler
 
 logger = logging.getLogger(__name__)

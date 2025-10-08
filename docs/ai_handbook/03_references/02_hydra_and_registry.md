@@ -20,6 +20,14 @@ configs/
 │   ├── head/
 │   └── loss/
 ├── trainer/
+├── logger/
+│   ├── default.yaml
+│   ├── wandb.yaml
+│   └── csv.yaml
+├── hydra/
+│   └── default.yaml
+├── extras/
+│   └── default.yaml
 └── train.yaml  # Main config file
 
 ### **1.2. Instantiation with _target_**
@@ -40,6 +48,19 @@ You can override any parameter from the command line, which is the standard way 
 
 # Override the learning rate and batch size
 uv run python runners/train.py model.optimizer.lr=0.0005 data.batch_size=16
+
+### **1.4. Logging Configuration**
+
+The project supports multiple logging backends for comprehensive experiment tracking:
+
+* **WandB Logger**: Primary logging for experiment visualization and comparison
+* **CSV Logger**: Structured logging for programmatic analysis and backup
+* **Hydra Logging**: Rich-formatted console output with color coding
+
+Logging configurations are managed through:
+- `configs/logger/default.yaml` - Combines WandB and CSV loggers
+- `configs/hydra/default.yaml` - Console logging with Rich formatting
+- `configs/extras/default.yaml` - Miscellaneous logging settings
 
 ## **2. Component Registry**
 

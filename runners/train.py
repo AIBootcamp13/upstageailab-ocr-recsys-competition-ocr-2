@@ -160,8 +160,10 @@ def train(config: DictConfig):
     if config.get("callbacks"):
         for _, cb_conf in config.callbacks.items():
             if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
-                print(f"Instantiating callback <{cb_conf._target_}>")
-                callbacks.append(hydra.utils.instantiate(cb_conf))
+                # Only instantiate enabled callbacks
+                if cb_conf.get("enabled", True):
+                    print(f"Instantiating callback <{cb_conf._target_}>")
+                    callbacks.append(hydra.utils.instantiate(cb_conf))
 
     # Always add LearningRateMonitor
     callbacks.append(LearningRateMonitor(logging_interval="step"))

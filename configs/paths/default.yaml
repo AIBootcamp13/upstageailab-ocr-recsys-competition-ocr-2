@@ -1,5 +1,6 @@
 
 # Paths config
 log_dir: 'outputs/${exp_name}/logs'
+output_dir: 'outputs/${exp_name}'
 checkpoint_dir: 'outputs/${exp_name}/checkpoints'
 submission_dir: 'outputs/${exp_name}/submissions'

@@ -3,6 +3,8 @@
 
 defaults:
   - throughput_monitor
+  - profiler
+  - resource_monitor
 
 # Example of how to include callbacks by default
 # This can be overridden by specific experiments

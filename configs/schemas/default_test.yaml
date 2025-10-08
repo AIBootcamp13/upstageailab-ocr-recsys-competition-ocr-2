@@ -47,7 +47,7 @@ model:
 datasets:
   test:
     _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images/val
+    image_path: data/datasets/images_val_canonical
     annotation_path: data/datasets/jsons/val.json
     transform:
       _target_: ocr.datasets.DBTransforms

@@ -1,4 +1,7 @@
-# **filename: docs/ai_handbook/index.md**
+# # **AI Agent Handbook: OCR Project**
+
+Version: 1.10 (2025-10-08)
+Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10/08_hydra-logging-extras-implementation.md).lename: docs/ai_handbook/index.md**
 
 # **AI Agent Handbook: OCR Project**
 

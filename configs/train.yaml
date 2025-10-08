@@ -5,17 +5,16 @@ defaults:
   - transforms: base      # Compose transforms group
   - dataloaders: default  # Compose dataloaders group
   - callbacks: default    # Compose callbacks group
+  - experiment: synthetic_debug  # Default experiment configuration
   - /preset/models/model_example
   - /preset/lightning_modules/base
-  - override hydra/hydra_logging: disabled
-  - override hydra/job_logging: disabled
 
 seed: 42
 exp_name: "ocr_training"
 resume: null
 project_name: null
 experiment_tag: null
-wandb: false
+wandb: true
 
 # Callbacks are now configured via callbacks/default.yaml
 # Individual experiments can override with +callbacks.specific_callback.enabled=true/false

@@ -1,7 +1,7 @@
 {
   "source": "docs/ai_handbook/index.md",
-  "version": "1.9 (2025-10-04)",
-  "generated_at": "2025-10-04T12:55:00Z",
+  "version": "1.10 (2025-10-08)",
+  "generated_at": "2025-10-08T10:00:00Z",
   "schema": {
     "__comment__": "This schema defines the rules for the ai_handbook directory. AI agents MUST follow these rules.",
     "01_onboarding": {
@@ -62,15 +62,15 @@
     },
     {
       "id": "changelog-latest",
-      "title": "2025-09-29 Legacy UI Cleanup",
-      "path": "./05_changelog/2025-09/29_legacy-ui-cleanup.md",
+      "title": "2025-10-08 Hydra Logging and Extras Configuration Implementation",
+      "path": "./05_changelog/2025-10/08_hydra-logging-extras-implementation.md",
       "section": "05. Changelog",
-      "tags": ["changelog"],
-      "priority": "medium",
-      "summary": "Notes the removal of legacy Streamlit viewers and related handbook updates.",
-      "last_reviewed": "2025-09-29",
-      "owner": "documentation",
-      "bundles": ["streamlit-maintenance", "documentation-history"]
+      "tags": ["changelog", "hydra", "logging", "configuration"],
+      "priority": "high",
+      "summary": "Implemented comprehensive Hydra logging configuration and added extras configuration for managing miscellaneous settings.",
+      "last_reviewed": "2025-10-08",
+      "owner": "configuration",
+      "bundles": ["hydra-management", "documentation-history"]
     },
     {
       "id": "coding-standards",

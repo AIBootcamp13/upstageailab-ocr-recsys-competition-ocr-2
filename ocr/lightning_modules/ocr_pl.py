@@ -273,11 +273,17 @@ class OCRPLModule(pl.LightningModule):
         """Compute validation metrics for a batch of images."""
         cleval_metrics = defaultdict(list)
 
+        # Get the underlying dataset (handle Subset case)
+        val_dataset = self.dataset["val"]
+        if hasattr(val_dataset, "dataset"):
+            # It's a Subset, get the underlying dataset
+            val_dataset = val_dataset.dataset
+
         for idx, boxes in enumerate(boxes_batch):
             filename = batch["image_filename"][idx]
-            if filename not in self.dataset["val"].anns:
+            if filename not in val_dataset.anns:
                 continue
-            gt_words = self.dataset["val"].anns[filename]
+            gt_words = val_dataset.anns[filename]
 
             entry = self.validation_step_outputs.get(filename, {})
 
@@ -309,6 +315,26 @@ class OCRPLModule(pl.LightningModule):
             det_polygons = [np.asarray(polygon, dtype=np.float32) for polygon in boxes if polygon]
             det_quads = [polygon.reshape(-1).tolist() for polygon in det_polygons if polygon.size > 0]
 
+            # Filter and clip detection polygons to image bounds
+            filtered_det_quads = []
+            for quad in det_quads:
+                if len(quad) < 8:  # Need at least 4 points (8 values)
+                    continue
+                coords = np.array(quad).reshape(-1, 2)
+                x_coords = coords[:, 0]
+                y_coords = coords[:, 1]
+                # Skip polygons completely outside image bounds
+                if x_coords.max() < 0 or x_coords.min() > raw_width or y_coords.max() < 0 or y_coords.min() > raw_height:
+                    continue
+                # Clip coordinates to image bounds
+                clipped_coords = []
+                for x, y in coords:
+                    clipped_x = max(0, min(x, raw_width))
+                    clipped_y = max(0, min(y, raw_height))
+                    clipped_coords.extend([clipped_x, clipped_y])
+                filtered_det_quads.append(clipped_coords)
+            det_quads = filtered_det_quads
+
             canonical_gt = []
             if gt_words is not None and len(gt_words) > 0:
                 if raw_width > 0 and raw_height > 0:
@@ -336,7 +362,18 @@ class OCRPLModule(pl.LightningModule):
     def on_validation_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        for gt_filename, gt_words in tqdm(self.dataset["val"].anns.items(), desc="Evaluation"):
+        # Get the actual filenames that should be evaluated (handle Subset datasets)
+        val_dataset = self.dataset["val"]
+        if hasattr(val_dataset, "indices") and hasattr(val_dataset, "dataset"):
+            # This is a Subset dataset, get filenames from the subset indices
+            filenames_to_check = [list(val_dataset.dataset.anns.keys())[idx] for idx in val_dataset.indices]
+        else:
+            # Regular dataset, check all annotations
+            filenames_to_check = list(val_dataset.anns.keys())
+
+        for gt_filename in tqdm(filenames_to_check, desc="Evaluation"):
+            gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
+
             if gt_filename not in self.validation_step_outputs:
                 import logging
 
@@ -433,7 +470,18 @@ class OCRPLModule(pl.LightningModule):
     def on_test_epoch_end(self):
         cleval_metrics = defaultdict(list)
 
-        for gt_filename, gt_words in tqdm(self.dataset["test"].anns.items(), desc="Evaluation"):
+        # Get the actual filenames that should be evaluated (handle Subset datasets)
+        test_dataset = self.dataset["test"]
+        if hasattr(test_dataset, "indices") and hasattr(test_dataset, "dataset"):
+            # This is a Subset dataset, get filenames from the subset indices
+            filenames_to_check = [list(test_dataset.dataset.anns.keys())[idx] for idx in test_dataset.indices]
+        else:
+            # Regular dataset, check all annotations
+            filenames_to_check = list(test_dataset.anns.keys())
+
+        for gt_filename in tqdm(filenames_to_check, desc="Evaluation"):
+            gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
+
             if gt_filename not in self.test_step_outputs:
                 import logging
 
