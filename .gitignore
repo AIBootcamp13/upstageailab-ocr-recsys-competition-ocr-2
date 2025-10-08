@@ -128,6 +128,7 @@ notepad.md
 # .repomixignore
 # repomix.config.json
 repomix-output.xml
+*.xml
 data_gen_exp/
 root-cause.md
 # qwen_coder_integration.md

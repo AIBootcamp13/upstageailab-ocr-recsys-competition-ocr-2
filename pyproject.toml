@@ -52,6 +52,7 @@ dependencies = [
     "types-shapely",
     "types-tqdm",
     "wandb>=0.17.0",
+    "webdataset>=0.2.0",
     "ocrd-fork-pylsd==0.0.8",
     # PyTorch with CUDA support - Updated to 2.8.0
     "torch>=2.8.0",
