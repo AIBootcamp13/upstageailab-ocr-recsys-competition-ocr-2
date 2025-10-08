@@ -86,9 +86,6 @@ Thumbs.db
 # *.log
 # logs/
 
-# Resource monitoring logs
-resource_logs/
-
 # Model checkpoints and outputs
 outputs/
 checkpoints/
@@ -137,4 +134,3 @@ root-cause.md
 image_rotation_mismatch.svg
 package-lock.json
 package.json
-profiler_traces/

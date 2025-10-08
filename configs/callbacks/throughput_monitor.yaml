@@ -1,6 +1,0 @@
-throughput_monitor:
-  _target_: ocr.callbacks.throughput_monitor.ThroughputMonitorCallback
-  enabled: true
-  log_interval: 1  # epochs
-  track_memory: true
-  track_timing: true
