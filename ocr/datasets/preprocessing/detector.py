@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 from pylsd.lsd import lsd
 
+from .external import DOCTR_AVAILABLE
+
 
 class DocumentDetector:
     """Det                               cv2.line(vertical_lines_canvas, (top_x, min_y), (bottom_x, max_y), 1, 1)  # type: ignorecv2.line(horizontal_lines_canvas, (min_x, left_y), (max_x, right_y), 1, 1)  # type: ignorect document boundaries using configurable strategies."""
@@ -22,6 +24,7 @@ class DocumentDetector:
         use_adaptive: bool,
         use_fallback: bool,
         use_camscanner: bool = False,
+        use_doctr_text: bool = False,
     ) -> None:
         """Initialize document detector.
 
@@ -31,17 +34,25 @@ class DocumentDetector:
             use_adaptive: Whether to use adaptive thresholding as fallback
             use_fallback: Whether to use bounding box fallback when other methods fail
             use_camscanner: Whether to use CamScanner-style LSD line detection (advanced method)
+            use_doctr_text: Whether to use docTR text detection to infer document boundaries
         """
         self.logger = logger
         self.min_area_ratio = min_area_ratio
         self.use_adaptive = use_adaptive
         self.use_fallback = use_fallback
         self.use_camscanner = use_camscanner
+        self.use_doctr_text = use_doctr_text
 
     def detect(self, image: np.ndarray) -> tuple[np.ndarray | None, str | None]:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         height, width = gray.shape[:2]
         min_area = self.min_area_ratio * float(height * width)
+
+        # Try docTR text-based detection if enabled
+        if self.use_doctr_text and DOCTR_AVAILABLE:
+            corners = self._detect_document_with_doctr_text(image, min_area)
+            if corners is not None:
+                return corners, "doctr_text"
 
         # Try CamScanner method if enabled
         if self.use_camscanner:
@@ -84,6 +95,99 @@ class DocumentDetector:
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
         closed = cv2.morphologyEx(adaptive, cv2.MORPH_CLOSE, kernel, iterations=2)
         return self._extract_corners_from_binary(closed, min_area)
+
+    def _detect_document_with_doctr_text(self, image: np.ndarray, min_area: float) -> np.ndarray | None:
+        """Detect document boundaries using docTR text detection results."""
+        try:
+            from doctr.models import zoo
+        except ImportError:
+            self.logger.warning("docTR not available for text-based document detection")
+            return None
+
+        try:
+            # Convert to RGB for docTR
+            if image.shape[2] == 3:
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            else:
+                image_rgb = image
+
+            # Create detection predictor
+            predictor = zoo.detection_predictor()
+
+            # Run text detection
+            result = predictor([image_rgb])
+            if not result or "words" not in result[0]:
+                return None
+
+            words = result[0]["words"]
+            if len(words) == 0:
+                return None
+
+            height, width = image.shape[:2]
+
+            # Filter words by confidence (only use high-confidence detections)
+            confident_words = words[words[:, 4] > 0.5]  # Confidence threshold
+            if len(confident_words) == 0:
+                return None
+
+            # Extract bounding boxes (x_min, y_min, x_max, y_max, confidence)
+            word_boxes = confident_words[:, :4]
+
+            # Convert relative to absolute coordinates
+            abs_boxes = word_boxes.copy()
+            abs_boxes[:, [0, 2]] *= width  # x coordinates
+            abs_boxes[:, [1, 3]] *= height  # y coordinates
+
+            # Collect all corner points from word bounding boxes
+            all_points = []
+            for box in abs_boxes:
+                x_min, y_min, x_max, y_max = box
+                all_points.extend([(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)])
+
+            if len(all_points) < 4:
+                return None
+
+            # Find convex hull of all text regions
+            points = np.array(all_points, dtype=np.float32)
+            hull = cv2.convexHull(points)
+
+            # Get bounding rectangle of convex hull
+            hull_points = hull.reshape(-1, 2)
+            x_coords = hull_points[:, 0]
+            y_coords = hull_points[:, 1]
+
+            # Add some padding around the text region (20% of the dimensions)
+            x_min, x_max = x_coords.min(), x_coords.max()
+            y_min, y_max = y_coords.min(), y_coords.max()
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+
+            x_min = max(0, x_min - x_padding)
+            x_max = min(width, x_max + x_padding)
+            y_min = max(0, y_min - y_padding)
+            y_max = min(height, y_max + y_padding)
+
+            # Check if the detected region meets minimum area requirements
+            detected_area = (x_max - x_min) * (y_max - y_min)
+            if detected_area < min_area:
+                return None
+
+            # Return corners in order: top-left, top-right, bottom-right, bottom-left
+            corners = np.array(
+                [
+                    [x_min, y_min],  # top-left
+                    [x_max, y_min],  # top-right
+                    [x_max, y_max],  # bottom-right
+                    [x_min, y_max],  # bottom-left
+                ],
+                dtype=np.float32,
+            )
+
+            return corners
+
+        except Exception as e:
+            self.logger.warning("docTR text-based document detection failed: %s", e)
+            return None
 
     def _extract_corners_from_binary(self, binary: np.ndarray, min_area: float) -> np.ndarray | None:
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

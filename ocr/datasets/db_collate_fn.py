@@ -11,7 +11,6 @@
 *****************************************************************************************
 """
 
-import hashlib
 from collections import OrderedDict
 
 import cv2
@@ -21,12 +20,11 @@ import torch
 
 
 class DBCollateFN:
-    def __init__(self, shrink_ratio=0.4, thresh_min=0.3, thresh_max=0.7, cache=None):
+    def __init__(self, shrink_ratio=0.4, thresh_min=0.3, thresh_max=0.7):
         self.shrink_ratio = shrink_ratio
         self.thresh_min = thresh_min
         self.thresh_max = thresh_max
         self.inference_mode = False
-        self.cache = cache  # Optional PolygonCache instance
 
     def __call__(self, batch):
         images = [item["image"] for item in batch]
@@ -50,17 +48,25 @@ class DBCollateFN:
         if self.inference_mode:
             return collated_batch
 
-        polygons = [item["polygons"] for item in batch]
-
+        # Load pre-processed maps from batch items
+        polygons = [item.get("polygons", []) for item in batch]
         prob_maps = []
         thresh_maps = []
-        for i, image in enumerate(images):
-            # Probability map / Threshold map 생성
-            segmentations = self.make_prob_thresh_map(image, polygons[i], filenames[i])
-            prob_map_tensor = torch.tensor(segmentations["prob_map"]).unsqueeze(0)
-            thresh_map_tensor = torch.tensor(segmentations["thresh_map"]).unsqueeze(0)
-            prob_maps.append(prob_map_tensor)
-            thresh_maps.append(thresh_map_tensor)
+
+        for i, item in enumerate(batch):
+            # Check if pre-processed maps exist in the item
+            if "prob_map" in item and "thresh_map" in item:
+                # Use pre-loaded maps
+                prob_map = torch.from_numpy(item["prob_map"]) if isinstance(item["prob_map"], np.ndarray) else item["prob_map"]
+                thresh_map = torch.from_numpy(item["thresh_map"]) if isinstance(item["thresh_map"], np.ndarray) else item["thresh_map"]
+            else:
+                # Fallback: generate maps on-the-fly if pre-processed maps are missing
+                segmentations = self.make_prob_thresh_map(images[i], polygons[i], filenames[i])
+                prob_map = torch.tensor(segmentations["prob_map"]).unsqueeze(0)
+                thresh_map = torch.tensor(segmentations["thresh_map"]).unsqueeze(0)
+
+            prob_maps.append(prob_map)
+            thresh_maps.append(thresh_map)
 
         collated_batch.update(
             polygons=polygons,
@@ -68,37 +74,10 @@ class DBCollateFN:
             thresh_maps=torch.stack(thresh_maps, dim=0),
         )
 
-        # Print cache statistics if cache is enabled
-        if self.cache is not None:
-            stats = self.cache.get_stats()
-            print(
-                f"Cache stats: hits={stats['hit_count']}, misses={stats['miss_count']}, "
-                f"hit_rate={stats['hit_rate']:.2%}, size={stats['cache_size']}"
-            )
-
         return collated_batch
 
     def make_prob_thresh_map(self, image, polygons, filename):
         _, h, w = image.shape
-
-        # Check cache first if available
-        if self.cache is not None and len(polygons) > 0:
-            # Create hashable representation for variable-length polygons
-            # Convert each polygon to bytes and combine them
-            polygons_bytes = []
-            for poly in polygons:
-                poly_array = np.array(poly)
-                polygons_bytes.append(poly_array.tobytes())
-            polygons_hash = hashlib.md5(b"".join(polygons_bytes)).hexdigest()
-
-            cache_key = self.cache._generate_key_from_hash(
-                polygons_hash, image.shape, (self.shrink_ratio, self.thresh_min, self.thresh_max)
-            )
-
-            # Try to get from cache
-            cached_result = self.cache.get(cache_key)
-            if cached_result is not None:
-                return cached_result
 
         prob_map = np.zeros((h, w), dtype=np.float32)
         thresh_map = np.zeros((h, w), dtype=np.float32)
@@ -183,21 +162,6 @@ class DBCollateFN:
         thresh_map = thresh_map * (self.thresh_max - self.thresh_min) + self.thresh_min
 
         result = OrderedDict(prob_map=prob_map, thresh_map=thresh_map)
-
-        # Cache the result if cache is available
-        if self.cache is not None and len(polygons) > 0:
-            # Create hashable representation for variable-length polygons
-            # Convert each polygon to bytes and combine them
-            polygons_bytes = []
-            for poly in polygons:
-                poly_array = np.array(poly)
-                polygons_bytes.append(poly_array.tobytes())
-            polygons_hash = hashlib.md5(b"".join(polygons_bytes)).hexdigest()
-
-            cache_key = self.cache._generate_key_from_hash(
-                polygons_hash, image.shape, (self.shrink_ratio, self.thresh_min, self.thresh_max)
-            )
-            self.cache.set(cache_key, result)
 
         return result
 

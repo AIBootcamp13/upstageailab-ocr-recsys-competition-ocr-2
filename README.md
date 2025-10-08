@@ -282,13 +282,50 @@ JSON 파일은 이미지 파일명을 텍스트 경계 상자의 좌표에 매�
 
 ### 데이터 처리
 
-### 데이터 처리
-
 - 이미지는 JPG 형식으로 저장
 - 주석은 다각형 좌표가 포함된 JSON 형식으로 제공
 - 텍스트 영역은 정확한 경계 다각형으로 주석 처리
 - 데이터셋은 train, validation, test 분할을 포함
-- _데이터 처리 과정을 설명하세요 (예: 데이터 라벨링, 데이터 정제 등)_
+
+### 데이터 전처리 (Pre-processing)
+
+이 프로젝트는 훈련 성능을 크게 향상시키는 오프라인 전처리 시스템을 사용합니다.
+
+#### 전처리가 필요한 이유
+
+DBNet 모델은 확률 맵(probability map)과 임계값 맵(threshold map)을 필요로 합니다. 이전에는 이러한 맵을 훈련 중 실시간으로 생성했으나, 다음과 같은 문제가 있었습니다:
+
+- 계산 비용이 높은 pyclipper 연산과 거리 계산
+- 에포크마다 동일한 맵을 반복 계산
+- 효과적이지 못한 캐싱 메커니즘
+
+오프라인 전처리를 통해 **5-8배 빠른 검증 속도**를 달성했습니다.
+
+#### 전처리 실행 방법
+
+전체 데이터셋을 전처리하려면 프로젝트 루트에서 다음 명령을 실행하세요:
+
+```bash
+uv run python scripts/preprocess_maps.py
+```
+
+샘플 수를 제한하여 테스트하려면:
+
+```bash
+uv run python scripts/preprocess_maps.py data.train_num_samples=100 data.val_num_samples=20
+```
+
+전처리 스크립트는 다음을 생성합니다:
+- `data/datasets/images/train_maps/`: 훈련 데이터의 전처리된 맵
+- `data/datasets/images_val_canonical_maps/`: 검증 데이터의 전처리된 맵
+
+각 이미지에 대해 압축된 `.npz` 파일이 생성되며, 확률 맵과 임계값 맵이 포함됩니다.
+
+#### 자동 폴백 (Fallback)
+
+전처리된 맵이 없어도 훈련은 정상적으로 작동합니다. 시스템이 자동으로 실시간 맵 생성으로 전환되지만, 속도가 느려집니다.
+
+더 자세한 내용은 [데이터 전처리 가이드](docs/preprocessing_guide.md)를 참조하세요.
 
 ## 4. 모델링
 

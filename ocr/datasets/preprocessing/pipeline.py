@@ -39,6 +39,7 @@ class DocumentPreprocessor:
         document_detection_use_adaptive: bool = True,
         document_detection_use_fallback_box: bool = True,
         document_detection_use_camscanner: bool = False,
+        document_detection_use_doctr_text: bool = False,
     ) -> None:
         self.logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ class DocumentPreprocessor:
             document_detection_use_adaptive=document_detection_use_adaptive,
             document_detection_use_fallback_box=document_detection_use_fallback_box,
             document_detection_use_camscanner=document_detection_use_camscanner,
+            document_detection_use_doctr_text=document_detection_use_doctr_text,
         )
 
         if config.enhancement_method not in {"conservative", "office_lens"}:
@@ -87,6 +89,7 @@ class DocumentPreprocessor:
         self.document_detection_use_adaptive = self.config.document_detection_use_adaptive
         self.document_detection_use_fallback_box = self.config.document_detection_use_fallback_box
         self.document_detection_use_camscanner = self.config.document_detection_use_camscanner
+        self.document_detection_use_doctr_text = self.config.document_detection_use_doctr_text
 
         self.detector = DocumentDetector(
             logger=self.logger,
@@ -94,6 +97,7 @@ class DocumentPreprocessor:
             use_adaptive=self.config.document_detection_use_adaptive,
             use_fallback=self.config.document_detection_use_fallback_box,
             use_camscanner=self.config.document_detection_use_camscanner,
+            use_doctr_text=self.config.document_detection_use_doctr_text,
         )
         self.orientation_corrector = OrientationCorrector(
             logger=self.logger,

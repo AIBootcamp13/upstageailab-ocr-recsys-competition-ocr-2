@@ -136,3 +136,8 @@ image_rotation_mismatch.svg
 package-lock.json
 package.json
 profiler_traces/
+results_threshold_0_4/
+results/
+receipt-text-recognition-ocr-project/
+preprocessing_test_results/
+resource_logs/

@@ -169,6 +169,20 @@ class OCRDataset(Dataset):
         if "metadata" in transformed:
             item["metadata"] = transformed["metadata"]
 
+        # Load pre-processed probability and threshold maps
+        maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
+        map_filename = maps_dir / f"{Path(image_filename).stem}.npz"
+
+        if map_filename.exists():
+            try:
+                maps_data = np.load(map_filename)
+                item["prob_map"] = maps_data["prob_map"]
+                item["thresh_map"] = maps_data["thresh_map"]
+            except Exception as e:
+                self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
+                # If maps fail to load, we'll let the collate function handle it
+                pass
+
         return item
 
     @staticmethod

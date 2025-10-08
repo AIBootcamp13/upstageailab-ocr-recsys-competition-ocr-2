@@ -30,7 +30,6 @@ data:
 
 # Test performance features individually
 performance_test:
-  polygon_cache: false     # Will be enabled/disabled per test
   callbacks: []           # Will be populated per test
 
 callbacks: {}

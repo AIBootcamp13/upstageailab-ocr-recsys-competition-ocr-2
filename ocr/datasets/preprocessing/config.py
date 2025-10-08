@@ -26,6 +26,7 @@ class DocumentPreprocessorConfig:
     document_detection_use_adaptive: bool = True
     document_detection_use_fallback_box: bool = True
     document_detection_use_camscanner: bool = False
+    document_detection_use_doctr_text: bool = False
 
     def __post_init__(self) -> None:
         if self.target_size is not None:
