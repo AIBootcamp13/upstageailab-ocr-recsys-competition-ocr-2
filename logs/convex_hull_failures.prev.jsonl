@@ -1,0 +1,4 @@
+{"timestamp": "2025-10-08T14:48:58.100633Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[960, 1260], [960, 1264], [960, 1268], [960, 1268], [960, 1266], [960, 1260], [960, 1258], [960, 1258]]}
+{"timestamp": "2025-10-08T14:49:02.343827Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[770, 1260], [770, 1264], [770, 1268], [770, 1268], [770, 1266], [770, 1260], [770, 1258], [770, 1258]]}
+{"timestamp": "2025-10-08T14:49:04.223814Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[960, 1260], [960, 1264], [960, 1268], [960, 1268], [960, 1266], [960, 1260], [960, 1258], [960, 1258]]}
+{"timestamp": "2025-10-08T14:49:04.723051Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[960, 1260], [960, 1264], [960, 1268], [960, 1268], [960, 1266], [960, 1260], [960, 1258], [960, 1258]]}

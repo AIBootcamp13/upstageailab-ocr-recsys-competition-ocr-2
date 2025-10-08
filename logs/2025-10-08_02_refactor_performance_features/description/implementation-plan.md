@@ -108,6 +108,11 @@ Include sanity checks for `.npz` shapes and Hydra config usage (base: `configs/t
 **Action Item 1.3: Test with Sample Data**
 Run on a small subset to verify output.
 
+- ✅ 2025-10-08: `uv run python scripts/preprocess_maps.py data.train_num_samples=20 data.val_num_samples=10` now generates `.npz` maps for the sampled training set (stored in `data/datasets/images/train_maps`). Added channel dimensions to saved maps and filtered degenerate polygons to keep PyClipper stable.
+- ⚠️ Validation dataset path `data/datasets/images/images_val_canonical` currently resolves to zero images, so the script emits a warning and skips generation. Sync or relink the validation assets before running the full job.
+- Root fixes: avoid re-transposing `ToTensorV2` outputs (keep CHW tensors) and update `DBTransforms` to drop polygons with <3 keypoints after Albumentations removes out-of-frame points.
+- ✅ 2025-10-08 (train sanity check): Hardened `OCRDataset` to drop degenerate polygons (width/height < 1px or <3 points) after transforms. Short run `uv run python runners/train.py trainer.limit_train_batches=2 trainer.limit_val_batches=1 trainer.max_epochs=1` finishes without the previous QHull warning (metrics still 0.0 on the tiny slice, as expected).
+
 **Qwen Integration:** After 1.1, generate unit tests:
 ```bash
 cat scripts/preprocess_maps.py | qwen --yolo --prompt "Generate unit tests for the preprocess_maps.py script using pytest. Focus on preprocess function and error cases."

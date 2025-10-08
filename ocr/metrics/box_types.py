@@ -10,14 +10,38 @@
 """
 
 import abc
+import json
 import math
+import threading
 from collections import namedtuple
+from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import Polygon as polygon3
 from scipy.spatial import ConvexHull
 
 MAX_FIDUCIAL_POINTS = 50
+
+_CONVEX_HULL_LOG_PATH = Path("logs/convex_hull_failures.jsonl")
+_CONVEX_HULL_LOG_LOCK = threading.Lock()
+
+
+def _log_convex_hull_failure(points, exception: Exception) -> None:
+    try:
+        payload = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "exception": type(exception).__name__,
+            "message": str(exception),
+            "points": np.asarray(points).tolist(),
+        }
+        _CONVEX_HULL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with _CONVEX_HULL_LOG_LOCK:
+            with _CONVEX_HULL_LOG_PATH.open("a", encoding="utf-8") as fp:
+                fp.write(json.dumps(payload) + "\n")
+    except Exception:
+        # Swallow any logging issues to avoid interrupting metrics computation.
+        pass
 
 
 def get_midpoints(p1, p2):
@@ -136,12 +160,21 @@ def custom_MinAreaRect(points):
     #               unit_vector_angle: angle of the unit vector
     #               corner_points: set that contains the corners of the rectangle
 
-    assert len(points) > 2, "More than two points required."
+    points_array = np.asarray(points, dtype=np.float32)
+    assert len(points_array) > 2, "More than two points required."
+
+    points_int = np.rint(points_array).astype(np.int32)
+    span_x = int(points_int[:, 0].ptp())
+    span_y = int(points_int[:, 1].ptp())
+    if span_x == 0 or span_y == 0:
+        _log_convex_hull_failure(points_int.tolist(), ValueError("degenerate polygon after rounding"))
+        return (0, 0), (0, 0), 0
 
     try:
-        hull_ordered = [points[index] for index in ConvexHull(points).vertices]
+        hull_ordered = [points_array[index] for index in ConvexHull(points_array).vertices]
     except Exception as e:
-        print(f"[WARN] ConvexHull failed: {e}. points: {points}")
+        _log_convex_hull_failure(points_array.tolist(), e)
+        print(f"[WARN] ConvexHull failed: {e}. points: {points_array}")
         return (0, 0), (0, 0), 0
 
     hull_ordered.append(hull_ordered[0])

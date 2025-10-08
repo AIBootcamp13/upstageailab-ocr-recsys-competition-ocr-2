@@ -1,0 +1,2 @@
+{"timestamp": "2025-10-08T14:52:30.993187Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[770, 1260], [770, 1264], [770, 1268], [770, 1268], [770, 1266], [770, 1260], [770, 1258], [770, 1258]]}
+{"timestamp": "2025-10-08T14:52:31.059529Z", "exception": "ValueError", "message": "degenerate polygon after rounding", "points": [[720, 1260], [720, 1264], [720, 1268], [720, 1268], [720, 1266], [720, 1260], [720, 1258], [720, 1258]]}

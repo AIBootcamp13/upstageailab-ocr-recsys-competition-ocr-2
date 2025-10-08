@@ -22,7 +22,7 @@ class DBTransforms:
         # Image transform / Geometric transform의 경우 keypoints를 변환
         transformed = self.transform(image=image, keypoints=keypoints)
         transformed_image = transformed["image"]
-        keypoints = transformed["keypoints"]
+        transformed_keypoints = transformed["keypoints"]
         metadata = transformed.get("metadata")
 
         # Keypoints 재변환을 위한 Matrix 계산
@@ -31,14 +31,19 @@ class DBTransforms:
         inverse_matrix = self.calculate_inverse_transform((width, height), (new_width, new_height), crop_box=crop_box)
 
         # Keypoints 정보를 Polygons 형태로 변환
-        keypoints = transformed["keypoints"]
         transformed_polygons = []
         index = 0
         if polygons is not None:
             for polygon in polygons:
                 num_points = polygon.shape[1]
-                transformed_polygons.append(np.array([keypoints[index : index + num_points]]))
-                index += num_points
+                keypoint_slice = transformed_keypoints[index : index + num_points]
+                index += len(keypoint_slice)
+
+                if len(keypoint_slice) < 3:
+                    continue
+
+                polygon_array = np.array(keypoint_slice, dtype=np.float32).reshape(1, -1, 2)
+                transformed_polygons.append(polygon_array)
 
         output = OrderedDict(
             image=transformed_image,

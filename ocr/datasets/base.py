@@ -130,7 +130,7 @@ class OCRDataset(Dataset):
 
         org_shape = image.size
 
-        item = OrderedDict(
+        item: OrderedDict[str, Any] = OrderedDict(
             image=image,
             image_filename=image_filename,
             image_path=str(image_path),
@@ -145,11 +145,29 @@ class OCRDataset(Dataset):
 
         # Image transform
         transformed = self.transform(image=np.array(image), polygons=polygons)
-        item.update(
-            image=transformed["image"],
-            polygons=transformed["polygons"],
-            inverse_matrix=transformed["inverse_matrix"],
-        )
+
+        transformed_image = transformed["image"]
+        transformed_polygons = transformed.get("polygons", []) or []
+
+        # Normalize and filter polygons that became degenerate after transforms
+        if transformed_polygons:
+            normalized_polygons: list[np.ndarray] = []
+            for poly in transformed_polygons:
+                poly_array = self._ensure_polygon_array(np.asarray(poly, dtype=np.float32))
+                if poly_array is None or poly_array.size == 0:
+                    continue
+                normalized_polygons.append(poly_array)
+
+            filtered_polygons = self._filter_degenerate_polygons(normalized_polygons)
+        else:
+            filtered_polygons = []
+
+        item["image"] = transformed_image
+        item["polygons"] = filtered_polygons
+        item["inverse_matrix"] = transformed["inverse_matrix"]
+
+        if "metadata" in transformed:
+            item["metadata"] = transformed["metadata"]
 
         return item
 
@@ -228,23 +246,56 @@ class OCRDataset(Dataset):
         polygons: Iterable[np.ndarray | None],
         min_side: float = 1.0,
     ) -> list[np.ndarray]:
+        removed_counts = {
+            "too_few_points": 0,
+            "too_small": 0,
+            "zero_span": 0,
+            "empty": 0,
+            "none": 0,
+        }
         filtered: list[np.ndarray] = []
         for polygon in polygons:
             if polygon is None:
+                removed_counts["none"] += 1
                 continue
             if polygon.size == 0:
+                removed_counts["empty"] += 1
                 continue
 
             reshaped = polygon.reshape(-1, 2)
             if reshaped.shape[0] < 3:
+                removed_counts["too_few_points"] += 1
                 continue
 
             width_span = float(reshaped[:, 0].max() - reshaped[:, 0].min())
             height_span = float(reshaped[:, 1].max() - reshaped[:, 1].min())
 
+            rounded = np.rint(reshaped).astype(np.int32, copy=False)
+            width_span_int = int(rounded[:, 0].ptp())
+            height_span_int = int(rounded[:, 1].ptp())
+
             if width_span < min_side or height_span < min_side:
+                removed_counts["too_small"] += 1
+                continue
+
+            if width_span_int == 0 or height_span_int == 0:
+                removed_counts["zero_span"] += 1
                 continue
 
             filtered.append(polygon)
+
+        total_removed = sum(removed_counts.values())
+        if total_removed > 0:
+            logger = logging.getLogger(__name__)
+            if logger.isEnabledFor(logging.INFO):
+                logger.info(
+                    "Filtered %d degenerate polygons (too_few_points=%d, too_small=%d, zero_span=%d, empty=%d, none=%d)",
+                    total_removed,
+                    removed_counts["too_few_points"],
+                    removed_counts["too_small"],
+                    removed_counts["zero_span"],
+                    removed_counts["empty"],
+                    removed_counts["none"],
+                )
 
         return filtered

@@ -6,9 +6,9 @@ batch_size: 12
 # Data configuration
 data:
   # Dataset size limits for faster iterations
-  train_num_samples: 500  # Limit training to 500 samples
-  val_num_samples: 50     # Limit validation to 50 samples
-  test_num_samples: 50    # Limit test to 50 samples
+  train_num_samples: 2000  # Limit training to 2000 samples
+  val_num_samples: 200      # Limit validation to 200 samples
+  test_num_samples: 50      # Limit test to 50 samples
 
   # Polygon cache configuration (optional for speedup)
   polygon_cache:
@@ -27,7 +27,7 @@ datasets:
     transform: ${transforms.train_transform}
   val_dataset:
     _target_: ${dataset_path}.OCRDataset
-    image_path: ${dataset_base_path}images/images_val_canonical # Using canonical (rotation-corrected) data
+    image_path: ${dataset_base_path}images_val_canonical # Using canonical (rotation-corrected) data
     annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${transforms.val_transform}
   test_dataset:

@@ -192,7 +192,7 @@ python scripts/process_monitor.py --cleanup --force
 # 정리할 프로세스 미리보기 (실제로는 정리하지 않음)
 python scripts/process_monitor.py --cleanup --dry-run
 ```
-
+<!--
 #### Resource Monitor (`ui/resource_monitor.py`) - ✅ New!
 시스템 리소스, 훈련 프로세스, GPU 사용량을 실시간으로 모니터링하는 도구입니다.
 
@@ -232,7 +232,7 @@ AI 에이전트가 시스템 리소스를 모니터링하고 프로세스를 관
 
 # 메모리 사용량 분석
 ./scripts/monitoring/monitor.sh "Check memory usage and identify high consumers"
-```
+``` -->
 
 ### 주요 구성 파일
 
