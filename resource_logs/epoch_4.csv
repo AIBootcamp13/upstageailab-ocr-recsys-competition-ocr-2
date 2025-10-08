@@ -1,0 +1,3 @@
+gpu_0_util,gpu_0_memory_used_mb,gpu_0_memory_total_mb,gpu_0_memory_pct,gpu_0_temp_c,gpu_0_power_w,cpu_percent,cpu_process_percent,memory_system_mb,memory_available_mb,memory_percent,memory_process_mb,io_read_rate_mbps,io_write_rate_mbps,io_wait_pct,step,timestamp,epoch
+52.0,9642.0,24576.0,39.2333984375,46.0,0.0,10.2,115.8,257656.52734375,238649.203125,7.4,3445.8515625,0.0,27.64,0.0,0,2025-10-08T03:14:41,4
+98.0,9642.0,24576.0,39.2333984375,52.0,0.0,12.4,104.2,257656.52734375,238763.703125,7.3,3346.98046875,0.0,0.0,0.0,10,2025-10-08T03:14:43,4

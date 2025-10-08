@@ -134,3 +134,4 @@ root-cause.md
 image_rotation_mismatch.svg
 package-lock.json
 package.json
+profiler_traces/

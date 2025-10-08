@@ -128,6 +128,9 @@ def train(config: DictConfig):
         # Load environment variables from .env.local/.env
         load_env_variables()
 
+        # Resolve interpolations before generating run name
+        OmegaConf.resolve(config)
+
         run_name = generate_run_name(config)
 
         # Properly serialize config for wandb, handling hydra interpolations

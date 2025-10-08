@@ -26,15 +26,14 @@ class UniqueModelCheckpoint(ModelCheckpoint):
 
     def format_checkpoint_name(
         self,
-        epoch: int,
-        step: int,
         metrics: dict[str, torch.Tensor] | None = None,
-        auto_insert_metric_name: bool = True,
+        filename: str | None = None,
     ) -> str:
         """
         Format checkpoint name with additional unique identifiers and model information.
         """
-        base_path = super().format_checkpoint_name(epoch, step, metrics, auto_insert_metric_name)
+        metrics_dict: dict[str, torch.Tensor] = metrics if metrics is not None else {}
+        base_path = super().format_checkpoint_name(metrics_dict, filename)
 
         dirpath, base_name = os.path.split(base_path)
         stem, ext = os.path.splitext(base_name)

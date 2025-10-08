@@ -2,28 +2,28 @@
 
 # Optimized dataloader settings for better performance and process safety
 train_dataloader:
-  batch_size: ${data.batch_size}
+  batch_size: ${batch_size}
   shuffle: true
   num_workers: 8  # Reduced from 12 to prevent OOM in workers
   pin_memory: true
   persistent_workers: true
   prefetch_factor: 2  # Adjusted for fewer workers
 val_dataloader:
-  batch_size: ${data.batch_size}
+  batch_size: ${batch_size}
   shuffle: false
   num_workers: 8  # Balanced for fast validation
   pin_memory: true
   persistent_workers: true
   prefetch_factor: 2
 test_dataloader:
-  batch_size: ${data.batch_size}
+  batch_size: ${batch_size}
   shuffle: false
   num_workers: 4  # Balanced for evaluation throughput
   pin_memory: true
   persistent_workers: true
   prefetch_factor: 2
 predict_dataloader:
-  batch_size: ${data.batch_size}
+  batch_size: ${batch_size}
   shuffle: false
   num_workers: 4  # Sufficient for inference pipeline
   pin_memory: true
