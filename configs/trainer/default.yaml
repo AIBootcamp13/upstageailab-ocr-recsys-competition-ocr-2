@@ -8,7 +8,7 @@ val_check_interval: null
 check_val_every_n_epoch: 1
 deterministic: True
 accumulate_grad_batches: 2
-precision: 32 # full | 16-mixed | bf16 | bf16-mixed
+precision: "16-mixed" # full | 16-mixed | bf16 | bf16-mixed
 benchmark: true
 gradient_clip_val: 5.0
 accelerator: gpu

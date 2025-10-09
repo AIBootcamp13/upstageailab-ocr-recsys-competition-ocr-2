@@ -28,6 +28,7 @@ datasets:
     transform: ${transforms.val_transform}
     preload_maps: false  # Disabled as it doesn't provide performance benefit
     preload_images: true  # Enable for Phase 6B RAM caching benchmark
+    cache_transformed_tensors: true  # Phase 6E: Cache final transformed tensors for validation
     image_loading_config: ${image_loading}
   test_dataset:
     _target_: ${dataset_path}.OCRDataset

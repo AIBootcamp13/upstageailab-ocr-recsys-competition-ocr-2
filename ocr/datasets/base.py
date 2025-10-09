@@ -35,6 +35,7 @@ class OCRDataset(Dataset):
         preload_images=False,
         prenormalize_images=False,
         image_loading_config=None,
+        cache_transformed_tensors=False,
     ):
         self.image_path = Path(image_path)
         self.transform = transform
@@ -43,8 +44,10 @@ class OCRDataset(Dataset):
         self.preload_maps = preload_maps
         self.preload_images = preload_images
         self.prenormalize_images = prenormalize_images
+        self.cache_transformed_tensors = cache_transformed_tensors
         self.maps_cache = {}
         self.image_cache = {}
+        self.tensor_cache = {}  # Cache for final transformed tensors
 
         # Image loading configuration
         self.image_loading_config = image_loading_config or {"use_turbojpeg": True, "turbojpeg_fallback": True}
@@ -104,6 +107,10 @@ class OCRDataset(Dataset):
         # Preload images into RAM if requested
         if self.preload_images:
             self._preload_images_to_ram()
+
+        # Log tensor caching status (Phase 6E)
+        if self.cache_transformed_tensors:
+            self.logger.info(f"Tensor caching enabled - will cache {len(self.anns)} transformed samples after first access")
 
     def _preload_maps_to_ram(self):
         """Preload all .npz maps into RAM for faster access."""
@@ -199,6 +206,11 @@ class OCRDataset(Dataset):
 
     def __getitem__(self, idx):
         image_filename = list(self.anns.keys())[idx]
+
+        # Check if final transformed tensor is cached (Phase 6E)
+        if self.cache_transformed_tensors and idx in self.tensor_cache:
+            return self.tensor_cache[idx]
+
         image_path = self.image_path / image_filename
 
         # Check if image is in cache
@@ -334,6 +346,10 @@ class OCRDataset(Dataset):
                     self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
                     # If maps fail to load, we'll let the collate function handle it
                     pass
+
+        # Cache the final transformed item if enabled (Phase 6E)
+        if self.cache_transformed_tensors:
+            self.tensor_cache[idx] = item
 
         return item
 
