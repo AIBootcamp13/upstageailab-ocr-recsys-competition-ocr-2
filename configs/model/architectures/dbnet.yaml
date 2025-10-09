@@ -21,7 +21,7 @@ component_overrides:
         thresh: 0.2
         box_thresh: 0.3
         max_candidates: 300
-        use_polygon: true
+        use_polygon: false
   loss:
     name: "db_loss"
     params:

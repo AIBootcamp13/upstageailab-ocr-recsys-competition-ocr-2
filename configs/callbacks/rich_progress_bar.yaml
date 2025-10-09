@@ -2,3 +2,13 @@
 
 rich_progress_bar:
   _target_: lightning.pytorch.callbacks.RichProgressBar
+  theme:
+    _target_: lightning.pytorch.callbacks.progress.rich_progress.RichProgressBarTheme
+    progress_bar: red
+    progress_bar_finished: green
+    progress_bar_pulse: yellow
+    time: cyan
+    processing_speed: cyan
+    description: bold white
+    metrics: white
+  refresh_rate: 2

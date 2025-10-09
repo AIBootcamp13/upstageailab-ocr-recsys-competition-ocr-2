@@ -12,9 +12,10 @@ exp_name: "ocr_training"
 resume: null
 project_name: null
 experiment_tag: null
-wandb: false
+wandb: true
 
-callbacks: {}
+# Remove this line to use default callbacks (including wandb_image_logging)
+# callbacks: {}
 
 runtime:
   auto_gpu_devices: true

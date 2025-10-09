@@ -30,14 +30,14 @@ except ImportError:
     RichHandler = None  # type: ignore
 
 try:
-    from icecream import ic, install
+    from icecream import ic, install  # type: ignore
 
     ICECREAM_AVAILABLE = True
 except ImportError:
     ICECREAM_AVAILABLE = False
 
-    def ic(x):
-        return x  # fallback
+    def ic(*args):  # type: ignore
+        print(*args)
 
     def install():
         pass
@@ -75,13 +75,16 @@ class OCRLogger:
 
         # Add Rich handler for console output
         if self.rich_console:
+            console = Console(color_system="256", force_terminal=True)
             rich_handler = RichHandler(
-                console=Console(),
-                show_time=True,
-                show_level=True,
+                console=console,
+                show_time=False,  # We'll use custom format instead
+                show_level=True,  # Enable level display for coloring
                 show_path=False,
                 enable_link_path=False,
             )
+            rich_format = "%(name)s - %(message)s"
+            rich_handler.setFormatter(logging.Formatter(rich_format))
             rich_handler.setLevel(self.level)
             self.logger.addHandler(rich_handler)
         else:

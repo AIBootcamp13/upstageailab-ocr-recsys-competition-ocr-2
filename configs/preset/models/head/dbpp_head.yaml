@@ -10,4 +10,4 @@ postprocess:
   thresh: 0.3
   box_thresh: 0.4
   max_candidates: 300
-  use_polygon: false
+  use_polygon: true

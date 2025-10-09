@@ -28,7 +28,7 @@ model:
       thresh: 0.3
       box_thresh: 0.4
       max_candidates: 300
-      use_polygon: false
+      use_polygon: true
   loss:
     _target_: ocr.models.loss.DBLoss
     negative_ratio: 3.0

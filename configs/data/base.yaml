@@ -1,13 +1,13 @@
 # @package _global_
 
 # Global batch size setting for dataloaders
-batch_size: 12
+batch_size: 16
 
 # Data configuration
 data:
   # Dataset size limits for faster iterations
-  train_num_samples: 2000  # Limit training to 2000 samples
-  val_num_samples: 200      # Limit validation to 200 samples
+  train_num_samples: 500  # Process all training samples
+  val_num_samples: 50    # Process all validation samples
   test_num_samples: 50      # Limit test to 50 samples
 
 dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"

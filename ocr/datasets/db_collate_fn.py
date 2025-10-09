@@ -53,20 +53,45 @@ class DBCollateFN:
         prob_maps = []
         thresh_maps = []
 
+        # Track map loading statistics
+        preloaded_count = 0
+        fallback_count = 0
+
         for i, item in enumerate(batch):
             # Check if pre-processed maps exist in the item
             if "prob_map" in item and "thresh_map" in item:
                 # Use pre-loaded maps
                 prob_map = torch.from_numpy(item["prob_map"]) if isinstance(item["prob_map"], np.ndarray) else item["prob_map"]
                 thresh_map = torch.from_numpy(item["thresh_map"]) if isinstance(item["thresh_map"], np.ndarray) else item["thresh_map"]
+                preloaded_count += 1
             else:
                 # Fallback: generate maps on-the-fly if pre-processed maps are missing
                 segmentations = self.make_prob_thresh_map(images[i], polygons[i], filenames[i])
                 prob_map = torch.tensor(segmentations["prob_map"]).unsqueeze(0)
                 thresh_map = torch.tensor(segmentations["thresh_map"]).unsqueeze(0)
+                fallback_count += 1
 
             prob_maps.append(prob_map)
             thresh_maps.append(thresh_map)
+
+        # Log map loading statistics (only once per epoch to avoid spam)
+        if not hasattr(self, "_logged_stats"):
+            from rich.console import Console
+
+            console = Console()
+            total_samples = len(batch)
+            preloaded_pct = (preloaded_count / total_samples) * 100
+
+            if preloaded_count > 0:
+                console.print(
+                    f"[green]✓ Using pre-loaded .npz maps: {preloaded_count}/{total_samples} samples ({preloaded_pct:.1f}%)[/green]"
+                )
+            if fallback_count > 0:
+                console.print(
+                    f"[yellow]⚠ Fallback to on-the-fly generation: {fallback_count}/{total_samples} samples ({100 - preloaded_pct:.1f}%)[/yellow]"
+                )
+
+            self._logged_stats = True
 
         collated_batch.update(
             polygons=polygons,

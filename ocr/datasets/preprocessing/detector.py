@@ -125,9 +125,9 @@ class DocumentDetector:
 
             height, width = image.shape[:2]
 
-            # Filter words by confidence (only use high-confidence detections)
-            confident_words = words[words[:, 4] > 0.5]  # Confidence threshold
-            if len(confident_words) == 0:
+            # Filter words by confidence (use moderate confidence threshold)
+            confident_words = words[words[:, 4] > 0.6]  # Moderate confidence threshold
+            if len(confident_words) < 5:  # Need at least 5 confident detections
                 return None
 
             # Extract bounding boxes (x_min, y_min, x_max, y_max, confidence)
@@ -138,29 +138,28 @@ class DocumentDetector:
             abs_boxes[:, [0, 2]] *= width  # x coordinates
             abs_boxes[:, [1, 3]] *= height  # y coordinates
 
-            # Collect all corner points from word bounding boxes
-            all_points = []
-            for box in abs_boxes:
-                x_min, y_min, x_max, y_max = box
-                all_points.extend([(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)])
+            # Calculate text coverage
+            x_min_all, y_min_all = abs_boxes[:, [0, 1]].min(axis=0)
+            x_max_all, y_max_all = abs_boxes[:, [2, 3]].max(axis=0)
+            x_coverage = (x_max_all - x_min_all) / width
+            y_coverage = (y_max_all - y_min_all) / height
 
-            if len(all_points) < 4:
+            # For receipt OCR, text covering most of the image is normal
+            # Only reject if text covers > 95% (extremely edge case)
+            if x_coverage > 0.95 and y_coverage > 0.95:
+                self.logger.debug("docTR text covers entire image, falling back to other methods")
                 return None
 
-            # Find convex hull of all text regions
-            points = np.array(all_points, dtype=np.float32)
-            hull = cv2.convexHull(points)
+            # Use the bounding box of all confident text as the document boundary
+            # This works better for documents where text covers the main content area
+            x_min = x_min_all
+            y_min = y_min_all
+            x_max = x_max_all
+            y_max = y_max_all
 
-            # Get bounding rectangle of convex hull
-            hull_points = hull.reshape(-1, 2)
-            x_coords = hull_points[:, 0]
-            y_coords = hull_points[:, 1]
-
-            # Add some padding around the text region (20% of the dimensions)
-            x_min, x_max = x_coords.min(), x_coords.max()
-            y_min, y_max = y_coords.min(), y_coords.max()
-            x_padding = (x_max - x_min) * 0.1
-            y_padding = (y_max - y_min) * 0.1
+            # Add moderate padding (15% of the text region size)
+            x_padding = (x_max - x_min) * 0.15
+            y_padding = (y_max - y_min) * 0.15
 
             x_min = max(0, x_min - x_padding)
             x_max = min(width, x_max + x_padding)

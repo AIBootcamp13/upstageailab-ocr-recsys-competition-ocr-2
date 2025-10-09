@@ -13,6 +13,13 @@ from PIL import Image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+try:
+    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+
 from ocr.metrics import CLEvalMetric
 from ocr.utils.orientation import remap_polygons
 
@@ -81,6 +88,15 @@ class OCRPLModule(pl.LightningModule):
                     return mean_array, std_array
 
         return None, None
+
+    def _get_rich_console(self):
+        """Get Rich console for progress bars."""
+        try:
+            from rich.console import Console
+
+            return Console()
+        except ImportError:
+            return None
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -383,8 +399,70 @@ class OCRPLModule(pl.LightningModule):
             precision = 0.0
             hmean = 0.0
         else:
-            for gt_filename in tqdm(processed_filenames, desc="Evaluation"):
-                gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
+            if RICH_AVAILABLE:
+                console = self._get_rich_console()
+                with Progress(
+                    TextColumn("[bold red]{task.description}"),
+                    BarColumn(bar_width=50, style="red"),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TextColumn("•"),
+                    TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                    TextColumn("•"),
+                    TimeElapsedColumn(),
+                    console=console,
+                    refresh_per_second=2,
+                ) as progress:
+                    task = progress.add_task("Evaluation", total=len(processed_filenames))
+                    for gt_filename in processed_filenames:
+                        gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
+
+                        entry = self.validation_step_outputs[gt_filename]
+                        pred_polygons = entry.get("boxes", [])
+                        orientation = entry.get("orientation", 1)
+                        raw_size = entry.get("raw_size")
+
+                        if raw_size is None:
+                            image_path = entry.get("image_path")
+                            if image_path is None:
+                                image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
+                            try:
+                                with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                                    raw_width, raw_height = pil_image.size
+                            except Exception:
+                                raw_width, raw_height = 0, 0
+                        else:
+                            raw_width, raw_height = raw_size
+
+                        det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
+
+                        canonical_gt = []
+                        if gt_words is not None and len(gt_words) > 0:
+                            if raw_width > 0 and raw_height > 0:
+                                canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                            else:
+                                canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+                        gt_quads = [
+                            np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0
+                        ]
+
+                        metric = self.metric
+                        metric.reset()
+                        metric(det_quads, gt_quads)
+                        result = metric.compute()
+
+                        cleval_metrics["recall"].append(result["recall"].item())
+                        cleval_metrics["precision"].append(result["precision"].item())
+                        cleval_metrics["hmean"].append(result["f1"].item())
+
+                        progress.advance(task)
+            else:
+                for gt_filename in tqdm(
+                    processed_filenames,
+                    desc="Evaluation",
+                    bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+                    colour="red",
+                ):
+                    gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
 
                 entry = self.validation_step_outputs[gt_filename]
                 pred_polygons = entry.get("boxes", [])
@@ -491,8 +569,72 @@ class OCRPLModule(pl.LightningModule):
             precision = 0.0
             hmean = 0.0
         else:
-            for gt_filename in tqdm(processed_filenames, desc="Evaluation"):
-                gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
+            if RICH_AVAILABLE:
+                console = self._get_rich_console()
+                with Progress(
+                    TextColumn("[bold red]{task.description}"),
+                    BarColumn(bar_width=50, style="red"),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TextColumn("•"),
+                    TextColumn("[progress.completed]{task.completed}/{task.total}"),
+                    TextColumn("•"),
+                    TimeElapsedColumn(),
+                    console=console,
+                    refresh_per_second=2,
+                ) as progress:
+                    task = progress.add_task("Evaluation", total=len(processed_filenames))
+                    for gt_filename in processed_filenames:
+                        gt_words = (
+                            test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
+                        )
+
+                        entry = self.test_step_outputs[gt_filename]
+                        pred_polygons = entry.get("boxes", [])
+                        orientation = entry.get("orientation", 1)
+                        raw_size = entry.get("raw_size")
+
+                        if raw_size is None:
+                            image_path = entry.get("image_path")
+                            if image_path is None:
+                                image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
+                            try:
+                                with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
+                                    raw_width, raw_height = pil_image.size
+                            except Exception:
+                                raw_width, raw_height = 0, 0
+                        else:
+                            raw_width, raw_height = map(int, raw_size)
+
+                        det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
+
+                        canonical_gt = []
+                        if gt_words is not None and len(gt_words) > 0:
+                            if raw_width > 0 and raw_height > 0:
+                                canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
+                            else:
+                                canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
+                        gt_quads = [
+                            np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0
+                        ]
+
+                        metric = self.metric
+                        metric.reset()
+                        metric(det_quads, gt_quads)
+                        result = metric.compute()
+
+                        cleval_metrics["recall"].append(result["recall"].item())
+                        cleval_metrics["precision"].append(result["precision"].item())
+                        cleval_metrics["hmean"].append(result["f1"].item())
+
+                        progress.advance(task)
+            else:
+                for gt_filename in tqdm(
+                    processed_filenames,
+                    desc="Evaluation",
+                    bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+                    colour="red",
+                ):
+                    gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
 
                 entry = self.test_step_outputs[gt_filename]
                 pred_polygons = entry.get("boxes", [])
