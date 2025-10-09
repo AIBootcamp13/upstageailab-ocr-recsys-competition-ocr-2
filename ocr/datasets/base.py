@@ -25,11 +25,13 @@ EXIF_ORIENTATION = EXIF_ORIENTATION_TAG  # Orientation Information: 274
 class OCRDataset(Dataset):
     DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 
-    def __init__(self, image_path, annotation_path, transform, image_extensions=None):
+    def __init__(self, image_path, annotation_path, transform, image_extensions=None, preload_maps=False):
         self.image_path = Path(image_path)
         self.transform = transform
         self.logger = logging.getLogger(__name__)
         self._canonical_frame_logged = set()
+        self.preload_maps = preload_maps
+        self.maps_cache = {}
 
         # Allow configurable image extensions, fallback to default if not provided
         if image_extensions is None:
@@ -78,6 +80,36 @@ class OCRDataset(Dataset):
                     self.anns[filename] = polygons or None
                 else:
                     self.anns[filename] = None
+
+        # Preload maps into RAM if requested
+        if self.preload_maps:
+            self._preload_maps_to_ram()
+
+    def _preload_maps_to_ram(self):
+        """Preload all .npz maps into RAM for faster access."""
+        maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
+
+        if not maps_dir.exists():
+            self.logger.info(f"Maps directory not found: {maps_dir}. Skipping RAM preloading.")
+            return
+
+        from tqdm import tqdm
+
+        self.logger.info(f"Preloading maps from {maps_dir} into RAM...")
+
+        loaded_count = 0
+        for filename in tqdm(self.anns.keys(), desc="Loading maps to RAM"):
+            map_filename = maps_dir / f"{Path(filename).stem}.npz"
+            if map_filename.exists():
+                try:
+                    maps_data = np.load(map_filename)
+                    # Store as dict to avoid keeping file handle open
+                    self.maps_cache[filename] = {"prob_map": maps_data["prob_map"].copy(), "thresh_map": maps_data["thresh_map"].copy()}
+                    loaded_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to load map for {filename}: {e}")
+
+        self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} maps into RAM ({loaded_count/len(self.anns)*100:.1f}%)")
 
     def __len__(self):
         return len(self.anns.keys())
@@ -170,18 +202,24 @@ class OCRDataset(Dataset):
             item["metadata"] = transformed["metadata"]
 
         # Load pre-processed probability and threshold maps
-        maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
-        map_filename = maps_dir / f"{Path(image_filename).stem}.npz"
+        # First check RAM cache
+        if image_filename in self.maps_cache:
+            item["prob_map"] = self.maps_cache[image_filename]["prob_map"]
+            item["thresh_map"] = self.maps_cache[image_filename]["thresh_map"]
+        else:
+            # Fallback to loading from disk
+            maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
+            map_filename = maps_dir / f"{Path(image_filename).stem}.npz"
 
-        if map_filename.exists():
-            try:
-                maps_data = np.load(map_filename)
-                item["prob_map"] = maps_data["prob_map"]
-                item["thresh_map"] = maps_data["thresh_map"]
-            except Exception as e:
-                self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
-                # If maps fail to load, we'll let the collate function handle it
-                pass
+            if map_filename.exists():
+                try:
+                    maps_data = np.load(map_filename)
+                    item["prob_map"] = maps_data["prob_map"]
+                    item["thresh_map"] = maps_data["thresh_map"]
+                except Exception as e:
+                    self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
+                    # If maps fail to load, we'll let the collate function handle it
+                    pass
 
         return item
 

@@ -28,6 +28,13 @@ class OCRPLModule(pl.LightningModule):
     def __init__(self, model, dataset, config, metric_cfg: DictConfig | None = None):
         super().__init__()
         self.model = model
+        # Compile the model for better performance
+        if hasattr(config, "compile_model") and config.compile_model:
+            # Configure torch.compile to handle scalar outputs better
+            import torch._dynamo
+
+            torch._dynamo.config.capture_scalar_outputs = True
+            self.model = torch.compile(self.model, mode="default")
         self.dataset = dataset
         self.metric_cfg = metric_cfg
         self.metric_kwargs = self._extract_metric_kwargs(metric_cfg)

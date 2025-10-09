@@ -86,14 +86,6 @@
   },
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "chat.mcp.serverSampling": {
-    "upstageailab-ocr-recsys-competition-ocr-2/.vscode/mcp.json: ElevenLabs": {
-      "allowedModels": [
-        "copilot/auto"
-      ]
-    },
-  },
-    "python.analysis.autoImportCompletions": false,
     "python.analysis.indexing": false,
     "python.analysis.packageIndexDepths": [
         {"name": "", "depth": 1}

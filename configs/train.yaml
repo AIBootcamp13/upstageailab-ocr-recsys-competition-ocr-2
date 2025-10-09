@@ -21,3 +21,6 @@ runtime:
   auto_gpu_devices: true
   ddp_strategy: ddp_find_unused_parameters_false
   min_auto_devices: 2
+
+# Add this to your trainer or model config section
+compile_model: true  # Set to false to disable compilation

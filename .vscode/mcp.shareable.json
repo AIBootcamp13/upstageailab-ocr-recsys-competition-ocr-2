@@ -1,0 +1,43 @@
+{
+	"servers": {
+		"github/github-mcp-server": {
+			"type": "http",
+			"url": "https://api.githubcopilot.com/mcp/",
+			"gallery": "https://api.mcp.github.com/v0/servers/ab12cd34-5678-90ef-1234-567890abcdef",
+			"version": "0.13.0"
+		},
+		"repomix": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"repomix",
+				"--mcp"
+			]
+		},
+		"tavily-remote": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"mcp-remote",
+				"https://mcp.tavily.com/mcp/?tavilyApiKey=YOUR_TAVILY_API_KEY"
+			]
+		},
+		"perplexity": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"-y",
+				"perplexity-mcp"
+			]
+		},
+		"upstage": {
+			"type": "stdio",
+			"command": "uvx",
+			"args": [
+				"mcp-upstage"
+			]
+		}
+	}
+}
