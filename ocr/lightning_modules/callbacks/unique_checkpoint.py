@@ -41,7 +41,19 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         # Preserve Lightning's reserved "last" checkpoints so cleanup utilities keep working.
         reserved_name = base_name == self.CHECKPOINT_NAME_LAST
 
-        if not reserved_name:
+        # For best checkpoints, keep the name clean but add minimal unique info
+        is_best_checkpoint = "best" in stem.lower()
+
+        if reserved_name:
+            # Don't modify "last" checkpoints
+            pass
+        elif is_best_checkpoint:
+            # For best checkpoints, only add timestamp for uniqueness, keep metric info clean
+            stem = stem.replace("=", "_")  # Clean up metric formatting
+            if self.add_timestamp:
+                stem = f"{stem}_{self.timestamp}"
+        else:
+            # For regular epoch checkpoints, add full model info
             stem = stem.replace("=", "_")
             model_info = self._get_model_info()
             if model_info:

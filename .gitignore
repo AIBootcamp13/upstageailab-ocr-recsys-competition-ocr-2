@@ -141,3 +141,16 @@ results/
 receipt-text-recognition-ocr-project/
 preprocessing_test_results/
 resource_logs/
+DEBUG_OUTPUT_WORKSPACE/
+docs/setup/mcp_setup/
+
+# W&B offline data (should be in outputs/)
+receipt-text-recognition-ocr-project/
+wandb/
+offline-*/
+*.bak
+*.pyc
+
+# Lightning logs (should be in outputs/)
+
+# Common clutter

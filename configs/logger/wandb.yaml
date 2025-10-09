@@ -3,6 +3,11 @@ wandb:
   enabled: True
 project_name: "receipt-text-recognition-ocr-project"
 exp_version: "v1.0"
+# Configure W&B to save offline data in outputs directory
+settings:
+  offline: false  # Don't run in offline mode
+  save_code: false  # Don't save code snapshots
+  sync_dir: "outputs/wandb_sync"  # Custom sync directory
 
 # Per batch image logging for error analysis
 per_batch_image_logging:

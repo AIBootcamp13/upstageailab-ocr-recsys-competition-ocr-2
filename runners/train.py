@@ -156,6 +156,9 @@ def train(config: DictConfig):
             default_hp_metric=False,
         )
 
+    # Ensure no default logger is created by explicitly setting logger
+    # This prevents lightning_logs from being created in the root directory
+
     # --- Callback Configuration ---
     # This is the new, Hydra-native way to handle callbacks.
     # It iterates through the 'callbacks' config group and instantiates each one.
