@@ -8,6 +8,7 @@ and large data files.
 """
 
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -25,23 +26,28 @@ def setup_seroost_index():
     print(f"Setting up Seroost index for project at: {project_root}")
     print(f"Configuration file: {config_path}")
 
-    # Try to import and use seroost functions
+    # Try to run seroost binary
     try:
-        from seroost import seroost_index, seroost_set_index
+        seroost_binary = project_root / ".." / "workspace" / "seroost" / "target" / "release" / "seroost"
 
-        seroost_set_index(str(project_root))
+        if not seroost_binary.exists():
+            raise FileNotFoundError(f"Seroost binary not found at {seroost_binary}")
 
         print("Starting indexing process...")
-        seroost_index()
-        print("Indexing completed successfully!")
+        result = subprocess.run([str(seroost_binary), "--index-path", str(project_root), "index"], capture_output=True, text=True)
 
-    except ImportError:
-        print("Warning: Seroost module not found. To use this indexing configuration:")
-        print("1. Install the seroost package: pip install seroost")
-        print("2. Run this script again: python setup_seroost_indexing.py")
-        print("\nAlternatively, you can use the configuration file directly:")
-        print(f"   Configuration file: {config_path}")
-        print("   Project directory to index: ", project_root)
+        if result.returncode == 0:
+            print("Indexing completed successfully!")
+            print(result.stdout)
+        else:
+            print(f"Indexing failed with return code {result.returncode}")
+            print("STDOUT:", result.stdout)
+            print("STDERR:", result.stderr)
+
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Please ensure Seroost is built and available at the expected location.")
+        print("Build instructions: cd ../workspace/seroost && cargo build --release")
     except Exception as e:
         print(f"Error occurred during indexing: {e}")
         print("Please check your Seroost installation and configuration.")

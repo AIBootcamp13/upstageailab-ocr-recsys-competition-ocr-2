@@ -1,0 +1,66 @@
+# Qwen/Gemini ignore file - exclude these from context loading
+# This significantly reduces memory usage
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large data directories
+data/
+outputs/
+results/
+multirun/
+wandb/
+logs/
+
+# Dependencies and environments
+.venv/
+node_modules/
+.env*
+
+# Build artifacts and caches
+.cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Documentation (can be large)
+docs/
+*.md
+!README.md
+
+# Test files (can be numerous)
+tests/
+*_test.py
+test_*.py
+
+# Scripts (usually not needed for understanding)
+scripts/
+*.sh
+
+# Git and version control
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+*.out
+
+# Large binary files
+*.jpg
+*.png
+*.gif
+*.pdf
+*.zip
+*.tar.gz

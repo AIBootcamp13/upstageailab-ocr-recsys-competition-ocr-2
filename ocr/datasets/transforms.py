@@ -5,6 +5,35 @@ import numpy as np
 from albumentations.pytorch import ToTensorV2
 
 
+class ConditionalNormalize(A.ImageOnlyTransform):
+    """
+    Normalize image only if it hasn't been pre-normalized.
+
+    This transform checks if the image is already normalized (float32 with values around 0)
+    and skips normalization if so. This allows pre-normalized images from cache to skip
+    this expensive operation.
+    """
+
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), always_apply=False, p=1.0):
+        super().__init__(always_apply, p)
+        self.mean = np.array(mean, dtype=np.float32)
+        self.std = np.array(std, dtype=np.float32)
+
+    def apply(self, img, **params):
+        # Check if image is already normalized (float32 dtype is a good indicator)
+        if img.dtype == np.float32 and img.max() < 10.0:
+            # Image is already normalized, return as-is
+            return img
+
+        # Image is uint8, need to normalize
+        img = img.astype(np.float32) / 255.0
+        img = (img - self.mean) / self.std
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("mean", "std")
+
+
 class DBTransforms:
     def __init__(self, transforms, keypoint_params):
         self.transform = A.Compose([*transforms, ToTensorV2()], keypoint_params=keypoint_params)

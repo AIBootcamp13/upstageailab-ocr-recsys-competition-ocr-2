@@ -11,3 +11,7 @@ function ui-infer() { omake serve-inference-ui PORT="${1:-8504}"; }
 ## Resource Monitoring
 To monitor for resource leaks in the future, you can run:
 ps aux | grep -E '(claude|mcp-)' | grep -v grep | wc -l
+
+
+# Human-Readable Bytes
+ps -eo pid,user,%cpu,%mem,rss:20,vsz,tty,stat,start,time,cmd --sort -rss

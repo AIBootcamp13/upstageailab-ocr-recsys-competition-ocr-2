@@ -33,6 +33,7 @@ class OCRDataset(Dataset):
         image_extensions=None,
         preload_maps=False,
         preload_images=False,
+        prenormalize_images=False,
         image_loading_config=None,
     ):
         self.image_path = Path(image_path)
@@ -41,6 +42,7 @@ class OCRDataset(Dataset):
         self._canonical_frame_logged = set()
         self.preload_maps = preload_maps
         self.preload_images = preload_images
+        self.prenormalize_images = prenormalize_images
         self.maps_cache = {}
         self.image_cache = {}
 
@@ -133,7 +135,10 @@ class OCRDataset(Dataset):
         """Preload decoded PIL images to RAM for faster access."""
         from tqdm import tqdm
 
-        self.logger.info(f"Preloading images from {self.image_path} into RAM...")
+        if self.prenormalize_images:
+            self.logger.info(f"Preloading and pre-normalizing images from {self.image_path} into RAM...")
+        else:
+            self.logger.info(f"Preloading images from {self.image_path} into RAM...")
 
         loaded_count = 0
         for filename in tqdm(self.anns.keys(), desc="Loading images to RAM"):
@@ -154,11 +159,22 @@ class OCRDataset(Dataset):
                     # Store as numpy array to save memory and avoid keeping PIL objects
                     # Also store metadata needed for __getitem__
                     raw_width, raw_height = pil_image.size
+                    image_array = np.array(rgb_image)
+
+                    # Pre-normalize if requested (ImageNet normalization)
+                    if self.prenormalize_images:
+                        # Convert to float32 and normalize in-place
+                        image_array = image_array.astype(np.float32) / 255.0
+                        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+                        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                        image_array = (image_array - mean) / std
+
                     self.image_cache[filename] = {
-                        "image_array": np.array(rgb_image),
+                        "image_array": image_array,
                         "raw_width": raw_width,
                         "raw_height": raw_height,
                         "orientation": orientation,
+                        "is_normalized": self.prenormalize_images,
                     }
 
                     # Clean up PIL objects
@@ -171,7 +187,12 @@ class OCRDataset(Dataset):
                 except Exception as e:
                     self.logger.warning(f"Failed to preload image {filename}: {e}")
 
-        self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} images into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
+        if self.prenormalize_images:
+            self.logger.info(
+                f"Preloaded and pre-normalized {loaded_count}/{len(self.anns)} images into RAM ({loaded_count / len(self.anns) * 100:.1f}%)"
+            )
+        else:
+            self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} images into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
 
     def __len__(self):
         return len(self.anns.keys())
@@ -188,8 +209,16 @@ class OCRDataset(Dataset):
             raw_width = cached_data["raw_width"]
             raw_height = cached_data["raw_height"]
             orientation = cached_data["orientation"]
-            # Convert numpy array back to PIL Image for consistency with transform pipeline
-            image = Image.fromarray(image_array)
+            is_normalized = cached_data.get("is_normalized", False)
+
+            # If image is pre-normalized (float32), keep as numpy array
+            # Otherwise convert to PIL Image for transform pipeline
+            if is_normalized:
+                # Keep as numpy array - transforms will handle it
+                image = image_array
+            else:
+                # Convert numpy array back to PIL Image for consistency with transform pipeline
+                image = Image.fromarray(image_array)
         else:
             # Load from disk (original behavior)
             try:
