@@ -129,7 +129,9 @@ class OCRPLModule(pl.LightningModule):
                 "boxes": normalized_boxes,
                 "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
                 "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
-                "canonical_size": tuple(batch.get("canonical_size", [None])[idx]) if "canonical_size" in batch else None,
+                "canonical_size": tuple(batch.get("canonical_size", [None])[idx])
+                if "canonical_size" in batch
+                else None,  # BUG REPORTED Error: `TypeError: 'int' object is not iterable` in canonical_size handling
                 "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
             }
 

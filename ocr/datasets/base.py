@@ -270,7 +270,11 @@ class OCRDataset(Dataset):
             else:
                 polygons = polygons_list
 
-        org_shape = image.size
+        # Ensure shape is always a tuple (width, height)
+        if isinstance(image, np.ndarray):
+            org_shape = (image.shape[1], image.shape[0])  # (width, height) for numpy arrays
+        else:
+            org_shape = image.size  # (width, height) for PIL images
 
         item: OrderedDict[str, Any] = OrderedDict(
             image=image,

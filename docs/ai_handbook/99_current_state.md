@@ -1,6 +1,6 @@
 # Current Project State
-**Last Updated**: 2025-10-09 18:00
-**Session**: Performance Optimization (Phase 6B-6C)
+**Last Updated**: 2025-10-10
+**Session**: Performance Optimization (Phase 6A Starting)
 
 ---
 
@@ -36,24 +36,20 @@
 - Status: **Production-ready, currently disabled**
 - **Action**: Enable for validation dataset
 
-### Phase 6C: Transform Pipeline Profiling ⚠️ **LIMITED SUCCESS**
+### Phase 6C: Transform Pipeline Profiling ✅ **COMPLETED**
 - Created profiling script: [scripts/profile_transforms.py](../../scripts/profile_transforms.py)
 - Identified bottleneck: Normalization = 87.84% of transform time
 - Attempted pre-normalization optimization
 - Result: No additional speedup (CPU/GPU parallelism)
-- Files to revert:
-  - [configs/transforms/base.yaml](../../configs/transforms/base.yaml) - ConditionalNormalize usage
-  - [configs/data/base.yaml](../../configs/data/base.yaml) - prenormalize_images param
-- Files to keep:
-  - [scripts/profile_transforms.py](../../scripts/profile_transforms.py) - Useful profiling tool
-- **Action**: Revert Phase 6C changes, keep profiling script
+- **Cleanup**: Reverted ConditionalNormalize usage and prenormalize_images param
+- **Kept**: [scripts/profile_transforms.py](../../scripts/profile_transforms.py) - Useful profiling tool
 
 ---
 
 ## In Progress
 
-- [ ] **Cleanup Phase 6C changes** (revert unnecessary code)
-- [ ] **Enable Phase 6B for validation** (production use)
+- [x] **Cleanup Phase 6C changes** (revert unnecessary code)
+- [x] **Enable Phase 6B for validation** (production use)
 - [ ] **Decide on next optimization path**:
   - Option A: Phase 6A - WebDataset (2-3x expected)
   - Option B: Phase 7 - NVIDIA DALI (5-10x expected)
@@ -63,12 +59,9 @@
 
 ## Known Issues
 
-1. **Validation step canonical_size bug**:
-   - Error encountered during Phase 6C pre-normalization testing
-   - Location: [ocr/lightning_modules/ocr_pl.py:132](../../ocr/lightning_modules/ocr_pl.py)
-   - Error: `TypeError: 'int' object is not iterable` in canonical_size handling
-   - Status: Unrelated to Phase 6C, needs investigation
-   - Workaround: Disable pre-normalization (which we're reverting anyway)
+1. **Validation step canonical_size bug** ✅ **RESOLVED**:
+   - Type confusion between PIL.Image.size (tuple) and np.ndarray.size (int) in cached image pipeline
+   - Fixed: Added type-aware shape extraction in dataset; see [BUG-2025-10-09-001](../../bug_reports/BUG-2025-10-09-001_canonical_size_typeerror.md)
 
 2. **Map preloading minimal benefit**:
    - Preloading .npz maps to RAM provides <1% speedup
@@ -113,24 +106,16 @@ e3ac30b feature: Rich style color logging added
 ## Next Session Priority
 
 ### Immediate (Before Next Session)
-1. **Revert Phase 6C changes**:
-   ```bash
-   git checkout configs/transforms/base.yaml
-   # Manually remove prenormalize_images from configs/data/base.yaml
-   ```
+1. **Phase 6A WebDataset Investigation**:
+   - Research WebDataset implementation for data loading
+   - Evaluate integration with existing OCRDataset
+   - Assess 2-3x speedup potential
 
-2. **Enable Phase 6B for validation**:
-   ```yaml
-   # configs/data/base.yaml
-   val_dataset:
-     preload_images: true  # Enable RAM caching
-   ```
-
-3. **Commit clean state**:
+2. **Commit clean state**:
    ```bash
    git add ocr/datasets/base.py configs/data/base.yaml scripts/profile_transforms.py
-   git add logs/2025-10-08_02_refactor_performance_features/
-   git commit -m "feature: Phase 6B RAM image caching (10.8% speedup)"
+   git add docs/bug_reports/BUG-2025-10-09-001_canonical_size_typeerror.md
+   git commit -m "fix: canonical_size type error + cleanup Phase 6C changes"
    ```
 
 ### Short-Term (This Week)
@@ -191,13 +176,14 @@ I'm continuing the data pipeline optimization project. Read the session handover
 
 **Completed**:
 - ✅ Phase 6B: RAM image caching (10.8% speedup) - KEEP
-- ⚠️ Phase 6C: Transform profiling (limited success) - REVERT
+- ✅ Phase 6C: Transform profiling (limited success) - CLEANUP COMPLETE
+- ✅ canonical_size bug: Type confusion fixed - RESOLVED
 
 **Next Steps**:
-1. Clean up Phase 6C changes (revert unnecessary code)
-2. Enable Phase 6B for validation (production use)
+1. Clean up Phase 6C changes (revert unnecessary code) ✅ DONE
+2. Enable Phase 6B for validation (production use) ✅ DONE
 3. Choose next optimization path:
-   - Phase 6A (WebDataset) - 2-3x expected
+   - **Phase 6A (WebDataset)** - comprehensive, 2-3x expected **[STARTING NOW]**
    - Phase 7 (DALI) - 5-10x expected
    - Quick wins - 1.2-2x expected
 
@@ -226,6 +212,6 @@ Please review the handover and recommend the best path forward to achieve 2-5x s
 
 ---
 
-**Status**: 📊 Phase 6B Complete (10.8% speedup) | ⚠️ Phase 6C Needs Cleanup | 🎯 Next: WebDataset or Quick Wins
+**Status**: 📊 Phase 6B Complete (10.8% speedup) | ✅ Phase 6C Cleanup Complete | 🎯 Next: Phase 6A WebDataset
 
-**Last Updated**: 2025-10-09 18:00
+**Last Updated**: 2025-10-10

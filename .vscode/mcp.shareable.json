@@ -5,6 +5,11 @@
 			"url": "https://api.githubcopilot.com/mcp/",
 			"gallery": "https://api.mcp.github.com/v0/servers/ab12cd34-5678-90ef-1234-567890abcdef",
 			"version": "0.13.0"
+		},
+		"pytest-mcp-server": {
+			"type": "stdio",
+			"command": "/home/vscode/workspace/node_modules_global/bin/pytest-mcp-server",
+			"args": ["start"]
 		}
 	}
 }

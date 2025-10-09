@@ -27,8 +27,7 @@ datasets:
     annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${transforms.val_transform}
     preload_maps: false  # Disabled as it doesn't provide performance benefit
-    preload_images: false  # Enable for Phase 6B RAM caching benchmark
-    prenormalize_images: false  # Enable to pre-normalize images in cache (87% of transform time)
+    preload_images: true  # Enable for Phase 6B RAM caching benchmark
     image_loading_config: ${image_loading}
   test_dataset:
     _target_: ${dataset_path}.OCRDataset
