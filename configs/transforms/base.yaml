@@ -1,11 +1,16 @@
 # @package _global_
 
+# Default interpolation method for performance optimization
+# 1 = cv2.INTER_LINEAR (faster), 3 = cv2.INTER_CUBIC (higher quality)
+default_interpolation: 1
+
 transforms:
   train_transform:
     _target_: ${dataset_path}.DBTransforms
     transforms:
       - _target_: albumentations.LongestMaxSize
         max_size: 640
+        interpolation: ${default_interpolation}
         p: 1.0
       - _target_: albumentations.PadIfNeeded
         min_width: 640
@@ -26,6 +31,7 @@ transforms:
     transforms:
       - _target_: albumentations.LongestMaxSize
         max_size: 640
+        interpolation: ${default_interpolation}
         p: 1.0
       - _target_: albumentations.PadIfNeeded
         min_width: 640
@@ -44,6 +50,7 @@ transforms:
     transforms:
       - _target_: albumentations.LongestMaxSize
         max_size: 640
+        interpolation: ${default_interpolation}
         p: 1.0
       - _target_: albumentations.PadIfNeeded
         min_width: 640
@@ -62,6 +69,7 @@ transforms:
     transforms:
       - _target_: albumentations.LongestMaxSize
         max_size: 640
+        interpolation: 1  # cv2.INTER_LINEAR for faster processing
         p: 1.0
       - _target_: albumentations.PadIfNeeded
         min_width: 640

@@ -25,13 +25,27 @@ EXIF_ORIENTATION = EXIF_ORIENTATION_TAG  # Orientation Information: 274
 class OCRDataset(Dataset):
     DEFAULT_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png"]
 
-    def __init__(self, image_path, annotation_path, transform, image_extensions=None, preload_maps=False):
+    def __init__(
+        self,
+        image_path,
+        annotation_path,
+        transform,
+        image_extensions=None,
+        preload_maps=False,
+        preload_images=False,
+        image_loading_config=None,
+    ):
         self.image_path = Path(image_path)
         self.transform = transform
         self.logger = logging.getLogger(__name__)
         self._canonical_frame_logged = set()
         self.preload_maps = preload_maps
+        self.preload_images = preload_images
         self.maps_cache = {}
+        self.image_cache = {}
+
+        # Image loading configuration
+        self.image_loading_config = image_loading_config or {"use_turbojpeg": True, "turbojpeg_fallback": True}
 
         # Allow configurable image extensions, fallback to default if not provided
         if image_extensions is None:
@@ -85,6 +99,10 @@ class OCRDataset(Dataset):
         if self.preload_maps:
             self._preload_maps_to_ram()
 
+        # Preload images into RAM if requested
+        if self.preload_images:
+            self._preload_images_to_ram()
+
     def _preload_maps_to_ram(self):
         """Preload all .npz maps into RAM for faster access."""
         maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
@@ -109,7 +127,51 @@ class OCRDataset(Dataset):
                 except Exception as e:
                     self.logger.warning(f"Failed to load map for {filename}: {e}")
 
-        self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} maps into RAM ({loaded_count/len(self.anns)*100:.1f}%)")
+        self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} maps into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
+
+    def _preload_images_to_ram(self):
+        """Preload decoded PIL images to RAM for faster access."""
+        from tqdm import tqdm
+
+        self.logger.info(f"Preloading images from {self.image_path} into RAM...")
+
+        loaded_count = 0
+        for filename in tqdm(self.anns.keys(), desc="Loading images to RAM"):
+            image_path = self.image_path / filename
+            if image_path.exists():
+                try:
+                    from ocr.utils.image_loading import load_image_optimized
+
+                    pil_image = load_image_optimized(image_path)
+                    # Normalize and convert to RGB immediately to avoid duplicate work later
+                    normalized_image, orientation = normalize_pil_image(pil_image)
+                    if normalized_image.mode != "RGB":
+                        rgb_image = normalized_image.convert("RGB")
+                        normalized_image.close()
+                    else:
+                        rgb_image = normalized_image
+
+                    # Store as numpy array to save memory and avoid keeping PIL objects
+                    # Also store metadata needed for __getitem__
+                    raw_width, raw_height = pil_image.size
+                    self.image_cache[filename] = {
+                        "image_array": np.array(rgb_image),
+                        "raw_width": raw_width,
+                        "raw_height": raw_height,
+                        "orientation": orientation,
+                    }
+
+                    # Clean up PIL objects
+                    rgb_image.close()
+                    if normalized_image is not pil_image:
+                        normalized_image.close()
+                    pil_image.close()
+
+                    loaded_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to preload image {filename}: {e}")
+
+        self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} images into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
 
     def __len__(self):
         return len(self.anns.keys())
@@ -117,26 +179,45 @@ class OCRDataset(Dataset):
     def __getitem__(self, idx):
         image_filename = list(self.anns.keys())[idx]
         image_path = self.image_path / image_filename
-        try:
-            pil_image = Image.open(image_path)
-        except OSError as e:
-            raise RuntimeError(f"Failed to load image {image_filename}: {e}")
 
-        raw_width, raw_height = pil_image.size
-        try:
-            normalized_image, orientation = normalize_pil_image(pil_image)
-        except Exception as exc:
-            pil_image.close()
-            raise RuntimeError(f"Failed to normalize image {image_filename}: {exc}") from exc
-
-        if normalized_image.mode != "RGB":
-            image = normalized_image.convert("RGB")
+        # Check if image is in cache
+        if image_filename in self.image_cache:
+            # Use preloaded image from RAM
+            cached_data = self.image_cache[image_filename]
+            image_array = cached_data["image_array"]
+            raw_width = cached_data["raw_width"]
+            raw_height = cached_data["raw_height"]
+            orientation = cached_data["orientation"]
+            # Convert numpy array back to PIL Image for consistency with transform pipeline
+            image = Image.fromarray(image_array)
         else:
-            image = normalized_image.copy()
+            # Load from disk (original behavior)
+            try:
+                from ocr.utils.image_loading import load_image_optimized
 
-        if normalized_image is not pil_image:
-            normalized_image.close()
-        pil_image.close()
+                pil_image = load_image_optimized(
+                    image_path,
+                    use_turbojpeg=self.image_loading_config["use_turbojpeg"],
+                    turbojpeg_fallback=self.image_loading_config["turbojpeg_fallback"],
+                )
+            except OSError as e:
+                raise RuntimeError(f"Failed to load image {image_filename}: {e}")
+
+            raw_width, raw_height = pil_image.size
+            try:
+                normalized_image, orientation = normalize_pil_image(pil_image)
+            except Exception as exc:
+                pil_image.close()
+                raise RuntimeError(f"Failed to normalize image {image_filename}: {exc}") from exc
+
+            if normalized_image.mode != "RGB":
+                image = normalized_image.convert("RGB")
+            else:
+                image = normalized_image.copy()
+
+            if normalized_image is not pil_image:
+                normalized_image.close()
+            pil_image.close()
 
         raw_polygons = self.anns[image_filename] or None
         polygons = None

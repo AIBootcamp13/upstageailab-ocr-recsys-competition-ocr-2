@@ -60,6 +60,7 @@ dependencies = [
     "openai>=1.109.1",
     "dotenv>=0.9.9",
     "imutils>=0.5.4",
+    "pyturbojpeg>=1.8.2",
 ]
 
 
