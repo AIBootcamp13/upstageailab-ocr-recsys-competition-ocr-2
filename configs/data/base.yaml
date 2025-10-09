@@ -24,7 +24,7 @@ datasets:
     image_path: ${dataset_base_path}images_val_canonical # Using canonical (rotation-corrected) data
     annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${transforms.val_transform}
-    preload_maps: true  # Validation dataset is small, preload to RAM for speed
+    preload_maps: false  # Disabled as it doesn't provide performance benefit
   test_dataset:
     _target_: ${dataset_path}.OCRDataset
     image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
