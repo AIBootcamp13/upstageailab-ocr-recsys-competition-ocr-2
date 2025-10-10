@@ -1225,7 +1225,7 @@
     {
       "id": "08_phase_3_performance_monitoring_prompts_ready",
       "title": "Qwen Phase 3 Performance Monitoring Prompts Ready",
-      "path": "./07_planning/phases/08_phase-3-performance-monitoring-prompts-ready.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/08_phase-3-performance-monitoring-prompts-ready.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1239,7 +1239,7 @@
     {
       "id": "01_continuation_prompt",
       "title": "Phase 3 Continuation Prompt: Monitoring and Profiling",
-      "path": "./07_planning/phases/phase3/01_continuation_prompt.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/01_continuation_prompt.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1253,7 +1253,7 @@
     {
       "id": "05_task_2_2_completion_summary",
       "title": "Task 2.2 Completion Summary: Cache Integration",
-      "path": "./07_planning/phases/phase3/05_task-2-2-completion-summary.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/05_task-2-2-completion-summary.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1267,7 +1267,7 @@
     {
       "id": "02_quick_reference",
       "title": "Phase 3 Quick Reference",
-      "path": "./07_planning/phases/phase3/02_quick_reference.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/02_quick_reference.md",
       "section": "Planning (Planning)",
       "tags": [
         "ui"
@@ -1281,7 +1281,7 @@
     {
       "id": "03_phase_1_2_completion_summary",
       "title": "Phase 1 & 2.1 Completion Summary",
-      "path": "./07_planning/phases/phase3/03_phase-1-2-completion-summary.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/03_phase-1-2-completion-summary.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1295,7 +1295,7 @@
     {
       "id": "04_task_1_1_completion_summary",
       "title": "Task 1.1 Completion Summary: Performance Profiler Callback",
-      "path": "./07_planning/phases/phase3/04_task-1-1-completion-summary.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/phase3/04_task-1-1-completion-summary.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1323,7 +1323,7 @@
     {
       "id": "02_performance_optimization_execution_plan",
       "title": "Performance Optimization Execution Plan",
-      "path": "./07_planning/plans/performance/02_performance_optimization_execution_plan.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/02_performance_optimization_execution_plan.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1337,7 +1337,7 @@
     {
       "id": "01_performance_optimization_plan",
       "title": "Performance Optimization Plan: OCR Training Pipeline",
-      "path": "./07_planning/plans/performance/01_performance_optimization_plan.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/01_performance_optimization_plan.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"
@@ -1351,7 +1351,7 @@
     {
       "id": "03_performance_bottlenecks_refactor_plan",
       "title": "Actionable Refactor Plan: Address Performance Bottlenecks",
-      "path": "./07_planning/plans/performance/03_performance_bottlenecks_refactor_plan.md",
+      "path": "./07_planning/plans/performance_optimization_refactor/03_performance_bottlenecks_refactor_plan.md",
       "section": "Planning (Planning)",
       "tags": [
         "planning"

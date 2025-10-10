@@ -69,7 +69,8 @@ class TestOCRDataset:
         polygons = dataset.anns["image1.jpg"]
         assert len(polygons) == 2
         assert isinstance(polygons[0], np.ndarray)
-        assert polygons[0].shape == (1, 4, 2)  # One polygon with 4 points
+        # Raw annotations are stored as (N, 2) arrays, batch dimension added during processing
+        assert polygons[0].shape == (4, 2)  # Polygon with 4 points
 
         # Verify image2 has no polygons
         assert dataset.anns["image2.jpg"] is None
@@ -91,16 +92,18 @@ class TestOCRDataset:
             json.dump(sample_annotations, f)
 
         transform = Mock()
+        # BUG FIX: Return proper data structures, not strings
+        # Transform should return numpy arrays and lists, not strings
         transform.return_value = {
-            "image": "transformed_image",
-            "polygons": "transformed_polygons",
-            "inverse_matrix": "inverse_matrix",
+            "image": np.zeros((100, 100, 3), dtype=np.uint8),
+            "polygons": [np.array([[10, 10], [50, 10], [50, 30], [10, 30]], dtype=np.float32)],
+            "inverse_matrix": np.eye(3),
         }
 
         dataset = OCRDataset(temp_dir, annotation_path, transform)
 
         # Get first item
-        dataset[0]
+        result = dataset[0]
 
         # Verify transform was called
         transform.assert_called_once()
@@ -110,6 +113,11 @@ class TestOCRDataset:
         assert "image" in call_kwargs
         assert isinstance(call_kwargs["image"], np.ndarray)  # numpy array
         assert call_kwargs["image"].shape == (100, 100, 3)
+
+        # Verify returned data is correct
+        assert "image" in result
+        assert "polygons" in result
+        assert isinstance(result["polygons"], list)
 
     def test_missing_image_file(self, temp_dir):
         """Test behavior when annotation references non-existent image."""

@@ -385,6 +385,11 @@ class OCRPLModule(pl.LightningModule):
         return {"recall": recall, "precision": precision, "hmean": hmean}
 
     def on_validation_epoch_end(self):
+        # Log cache statistics from validation dataset if caching is enabled
+        val_dataset = self.dataset["val"]
+        if hasattr(val_dataset, "log_cache_statistics"):
+            val_dataset.log_cache_statistics()
+
         cleval_metrics = defaultdict(list)
 
         # Get the actual filenames that should be evaluated (handle Subset datasets)
@@ -755,6 +760,15 @@ class OCRPLModule(pl.LightningModule):
         return optimizer_list
 
     def on_train_epoch_end(self):
+        # Log cache statistics from datasets if caching is enabled
+        if hasattr(self, "train_dataloader"):
+            try:
+                train_loader = self.trainer.train_dataloader
+                if train_loader and hasattr(train_loader, "dataset") and hasattr(train_loader.dataset, "log_cache_statistics"):
+                    train_loader.dataset.log_cache_statistics()
+            except Exception:
+                pass  # Silently skip if dataset doesn't support cache statistics
+
         if self.lr_scheduler is None:
             return
 

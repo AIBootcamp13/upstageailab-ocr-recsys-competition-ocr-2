@@ -2,7 +2,9 @@
 """
 Hydra Config Override Test Suite
 
-This script tests common hydra override patterns to identify which ones work
+This script test    test_results["group"] = []
+    for override, desc in group_tests:
+        success, error = run_override_pattern("train", [override], desc)ommon hydra override patterns to identify which ones work
 and which ones fail, helping to debug config issues.
 """
 
@@ -18,7 +20,7 @@ from ocr.utils.path_utils import setup_project_paths
 setup_project_paths()
 
 
-def test_override_pattern(config_name: str, overrides: list[str], description: str) -> tuple[bool, str]:
+def run_override_pattern(config_name: str, overrides: list[str], description: str) -> tuple[bool, str]:
     """
     Test a specific override pattern.
 
@@ -60,7 +62,7 @@ def run_override_tests() -> dict[str, list[tuple[str, bool, str]]]:
 
     test_results["basic"] = []
     for override, desc in basic_tests:
-        success, error = test_override_pattern("train", [override], desc)
+        success, error = run_override_pattern("train", [override], desc)
         test_results["basic"].append((f"{desc}: {override}", success, error))
 
     # Test group overrides
@@ -77,7 +79,7 @@ def run_override_tests() -> dict[str, list[tuple[str, bool, str]]]:
 
     test_results["groups"] = []
     for override, desc in group_tests:
-        success, error = test_override_pattern("train", [override], desc)
+        success, error = run_override_pattern("train", [override], desc)
         test_results["groups"].append((f"{desc}: {override}", success, error))
 
     # Test ablation overrides
@@ -90,7 +92,7 @@ def run_override_tests() -> dict[str, list[tuple[str, bool, str]]]:
 
     test_results["ablation"] = []
     for override, desc in ablation_tests:
-        success, error = test_override_pattern("train", [override], desc)
+        success, error = run_override_pattern("train", [override], desc)
         test_results["ablation"].append((f"{desc}: {override}", success, error))
 
     # Test multirun syntax
@@ -122,7 +124,7 @@ def run_override_tests() -> dict[str, list[tuple[str, bool, str]]]:
     test_results["problematic"] = []
     for override, desc in problematic_tests:
         overrides_list = override.split()
-        success, error = test_override_pattern("train", overrides_list, desc)
+        success, error = run_override_pattern("train", overrides_list, desc)
         test_results["problematic"].append((f"{desc}: {override}", success, error))
 
     return test_results

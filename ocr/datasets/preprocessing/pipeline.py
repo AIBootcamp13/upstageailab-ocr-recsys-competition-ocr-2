@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from .config import DocumentPreprocessorConfig
 from .detector import DocumentDetector
 from .enhancement import ImageEnhancer
-from .external import DOCTR_AVAILABLE
+from .external import ALBUMENTATIONS_AVAILABLE, DOCTR_AVAILABLE, A, ImageOnlyTransform
 from .metadata import DocumentMetadata, PreprocessingState
 from .orientation import OrientationCorrector
 from .padding import PaddingCleanup
@@ -253,19 +254,55 @@ class DocumentPreprocessor:
         return self.detector._order_corners(corners)
 
 
-class LensStylePreprocessorAlbumentations:
-    """Albumentations-compatible wrapper for the document preprocessor."""
+if TYPE_CHECKING or (ALBUMENTATIONS_AVAILABLE and A is not None and ImageOnlyTransform is not None):
+    assert A is not None  # For mypy
+    assert ImageOnlyTransform is not None  # For mypy
 
-    def __init__(self, preprocessor: DocumentPreprocessor):
-        self.preprocessor = preprocessor
+    class LensStylePreprocessorAlbumentations(ImageOnlyTransform):
+        """Albumentations-compatible wrapper for the document preprocessor.
 
-    def __call__(self, image, **kwargs):  # type: ignore[override]
-        result = self.preprocessor(image)
-        # Return just the processed image for Albumentations compatibility
-        return result["image"]
+        BUG FIX (BUG-2025-003): Properly inherits from A.ImageOnlyTransform to comply with
+        Albumentations transform contract. Previous implementation returned numpy array directly
+        in __call__, causing IndexError in Albumentations internal validation.
+        """
 
-    def get_transform_init_args_names(self):
-        return []
+        def __init__(self, preprocessor: DocumentPreprocessor, always_apply: bool = False, p: float = 1.0):
+            super().__init__(always_apply=always_apply, p=p)
+            self.preprocessor = preprocessor
+
+        def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:  # type: ignore[override]
+            """Apply document preprocessing to the image.
+
+            Args:
+                img: Input image as numpy array
+                **params: Additional parameters from Albumentations
+
+            Returns:
+                Processed image as numpy array (Albumentations wraps this in dict automatically)
+            """
+            result = self.preprocessor(img)
+            # Return just the processed image; Albumentations handles dict wrapping
+            processed_image = result["image"]
+            assert isinstance(processed_image, np.ndarray), "Preprocessor must return numpy array"
+            return processed_image
+
+        def get_transform_init_args_names(self) -> tuple[str, ...]:
+            return ("preprocessor",)
+
+else:
+    # Fallback when Albumentations is not available
+    class LensStylePreprocessorAlbumentations:  # type: ignore[no-redef]
+        """Fallback wrapper when Albumentations is not available."""
+
+        def __init__(self, preprocessor: DocumentPreprocessor):
+            self.preprocessor = preprocessor
+
+        def __call__(self, image: np.ndarray, **kwargs: Any) -> dict[str, Any]:
+            """Process image and return result dict."""
+            return self.preprocessor(image)
+
+        def get_transform_init_args_names(self) -> tuple[()]:
+            return ()
 
 
 __all__ = ["DocumentPreprocessor", "LensStylePreprocessorAlbumentations"]

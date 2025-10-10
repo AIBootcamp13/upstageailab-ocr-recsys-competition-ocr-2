@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import albumentations as A
 import numpy as np
+import torch
 from albumentations.pytorch import ToTensorV2
 
 
@@ -38,11 +39,156 @@ class DBTransforms:
     def __init__(self, transforms, keypoint_params):
         self.transform = A.Compose([*transforms, ToTensorV2()], keypoint_params=keypoint_params)
 
-    def __call__(self, image, polygons):
+    def _validate_polygons(self, polygons: list[np.ndarray] | None) -> None:
+        """
+        Validate polygon shapes and types for transform pipeline.
+
+        Args:
+            polygons: List of polygon arrays to validate
+
+        Raises:
+            TypeError: If polygons is not a list or contains invalid types
+            ValueError: If polygon shapes are invalid
+        """
+        if polygons is None:
+            return
+
+        if not isinstance(polygons, list):
+            raise TypeError(f"polygons must be a list, got {type(polygons)}")
+
+        for idx, polygon in enumerate(polygons):
+            if not isinstance(polygon, np.ndarray):
+                raise TypeError(f"polygon at index {idx} must be numpy array, got {type(polygon)}")
+
+            if polygon.dtype not in (np.float32, np.float64, np.int32, np.int64):
+                raise TypeError(f"polygon at index {idx} must be numeric array, got dtype {polygon.dtype}")
+
+            if polygon.ndim not in (2, 3):
+                raise ValueError(f"polygon at index {idx} must be 2D or 3D array, got {polygon.ndim}D with shape {polygon.shape}")
+
+            if polygon.ndim == 2:
+                # Shape should be (N, 2) where N is number of points
+                if polygon.shape[1] != 2:
+                    raise ValueError(f"polygon at index {idx} must have shape (N, 2), got {polygon.shape}")
+                # Note: Minimum point validation happens in processing loop
+            elif polygon.ndim == 3:
+                # Shape should be (1, N, 2) for backward compatibility
+                if polygon.shape[0] != 1 or polygon.shape[2] != 2:
+                    raise ValueError(f"polygon at index {idx} must have shape (1, N, 2), got {polygon.shape}")
+                # Note: Minimum point validation happens in processing loop
+
+    def _validate_transform_contracts(self, image: np.ndarray, polygons: list[np.ndarray] | None) -> None:
+        """
+        Validate input contracts for the transform pipeline.
+
+        Args:
+            image: Input image array
+            polygons: List of polygon arrays
+
+        Raises:
+            ValueError: If input contracts are violated
+        """
+        # Validate image shape and type
+        if image.ndim not in (2, 3):
+            raise ValueError(f"Image must be 2D or 3D array, got shape {image.shape}")
+
+        if image.ndim == 3 and image.shape[2] not in (1, 3):
+            raise ValueError(f"Image must have 1 or 3 channels, got {image.shape[2]}")
+
+        # Validate polygons if provided
+        if polygons is not None:
+            self._validate_polygons(polygons)
+
+    def _validate_output_contracts(self, result: OrderedDict) -> None:
+        """
+        Validate output contracts for the transform pipeline.
+
+        Args:
+            result: Output OrderedDict from transform
+
+        Raises:
+            ValueError: If output contracts are violated
+        """
+        required_keys = {"image", "polygons", "inverse_matrix"}
+        if not all(key in result for key in required_keys):
+            missing = required_keys - set(result.keys())
+            raise ValueError(f"Output missing required keys: {missing}")
+
+        # Validate image output
+        image = result["image"]
+        if not isinstance(image, torch.Tensor):
+            raise TypeError(f"Output image must be torch.Tensor, got {type(image)}")
+
+        if image.ndim != 3:
+            raise ValueError(f"Output image must be 3D tensor (C, H, W), got shape {image.shape}")
+
+        # Validate polygons output
+        polygons = result["polygons"]
+        if not isinstance(polygons, list):
+            raise TypeError(f"Output polygons must be list, got {type(polygons)}")
+
+        for idx, polygon in enumerate(polygons):
+            if not isinstance(polygon, np.ndarray):
+                raise TypeError(f"Output polygon at index {idx} must be numpy array, got {type(polygon)}")
+
+            if polygon.shape != (1, polygon.shape[1], 2):
+                raise ValueError(f"Output polygon at index {idx} must have shape (1, N, 2), got {polygon.shape}")
+
+            if polygon.dtype != np.float32:
+                raise ValueError(f"Output polygon at index {idx} must be float32, got {polygon.dtype}")
+
+        # Validate inverse matrix
+        inverse_matrix = result["inverse_matrix"]
+        if not isinstance(inverse_matrix, np.ndarray):
+            raise TypeError(f"Inverse matrix must be numpy array, got {type(inverse_matrix)}")
+
+        if inverse_matrix.shape != (3, 3):
+            raise ValueError(f"Inverse matrix must be 3x3, got shape {inverse_matrix.shape}")
+
+        if inverse_matrix.dtype not in (np.float32, np.float64):
+            raise ValueError(f"Inverse matrix must be float32 or float64, got {inverse_matrix.dtype}")
+
+    def __call__(self, image: np.ndarray, polygons: list[np.ndarray] | None) -> OrderedDict:
+        """
+        Apply transforms to image and polygons.
+
+        Args:
+            image: RGB image as numpy array with shape (H, W, 3) or PIL Image
+            polygons: List of polygon arrays with shape (N, 2) where:
+                     - N is number of points (>= 3 for valid polygons)
+                     - 2 represents (x, y) coordinates
+                     Also accepts (1, N, 2) for backward compatibility
+
+        Returns:
+            OrderedDict with:
+                - image: Transformed image tensor
+                - polygons: List of transformed polygons with shape (1, N, 2)
+                - inverse_matrix: Matrix for coordinate transformation
+        """
+        # BUG FIX (BUG-2025-002): Add defensive type check for PIL Images
+        # Albumentations/DBTransforms expect numpy arrays, not PIL Images
+        from PIL import Image as PILImage
+
+        if isinstance(image, PILImage.Image):
+            image = np.array(image)
+
+        # Type validation for image
+        if not isinstance(image, np.ndarray):
+            raise TypeError(f"Expected numpy array or PIL Image, got {type(image)}")
+
+        if image.ndim not in (2, 3):
+            raise ValueError(f"Image must be 2D or 3D array, got shape {image.shape}")
+
         height, width = image.shape[:2]
+
+        # Validate input contracts
+        self._validate_transform_contracts(image, polygons)
 
         keypoints = []
         if polygons is not None:
+            # BUG FIX (BUG-2025-004): Validate polygon shapes before processing
+            self._validate_polygons(polygons)
+
             # Polygons 정보를 Keypoints 형태로 변환
             keypoints = [point for polygon in polygons for point in polygon.reshape(-1, 2)]
             # keypoints가 이미지의 크기를 벗어나지 않도록 제한
@@ -60,17 +206,43 @@ class DBTransforms:
         inverse_matrix = self.calculate_inverse_transform((width, height), (new_width, new_height), crop_box=crop_box)
 
         # Keypoints 정보를 Polygons 형태로 변환
+        # BUG FIX (BUG-2025-004): Correct polygon point count extraction
         transformed_polygons = []
         index = 0
         if polygons is not None:
-            for polygon in polygons:
-                num_points = polygon.shape[1]
+            for polygon_idx, polygon in enumerate(polygons):
+                # Get number of points - handle both (N, 2) and (1, N, 2) shapes
+                # BUG-2025-004: Must use correct dimension for point count
+                if polygon.ndim == 2:
+                    # Shape is (N, 2) where N = number of points
+                    # shape[0] = N (correct), shape[1] = 2 (wrong - coordinate dimension)
+                    num_points = polygon.shape[0] if polygon.shape[0] != 1 else polygon.shape[1]
+                elif polygon.ndim == 3:
+                    # Shape is (1, N, 2) where N = number of points
+                    # shape[1] = N (correct)
+                    num_points = polygon.shape[1]
+                else:
+                    # Invalid polygon dimension - log and skip
+                    import logging
+
+                    logging.warning(
+                        f"Invalid polygon dimension at index {polygon_idx}: "
+                        f"expected 2D or 3D array, got {polygon.ndim}D with shape {polygon.shape}"
+                    )
+                    continue
+
+                # Extract transformed keypoints for this polygon
                 keypoint_slice = transformed_keypoints[index : index + num_points]
                 index += len(keypoint_slice)
 
+                # Skip degenerate polygons (< 3 points)
                 if len(keypoint_slice) < 3:
+                    import logging
+
+                    logging.debug(f"Skipping degenerate polygon at index {polygon_idx}: only {len(keypoint_slice)} points after transform")
                     continue
 
+                # Reshape to standard output format (1, N, 2)
                 polygon_array = np.array(keypoint_slice, dtype=np.float32).reshape(1, -1, 2)
                 transformed_polygons.append(polygon_array)
 
@@ -83,9 +255,12 @@ class DBTransforms:
         if metadata is not None:
             output["metadata"] = metadata
 
+        # Validate output contracts
+        self._validate_output_contracts(output)
+
         return output
 
-    def clamp_keypoints(self, keypoints, img_width, img_height):
+    def clamp_keypoints(self, keypoints: list, img_width: int, img_height: int) -> list:
         clamped_keypoints = []
         for kp in keypoints:
             x, y = kp[:2]
@@ -95,7 +270,9 @@ class DBTransforms:
         return clamped_keypoints
 
     @staticmethod
-    def calculate_inverse_transform(original_size, transformed_size, crop_box=None):
+    def calculate_inverse_transform(
+        original_size: tuple[int, int], transformed_size: tuple[int, int], crop_box: tuple | None = None
+    ) -> np.ndarray:
         ox, oy = original_size
         tx, ty = transformed_size
         cx, cy = 0, 0
@@ -116,7 +293,7 @@ class DBTransforms:
         return inverse_matrix
 
     @staticmethod
-    def calculate_cropbox(original_size, target_size=640):
+    def calculate_cropbox(original_size: tuple[int, int], target_size: int = 640) -> tuple[int, int, int, int]:
         ox, oy = original_size
         scale = target_size / max(ox, oy)
         new_width, new_height = int(ox * scale), int(oy * scale)

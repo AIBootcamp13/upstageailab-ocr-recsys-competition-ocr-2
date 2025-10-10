@@ -208,10 +208,11 @@ class TestLensStylePreprocessorAlbumentations:
         preprocessor = DocumentPreprocessor()
         wrapper = LensStylePreprocessorAlbumentations(preprocessor)
 
-        # Test the call method
-        result = wrapper(sample_image)
+        # BUG FIX (BUG-2025-003): Albumentations transforms require keyword arguments
+        # Test the apply method (which is what Albumentations calls internally)
+        result = wrapper.apply(sample_image)
 
-        # Should return just the processed image
+        # Should return just the processed image (as numpy array)
         assert isinstance(result, np.ndarray)
         assert result.shape[-1] == 3  # RGB image
 
@@ -222,7 +223,9 @@ class TestLensStylePreprocessorAlbumentations:
 
         args = wrapper.get_transform_init_args_names()
 
-        assert isinstance(args, list)
+        # BUG FIX: get_transform_init_args_names() returns tuple in Albumentations convention
+        assert isinstance(args, list | tuple)
+        assert len(args) > 0
 
 
 class TestPreprocessingIntegration:

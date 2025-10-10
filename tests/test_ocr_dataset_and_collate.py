@@ -64,7 +64,7 @@ def test_ocr_dataset_getitem_map_loading():
         transform.return_value = {"image": torch.rand(3, 100, 200), "polygons": [], "inverse_matrix": np.eye(3)}
 
         # Create dataset with image path that contains maps
-        dataset = OCRDataset(image_path=sub_dir, annotation_path=None, transform=transform)
+        dataset = OCRDataset(image_path=sub_dir, annotation_path=None, transform=transform, load_maps=True)
 
         # Get item and check if maps were loaded
         item = dataset[0]
@@ -183,10 +183,10 @@ def test_dbcollatefn_with_preloaded_maps():
     assert "thresh_maps" in collated
 
     # Check tensor dimensions
-    # Note: For pre-loaded maps, no unsqueeze is applied, so shape is (batch_size, H, W) not (batch_size, 1, H, W)
+    # Note: Pre-loaded maps now get the channel dimension added to match loss expectations
     assert collated["images"].shape == (2, 3, 100, 100)
-    assert collated["prob_maps"].shape == (2, 100, 100)  # No unsqueeze applied to pre-loaded maps
-    assert collated["thresh_maps"].shape == (2, 100, 100)  # No unsqueeze applied to pre-loaded maps
+    assert collated["prob_maps"].shape == (2, 1, 100, 100)  # Channel dimension added: (B, 1, H, W)
+    assert collated["thresh_maps"].shape == (2, 1, 100, 100)  # Channel dimension added: (B, 1, H, W)
 
 
 def test_dbcollatefn_with_tensor_maps():

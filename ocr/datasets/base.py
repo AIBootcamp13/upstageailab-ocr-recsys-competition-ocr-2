@@ -32,6 +32,7 @@ class OCRDataset(Dataset):
         transform,
         image_extensions=None,
         preload_maps=False,
+        load_maps=False,
         preload_images=False,
         prenormalize_images=False,
         image_loading_config=None,
@@ -42,6 +43,7 @@ class OCRDataset(Dataset):
         self.logger = logging.getLogger(__name__)
         self._canonical_frame_logged = set()
         self.preload_maps = preload_maps
+        self.load_maps = load_maps
         self.preload_images = preload_images
         self.prenormalize_images = prenormalize_images
         self.cache_transformed_tensors = cache_transformed_tensors
@@ -49,8 +51,12 @@ class OCRDataset(Dataset):
         self.image_cache = {}
         self.tensor_cache = {}  # Cache for final transformed tensors
 
+        # Cache statistics tracking (for verification)
+        self._cache_hit_count = 0
+        self._cache_miss_count = 0
+
         # Image loading configuration
-        self.image_loading_config = image_loading_config or {"use_turbojpeg": True, "turbojpeg_fallback": True}
+        self.image_loading_config = image_loading_config or {"use_turbojpeg": False, "turbojpeg_fallback": False}
 
         # Allow configurable image extensions, fallback to default if not provided
         if image_extensions is None:
@@ -92,7 +98,7 @@ class OCRDataset(Dataset):
                     # Words의 Points 변환
                     gt_words = annotations.get("images", {}).get(filename, {}).get("words", {})
                     polygons = [
-                        np.array([np.round(word_data["points"])], dtype=np.int32)
+                        np.array(np.round(word_data["points"]), dtype=np.int32)
                         for word_data in gt_words.values()
                         if isinstance(word_data.get("points"), list) and len(word_data["points"]) > 0
                     ]
@@ -165,7 +171,7 @@ class OCRDataset(Dataset):
 
                     # Store as numpy array to save memory and avoid keeping PIL objects
                     # Also store metadata needed for __getitem__
-                    raw_width, raw_height = pil_image.size
+                    raw_width, raw_height = self.safe_get_image_size(pil_image)
                     image_array = np.array(rgb_image)
 
                     # Pre-normalize if requested (ImageNet normalization)
@@ -201,15 +207,72 @@ class OCRDataset(Dataset):
         else:
             self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} images into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
 
+    def log_cache_statistics(self):
+        """
+        Log tensor cache statistics. Call this at the end of each epoch to verify caching is working.
+        Useful for debugging and performance monitoring.
+        """
+        if not self.cache_transformed_tensors:
+            return
+
+        total_accesses = self._cache_hit_count + self._cache_miss_count
+        hit_rate = (self._cache_hit_count / total_accesses * 100) if total_accesses > 0 else 0
+
+        self.logger.info(
+            f"Tensor Cache Statistics - Hits: {self._cache_hit_count}, "
+            f"Misses: {self._cache_miss_count}, "
+            f"Hit Rate: {hit_rate:.1f}%, "
+            f"Cache Size: {len(self.tensor_cache)}"
+        )
+
+        # Reset counters for next epoch
+        self._cache_hit_count = 0
+        self._cache_miss_count = 0
+
     def __len__(self):
         return len(self.anns.keys())
+
+    @staticmethod
+    def safe_get_image_size(image):
+        """
+        Safely extract (width, height) from PIL Image or NumPy array.
+
+        Handles the type confusion between PIL.Image.size (returns (w, h))
+        and numpy.ndarray.size (returns total element count).
+
+        Args:
+            image: PIL Image or NumPy array
+
+        Returns:
+            tuple: (width, height)
+
+        Raises:
+            TypeError: If image type is not supported
+        """
+        if isinstance(image, np.ndarray):
+            # NumPy array: shape is (height, width, channels)
+            height, width = image.shape[:2]
+            return (width, height)  # Return (width, height) for consistency
+        elif hasattr(image, "size"):
+            # PIL Image or similar: .size returns (width, height)
+            return image.size
+        else:
+            raise TypeError(f"Unsupported image type: {type(image)}. Expected PIL Image or NumPy array.")
 
     def __getitem__(self, idx):
         image_filename = list(self.anns.keys())[idx]
 
         # Check if final transformed tensor is cached (Phase 6E)
         if self.cache_transformed_tensors and idx in self.tensor_cache:
+            self._cache_hit_count += 1
+            # Log cache hits periodically to verify caching works
+            if idx % 50 == 0:
+                self.logger.info(f"[CACHE HIT] Returning cached tensor for index {idx} (file: {image_filename})")
             return self.tensor_cache[idx]
+
+        # Track cache misses
+        if self.cache_transformed_tensors:
+            self._cache_miss_count += 1
 
         image_path = self.image_path / image_filename
 
@@ -221,16 +284,11 @@ class OCRDataset(Dataset):
             raw_width = cached_data["raw_width"]
             raw_height = cached_data["raw_height"]
             orientation = cached_data["orientation"]
-            is_normalized = cached_data.get("is_normalized", False)
 
-            # If image is pre-normalized (float32), keep as numpy array
-            # Otherwise convert to PIL Image for transform pipeline
-            if is_normalized:
-                # Keep as numpy array - transforms will handle it
-                image = image_array
-            else:
-                # Convert numpy array back to PIL Image for consistency with transform pipeline
-                image = Image.fromarray(image_array)
+            # Always use numpy arrays for transforms (Albumentations/DBTransforms require numpy)
+            # BUG FIX (BUG-2025-002): Previously converted to PIL Image when is_normalized=False,
+            # causing AttributeError in transforms.py:42 (PIL Image has no .shape attribute)
+            image = image_array  # Keep as numpy array (uint8 or float32)
         else:
             # Load from disk (original behavior)
             try:
@@ -244,7 +302,7 @@ class OCRDataset(Dataset):
             except OSError as e:
                 raise RuntimeError(f"Failed to load image {image_filename}: {e}")
 
-            raw_width, raw_height = pil_image.size
+            raw_width, raw_height = self.safe_get_image_size(pil_image)
             try:
                 normalized_image, orientation = normalize_pil_image(pil_image)
             except Exception as exc:
@@ -252,9 +310,14 @@ class OCRDataset(Dataset):
                 raise RuntimeError(f"Failed to normalize image {image_filename}: {exc}") from exc
 
             if normalized_image.mode != "RGB":
-                image = normalized_image.convert("RGB")
+                rgb_image = normalized_image.convert("RGB")
             else:
-                image = normalized_image.copy()
+                rgb_image = normalized_image.copy()
+
+            # Convert to numpy array for consistency with cached path
+            # BUG FIX (BUG-2025-002): Always pass numpy arrays to transforms
+            image = np.array(rgb_image)
+            rgb_image.close()
 
             if normalized_image is not pil_image:
                 normalized_image.close()
@@ -283,10 +346,7 @@ class OCRDataset(Dataset):
                 polygons = polygons_list
 
         # Ensure shape is always a tuple (width, height)
-        if isinstance(image, np.ndarray):
-            org_shape = (image.shape[1], image.shape[0])  # (width, height) for numpy arrays
-        else:
-            org_shape = image.size  # (width, height) for PIL images
+        org_shape = self.safe_get_image_size(image)
 
         item: OrderedDict[str, Any] = OrderedDict(
             image=image,
@@ -302,7 +362,9 @@ class OCRDataset(Dataset):
             raise ValueError("Transform function is a required value.")
 
         # Image transform
-        transformed = self.transform(image=np.array(image), polygons=polygons)
+        # The transform pipeline handles PIL images and numpy arrays correctly.
+        # The explicit np.array() call was causing issues with pre-normalized float32 arrays.
+        transformed = self.transform(image=image, polygons=polygons)
 
         transformed_image = transformed["image"]
         transformed_polygons = transformed.get("polygons", []) or []
@@ -327,25 +389,26 @@ class OCRDataset(Dataset):
         if "metadata" in transformed:
             item["metadata"] = transformed["metadata"]
 
-        # Load pre-processed probability and threshold maps
-        # First check RAM cache
-        if image_filename in self.maps_cache:
-            item["prob_map"] = self.maps_cache[image_filename]["prob_map"]
-            item["thresh_map"] = self.maps_cache[image_filename]["thresh_map"]
-        else:
-            # Fallback to loading from disk
-            maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
-            map_filename = maps_dir / f"{Path(image_filename).stem}.npz"
+        # Load pre-processed probability and threshold maps (only if enabled)
+        if self.load_maps:
+            # First check RAM cache
+            if image_filename in self.maps_cache:
+                item["prob_map"] = self.maps_cache[image_filename]["prob_map"]
+                item["thresh_map"] = self.maps_cache[image_filename]["thresh_map"]
+            else:
+                # Fallback to loading from disk
+                maps_dir = self.image_path.parent / f"{self.image_path.name}_maps"
+                map_filename = maps_dir / f"{Path(image_filename).stem}.npz"
 
-            if map_filename.exists():
-                try:
-                    maps_data = np.load(map_filename)
-                    item["prob_map"] = maps_data["prob_map"]
-                    item["thresh_map"] = maps_data["thresh_map"]
-                except Exception as e:
-                    self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
-                    # If maps fail to load, we'll let the collate function handle it
-                    pass
+                if map_filename.exists():
+                    try:
+                        maps_data = np.load(map_filename)
+                        item["prob_map"] = maps_data["prob_map"]
+                        item["thresh_map"] = maps_data["thresh_map"]
+                    except Exception as e:
+                        self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
+                        # If maps fail to load, we'll let the collate function handle it
+                        pass
 
         # Cache the final transformed item if enabled (Phase 6E)
         if self.cache_transformed_tensors:
@@ -471,7 +534,7 @@ class OCRDataset(Dataset):
             logger = logging.getLogger(__name__)
             if logger.isEnabledFor(logging.INFO):
                 logger.info(
-                    "Filtered %d degenerate polygons (too_few_points=%d, too_small=%d, zero_span=%d, empty=%d, none=%d)",
+                    "\nFiltered %d degenerate polygons (too_few_points=%d, too_small=%d, zero_span=%d, empty=%d, none=%d)",
                     total_removed,
                     removed_counts["too_few_points"],
                     removed_counts["too_small"],

@@ -1,8 +1,6 @@
 
 ---
 
-Here's the professional bug report you requested:
-
 ## 🐛 Bug Report Template
 
 **Bug ID:** BUG-2025-001
@@ -69,7 +67,8 @@ else:
 *Keep this template in your project for future reference!*
 
 
- ### Note
+ ### IGNORE BELOW ###
+ ### Personal Notes
 
 ## What Happens When You Send Long, Subjective Messages to AI Coding Agents
 

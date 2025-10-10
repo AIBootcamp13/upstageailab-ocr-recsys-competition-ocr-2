@@ -20,6 +20,24 @@ import torch
 
 
 class DBCollateFN:
+    """
+    Collate function for DB text detection model batches.
+
+    Handles polygon shape normalization and validation to ensure robust batch processing.
+    Supports both pre-computed and on-the-fly probability/threshold map generation.
+
+    Shape Contracts:
+    - Input polygons: List[List[np.ndarray]] where each polygon is (N, 2) or (1, N, 2)
+    - Output prob_maps: (batch_size, 1, H, W) tensor
+    - Output thresh_maps: (batch_size, 1, H, W) tensor
+    - Output polygons: List[List[np.ndarray]] with validated (N, 2) polygons
+
+    Validation:
+    - Filters invalid polygons (wrong shape, degenerate, zero area)
+    - Normalizes polygon shapes to (N, 2) format
+    - Logs filtering statistics for monitoring
+    """
+
     def __init__(self, shrink_ratio=0.4, thresh_min=0.3, thresh_max=0.7):
         self.shrink_ratio = shrink_ratio
         self.thresh_min = thresh_min
@@ -27,6 +45,27 @@ class DBCollateFN:
         self.inference_mode = False
 
     def __call__(self, batch):
+        """
+        Collate a batch of DB detection samples.
+
+        Args:
+            batch: List of sample dictionaries with keys:
+                - "image": torch.Tensor (C, H, W)
+                - "image_filename": str
+                - "image_path": str
+                - "inverse_matrix": np.ndarray (3, 3)
+                - "polygons": List[np.ndarray] - polygon coordinates
+                - "prob_map": np.ndarray (H, W) - optional pre-computed
+                - "thresh_map": np.ndarray (H, W) - optional pre-computed
+
+        Returns:
+            OrderedDict with collated batch data:
+                - "images": torch.Tensor (batch_size, C, H, W)
+                - "polygons": List[List[np.ndarray]] - validated polygons
+                - "prob_maps": torch.Tensor (batch_size, 1, H, W)
+                - "thresh_maps": torch.Tensor (batch_size, 1, H, W)
+                - Additional metadata fields
+        """
         images = [item["image"] for item in batch]
         filenames = [item["image_filename"] for item in batch]
         image_paths = [item["image_path"] for item in batch]
@@ -50,6 +89,10 @@ class DBCollateFN:
 
         # Load pre-processed maps from batch items
         polygons = [item.get("polygons", []) for item in batch]
+
+        # Validate and filter invalid polygons
+        polygons = self._validate_batch_polygons(polygons, filenames)
+
         prob_maps = []
         thresh_maps = []
 
@@ -67,8 +110,8 @@ class DBCollateFN:
             else:
                 # Fallback: generate maps on-the-fly if pre-processed maps are missing
                 segmentations = self.make_prob_thresh_map(images[i], polygons[i], filenames[i])
-                prob_map = torch.tensor(segmentations["prob_map"]).unsqueeze(0)
-                thresh_map = torch.tensor(segmentations["thresh_map"]).unsqueeze(0)
+                prob_map = torch.tensor(segmentations["prob_map"])
+                thresh_map = torch.tensor(segmentations["thresh_map"])
                 fallback_count += 1
 
             prob_maps.append(prob_map)
@@ -84,7 +127,7 @@ class DBCollateFN:
 
             if preloaded_count > 0:
                 console.print(
-                    f"[green]✓ Using pre-loaded .npz maps: {preloaded_count}/{total_samples} samples ({preloaded_pct:.1f}%)[/green]"
+                    f"[green]✓ Using .npz maps (from cache or disk): {preloaded_count}/{total_samples} samples ({preloaded_pct:.1f}%)[/green]"
                 )
             if fallback_count > 0:
                 console.print(
@@ -95,11 +138,36 @@ class DBCollateFN:
 
         collated_batch.update(
             polygons=polygons,
-            prob_maps=torch.stack(prob_maps, dim=0),
-            thresh_maps=torch.stack(thresh_maps, dim=0),
+            prob_maps=self._stack_maps_with_channel_dim(prob_maps),  # Ensure (B, 1, H, W) shape
+            thresh_maps=self._stack_maps_with_channel_dim(thresh_maps),  # Ensure (B, 1, H, W) shape
         )
 
         return collated_batch
+
+    @staticmethod
+    def _stack_maps_with_channel_dim(maps_list):
+        """
+        Stack a list of maps ensuring they have the channel dimension.
+
+        Args:
+            maps_list: List of tensors with shapes (H, W) or (1, H, W)
+
+        Returns:
+            Tensor with shape (B, 1, H, W)
+        """
+        if not maps_list:
+            raise ValueError("Cannot stack empty maps list")
+
+        # Stack the maps first
+        stacked = torch.stack(maps_list, dim=0)  # Shape: (B, ...) where ... is H,W or 1,H,W
+
+        # Check if we need to add the channel dimension
+        if stacked.ndim == 3:  # Shape is (B, H, W)
+            return stacked.unsqueeze(1)  # Add channel dim: (B, 1, H, W)
+        elif stacked.ndim == 4 and stacked.shape[1] == 1:  # Shape is (B, 1, H, W)
+            return stacked  # Already has channel dimension
+        else:
+            raise ValueError(f"Unexpected map shape after stacking: {stacked.shape}. Expected (B, H, W) or (B, 1, H, W)")
 
     def make_prob_thresh_map(self, image, polygons, filename):
         _, h, w = image.shape
@@ -108,6 +176,11 @@ class DBCollateFN:
         thresh_map = np.zeros((h, w), dtype=np.float32)
 
         for poly in polygons:
+            # Ensure polygon is in correct format (N, 2) not (1, N, 2)
+            # Some code paths return (N, 2), others return (1, N, 2)
+            if poly.ndim == 3 and poly.shape[0] == 1:
+                poly = poly[0]  # Remove batch dimension: (1, N, 2) -> (N, 2)
+
             # Calculate the distance and polygons
             poly = poly.astype(np.int32)
             # Polygon point가 3개 미만이라면 skip
@@ -129,7 +202,8 @@ class DBCollateFN:
             if D <= eps:
                 continue
             pco = pyclipper.PyclipperOffset()  # type: ignore[attr-defined]
-            pco.AddPaths(poly, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)  # type: ignore[attr-defined]
+            # pyclipper expects list of polygons, so wrap in list: [[N, 2]]
+            pco.AddPaths([poly], pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)  # type: ignore[attr-defined]
 
             # Probability map 생성
             shrinked = pco.Execute(-D)
@@ -149,7 +223,8 @@ class DBCollateFN:
                 width = xmax - xmin + 1
                 height = ymax - ymin + 1
 
-                polygon = poly[0].copy()
+                # poly is already (N, 2) at this point, no need to index
+                polygon = poly.copy()
                 polygon[:, 0] = polygon[:, 0] - xmin
                 polygon[:, 1] = polygon[:, 1] - ymin
 
@@ -189,6 +264,77 @@ class DBCollateFN:
         result = OrderedDict(prob_map=prob_map, thresh_map=thresh_map)
 
         return result
+
+    def _validate_batch_polygons(self, batch_polygons, filenames):
+        """
+        Validate polygons in a batch and filter out invalid ones.
+
+        Performs comprehensive validation of polygon data including:
+        - Shape normalization: (1, N, 2) → (N, 2)
+        - Geometric validation: minimum points, positive area
+        - Data integrity: finite values, correct dimensions
+
+        Args:
+            batch_polygons: List of polygon lists, one per sample
+            filenames: List of filenames for logging
+
+        Returns:
+            List of validated polygon lists with invalid polygons removed.
+            Each polygon is normalized to (N, 2) shape.
+        """
+        validated_batch = []
+
+        for sample_idx, (polygons, filename) in enumerate(zip(batch_polygons, filenames, strict=True)):
+            validated_polygons = []
+
+            for poly_idx, poly in enumerate(polygons):
+                try:
+                    # Handle different polygon shapes
+                    if poly.ndim == 3 and poly.shape[0] == 1:
+                        poly = poly[0]  # Normalize (1, N, 2) -> (N, 2)
+
+                    # Check basic shape requirements
+                    if poly.ndim != 2 or poly.shape[1] != 2:
+                        print(f"⚠ Skipping invalid polygon shape {poly.shape} in {filename}, polygon {poly_idx}")
+                        continue
+
+                    # Check minimum points for a valid polygon
+                    if poly.shape[0] < 3:
+                        print(f"⚠ Skipping degenerate polygon with {poly.shape[0]} points in {filename}, polygon {poly_idx}")
+                        continue
+
+                    # Check for valid numeric values
+                    if not np.isfinite(poly).all():
+                        print(f"⚠ Skipping polygon with invalid values in {filename}, polygon {poly_idx}")
+                        continue
+
+                    # Additional validation: check area is positive
+                    if poly.shape[0] >= 3:
+                        try:
+                            area = cv2.contourArea(poly.astype(np.float32))
+                            if area <= 0:
+                                print(f"⚠ Skipping polygon with non-positive area {area:.2f} in {filename}, polygon {poly_idx}")
+                                continue
+                        except Exception as e:
+                            print(f"⚠ Error calculating area for polygon in {filename}, polygon {poly_idx}: {e}")
+                            continue
+
+                    # Polygon is valid
+                    validated_polygons.append(poly)
+
+                except Exception as e:
+                    print(f"⚠ Error validating polygon in {filename}, polygon {poly_idx}: {e}")
+                    continue
+
+            validated_batch.append(validated_polygons)
+
+            # Log if polygons were filtered
+            original_count = len(polygons)
+            validated_count = len(validated_polygons)
+            if validated_count < original_count:
+                print(f"⚠ Filtered {original_count - validated_count} invalid polygons in {filename} ({validated_count} remaining)")
+
+        return validated_batch
 
     def distance(self, xs, ys, point_1, point_2):
         """

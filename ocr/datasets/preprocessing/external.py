@@ -9,6 +9,7 @@ import numpy as np
 
 ALBUMENTATIONS_AVAILABLE = False
 A: Any | None = None
+ImageOnlyTransform: Any = None
 
 estimate_page_angle: Callable[[np.ndarray], float] | None = None
 extract_rcrops: Callable[..., list[np.ndarray]] | None = None
@@ -19,12 +20,15 @@ DOCTR_AVAILABLE = False
 
 try:  # pragma: no cover - optional dependency guard
     import albumentations as _albumentations
+    from albumentations.core.transforms_interface import ImageOnlyTransform as _ImageOnlyTransform
 
     ALBUMENTATIONS_AVAILABLE = True
     A = _albumentations
+    ImageOnlyTransform = _ImageOnlyTransform
 except ImportError:  # pragma: no cover - optional dependency guard
     ALBUMENTATIONS_AVAILABLE = False
     A = None
+    ImageOnlyTransform = None
 
 try:  # pragma: no cover - optional dependency guard
     from doctr.utils.geometry import estimate_page_angle as _estimate_page_angle
@@ -48,6 +52,7 @@ except ImportError:  # pragma: no cover - optional dependency guard
 __all__ = [
     "A",
     "ALBUMENTATIONS_AVAILABLE",
+    "ImageOnlyTransform",
     "DOCTR_AVAILABLE",
     "estimate_page_angle",
     "extract_rcrops",

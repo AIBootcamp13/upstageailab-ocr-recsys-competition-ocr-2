@@ -2,35 +2,37 @@
 
 dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"
 
+batch_size: 16
+
+data:
+  train_num_samples: null
+  val_num_samples: null
+  test_num_samples: null
+
 datasets:
   train_dataset:
     _target_: ${dataset_path}.OCRDataset
     image_path: ${dataset_base_path}images/train
     annotation_path: ${dataset_base_path}jsons/train.json
-    transform: ${enhanced_transforms.train_transform}
+    transform: ${transforms.train_transform}
   val_dataset:
     _target_: ${dataset_path}.OCRDataset
     image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
     annotation_path: ${dataset_base_path}jsons/val.json
-    transform: ${enhanced_transforms.val_transform}
+    transform: ${transforms.val_transform}
   test_dataset:
     _target_: ${dataset_path}.OCRDataset
     image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
     annotation_path: ${dataset_base_path}jsons/val.json
-    transform: ${enhanced_transforms.test_transform}
+    transform: ${transforms.test_transform}
   predict_dataset:
     _target_: ${dataset_path}.OCRDataset
     image_path: ${dataset_base_path}images/test
     annotation_path: null
-    transform: ${enhanced_transforms.predict_transform}
+    transform: ${transforms.test_transform}
 
-# defaults:
-#   - /data/base
-#   - /transforms/base
-#   - /dataloaders/default
-
-# datasets:
-#   val_dataset:
-#     image_path: ${dataset_base_path}images_val_canonical
-#   test_dataset:
-#     image_path: ${dataset_base_path}images_val_canonical
+collate_fn:
+  _target_: ${dataset_path}.DBCollateFN
+  shrink_ratio: 0.4
+  thresh_min: 0.3
+  thresh_max: 0.7
