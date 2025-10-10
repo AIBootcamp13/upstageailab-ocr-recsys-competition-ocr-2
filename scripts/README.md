@@ -7,10 +7,42 @@ This directory contains various utility scripts and tools for the OCR project.
 ### `agent_tools/`
 Scripts and tools for AI agent integration and automation.
 
+### `analysis_validation/`
+Scripts for analyzing experiments, validating pipeline contracts, and profiling performance.
+- `analyze_experiment.py` - Analyze training runs and detect anomalies
+- `validate_pipeline_contracts.py` - Validate data contracts across OCR pipeline
+- `profile_data_loading.py` - Profile data loading performance
+- `profile_transforms.py` - Profile data transformation performance
+
+### `data_processing/`
+Scripts for preprocessing and transforming data.
+- `preprocess_maps.py` - Generate probability/threshold maps for training
+- `fix_canonical_orientation_images.py` - Fix image orientation issues
+- `report_orientation_mismatches.py` - Report orientation mismatch issues
+
+### `migration_refactoring/`
+Scripts for migrating data formats and refactoring code.
+- `migrate_checkpoint_names.py` - Migrate checkpoint filenames to new format
+- `refactor_ocr_pl.py` - Automated refactoring of OCR Lightning module
+
 ### `monitoring/`
 System monitoring and resource management tools.
 - `monitor.sh` - AI-powered system monitoring via Qwen MCP server
 - `monitor_resources.sh` - Resource monitoring script
+- `process_monitor.py` - Process monitoring utilities
+
+### `performance/`
+Performance analysis and baseline reporting tools.
+- `generate_baseline_report.py` - Generate performance baseline reports
+
+### `performance_benchmarking/`
+Scripts for benchmarking and measuring performance.
+- `benchmark_optimizations.py` - Benchmark data loading optimizations
+- `benchmark_validation.py` - Validate benchmarking results
+- `decoder_benchmark.py` - Benchmark decoder performance
+- `performance_measurement.py` - General performance measurements
+- `performance_test.py` - Performance testing utilities
+- `quick_performance_validation.py` - Quick performance validation
 
 ### `seroost/`
 Seroost semantic search indexing tools and configuration.
@@ -23,6 +55,14 @@ Seroost semantic search indexing tools and configuration.
 
 ### `setup/`
 Project setup and configuration scripts.
+- `00_setup-environment.sh` - Environment setup
+- `01_setup-professional-linting.sh` - Linting setup
+- `02_setup-bash-aliases.sh` - Bash aliases setup
+- `code-quality.sh` - Automated code quality maintenance
+- `qwen-advanced.sh` - Advanced Qwen memory optimization
+- `qwen-memfix.sh` - Qwen memory fixes
+- `qwen-version.sh` - Qwen version management
+- `setup_mcp_github_only.sh` - MCP GitHub setup
 
 ## Usage
 
