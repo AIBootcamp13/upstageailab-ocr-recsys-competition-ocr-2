@@ -154,3 +154,6 @@ offline-*/
 # Lightning logs (should be in outputs/)
 
 # Common clutter
+.claude/
+.qwen/
+QWEN.md
