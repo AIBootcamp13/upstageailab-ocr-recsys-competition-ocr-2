@@ -156,4 +156,7 @@ offline-*/
 # Common clutter
 .claude/
 .qwen/
+.qwenignore
 QWEN.md
+prompts/
+notepad.md
