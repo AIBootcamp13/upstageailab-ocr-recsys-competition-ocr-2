@@ -253,17 +253,17 @@
 **Risk**: Low (infrastructure testing)
 
 #### Tasks:
-- [ ] **Task 3.2.1**: Create `test_dataloader_batching.py` (2h)
+- [x] **Task 3.2.1**: Create `test_dataloader_batching.py` (2h)
   - Test variable polygon counts per image
   - Test batch collation with empty images
   - Acceptance: Robust batching for all data variations
 
-- [ ] **Task 3.2.2**: Memory efficiency testing (2h)
+- [x] **Task 3.2.2**: Memory efficiency testing (2h)
   - Test memory usage with large batches
   - Profile DataLoader performance
   - Acceptance: Memory usage scales appropriately
 
-- [ ] **Task 3.2.3**: Stress testing (2h)
+- [x] **Task 3.2.3**: Stress testing (2h)
   - Test maximum batch size limits
   - Test with extreme data variations
   - Acceptance: System handles edge cases gracefully

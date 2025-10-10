@@ -27,6 +27,71 @@ class DBPostProcessor:
         self.max_candidates = max_candidates  # max number of text region proposals
         self.use_polygon = use_polygon  # use polygon or box
 
+    def _validate_batch_shapes(self, batch, pred):
+        """
+        Validate shapes and types of batch and prediction inputs.
+
+        Args:
+            batch: Batch dictionary from dataloader
+            pred: Predictions (dict with prob_maps or tensor)
+
+        Raises:
+            ValueError: If validation fails with descriptive error message
+        """
+        # Validate images
+        if not isinstance(batch["images"], torch.Tensor):
+            raise ValueError(f"batch['images'] must be torch.Tensor, got {type(batch['images'])}")
+
+        if batch["images"].ndim != 4:
+            raise ValueError(f"batch['images'] must be 4D tensor (N, C, H, W), got {batch['images'].ndim}D")
+
+        batch_size, channels, height, width = batch["images"].shape
+        if channels != 3:
+            raise ValueError(f"batch['images'] should have 3 channels (RGB), got {channels}")
+
+        # Validate predictions
+        if isinstance(pred, dict):
+            if "prob_maps" not in pred:
+                raise ValueError("pred dict must contain 'prob_maps' key")
+            prob_maps = pred["prob_maps"]
+        else:
+            prob_maps = pred
+
+        if not isinstance(prob_maps, torch.Tensor):
+            raise ValueError(f"prob_maps must be torch.Tensor, got {type(prob_maps)}")
+
+        if prob_maps.ndim != 4:
+            raise ValueError(f"prob_maps must be 4D tensor (N, 1, H, W), got {prob_maps.ndim}D")
+
+        pred_batch_size, pred_channels, pred_height, pred_width = prob_maps.shape
+        if pred_channels != 1:
+            raise ValueError(f"prob_maps should have 1 channel (probability), got {pred_channels}")
+
+        # Validate batch size consistency
+        if pred_batch_size != batch_size:
+            raise ValueError(f"Batch size mismatch: images have {batch_size} samples, prob_maps have {pred_batch_size} samples")
+
+        # Validate spatial dimensions consistency
+        if pred_height != height or pred_width != width:
+            raise ValueError(f"Spatial dimension mismatch: images are {height}x{width}, prob_maps are {pred_height}x{pred_width}")
+
+        # Validate inverse_matrix
+        if not isinstance(batch["inverse_matrix"], list | tuple):
+            raise ValueError(f"batch['inverse_matrix'] must be list or tuple, got {type(batch['inverse_matrix'])}")
+
+        if len(batch["inverse_matrix"]) != batch_size:
+            raise ValueError(f"inverse_matrix list length {len(batch['inverse_matrix'])} doesn't match batch size {batch_size}")
+
+        for i, matrix in enumerate(batch["inverse_matrix"]):
+            if not isinstance(matrix, np.ndarray):
+                raise ValueError(f"inverse_matrix[{i}] must be numpy array, got {type(matrix)}")
+
+            if matrix.shape != (3, 3):
+                raise ValueError(f"inverse_matrix[{i}] must be 3x3 matrix, got shape {matrix.shape}")
+
+            if matrix.dtype not in [np.float32, np.float64]:
+                raise ValueError(f"inverse_matrix[{i}] must be float32 or float64, got {matrix.dtype}")
+
     def represent(self, batch, _pred):
         """
         batch: a dict produced by dataloaders.
@@ -51,6 +116,9 @@ class DBPostProcessor:
 
         assert "inverse_matrix" in batch is not None, "inverse_matrix is required in batch"
         inverse_matrix = batch["inverse_matrix"]
+
+        # Validate batch and prediction shapes
+        self._validate_batch_shapes(batch, pred)
 
         # Binarize the prediction
         segmentation = self.binarize(pred)
@@ -95,7 +163,24 @@ class DBPostProcessor:
         return coords.T[:, :2]
 
     def binarize(self, pred):
-        # Binarize the prediction
+        """
+        Binarize the prediction using the threshold.
+
+        Args:
+            pred: Prediction tensor of shape (N, 1, H, W)
+
+        Returns:
+            Binarized tensor of same shape with values {0, 1}
+        """
+        if not isinstance(pred, torch.Tensor):
+            raise ValueError(f"Prediction must be torch.Tensor, got {type(pred)}")
+
+        if pred.ndim != 4:
+            raise ValueError(f"Prediction must be 4D tensor (N, 1, H, W), got {pred.ndim}D")
+
+        if pred.shape[1] != 1:
+            raise ValueError(f"Prediction should have 1 channel, got {pred.shape[1]}")
+
         return pred > self.thresh
 
     def polygons_from_bitmap(self, pred, _bitmap, inverse_matrix=None):
@@ -106,7 +191,8 @@ class DBPostProcessor:
             whose values are binarized as {0, 1}
         """
 
-        assert _bitmap.size(0) == 1
+        if _bitmap.size(0) != 1:
+            raise ValueError(f"Bitmap must have 1 channel (binarized), got {_bitmap.size(0)} channels with shape {_bitmap.shape}")
         bitmap = _bitmap.cpu().numpy()[0]  # The first channel
         pred = pred.detach().float().cpu().numpy()[0]
 
@@ -167,7 +253,8 @@ class DBPostProcessor:
             whose values are binarized as {0, 1}
         """
 
-        assert _bitmap.size(0) == 1
+        if _bitmap.size(0) != 1:
+            raise ValueError(f"Bitmap must have 1 channel (binarized), got {_bitmap.size(0)} channels with shape {_bitmap.shape}")
         bitmap = _bitmap.cpu().numpy()[0]  # The first channel
         pred = pred.detach().float().cpu().numpy()[0]
 

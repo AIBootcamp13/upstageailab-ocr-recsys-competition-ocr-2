@@ -8,6 +8,7 @@ Use this guide as the single entry point for all project documentation. It group
 | --- | --- | --- | --- |
 | **Project overview** | Need the competition story, deliverables, or high-level architecture. | `docs/project/project-overview.md` | `sed -n '1,80p' docs/project/project-overview.md` |
 | **Performance logs** | Reviewing historical runs, regression investigations, or debugging diary notes. | `docs/performance/2025-10-08_convex_hull_debugging.md`, `docs/performance/baseline_2025-10-07*.md`, `docs/performance/baseline_2025-10-08_cache_optimized.md` | `ls docs/performance` |
+| **Pipeline contracts** | Understanding data shapes, debugging type errors, or preventing shape mismatches. | `docs/pipeline/data_contracts.md`, `docs/testing/pipeline_validation.md`, `docs/troubleshooting/shape_issues.md` | `python scripts/validate_pipeline_contracts.py` |
 | **AI handbook** | Need agent operating procedures, post-mortem templates, or debug frameworks. | `docs/ai_handbook/index.md`, `docs/ai_handbook/post_debugging_session_framework.md`, `docs/ai_handbook/debugging_artifacts_organization.md` | `rg --files docs/ai_handbook` |
 | **Setup** | Provisioning a new environment or sharing shell helpers. | `docs/setup/SETUP.md`, `docs/setup/setup-uv-env.sh`, `docs/setup/BASH_ALIASES_KO.md` | `ls docs/setup` |
 | **Deprecated ideas** | Searching for older proposals that were parked or replaced. | Files under `docs/_deprecated/` | `ls docs/_deprecated` |

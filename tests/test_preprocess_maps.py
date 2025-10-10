@@ -7,7 +7,7 @@ import pytest
 import torch
 from omegaconf import DictConfig
 
-from scripts.preprocess_maps import preprocess
+from scripts.preprocess_maps import preprocess, validate_generated_maps
 
 
 class TestPreprocessFunction:
@@ -815,7 +815,7 @@ class TestPreprocessEdgeCases:
     @patch("scripts.preprocess_maps.hydra.utils.instantiate")
     def test_dataset_with_invalid_numpy_shapes(self, mock_instantiate):
         """Test handling of numpy arrays with invalid shapes"""
-        # Mock the dataset with image that has invalid shape
+        # Mock the dataset with image that has an invalid shape
         mock_dataset = Mock()
         mock_dataset.image_path = str(self.mock_image_path)
         mock_dataset.__len__ = Mock(return_value=1)
@@ -974,3 +974,87 @@ class TestPreprocessEdgeCases:
         expected_output_dir = Path(mock_dataset.image_path).parent / f"{Path(mock_dataset.image_path).name}_maps"
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 1
+
+
+class TestValidateGeneratedMaps:
+    """Tests for the validate_generated_maps function"""
+
+    def setup_method(self):
+        """Setup test fixtures before each test method"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.output_dir = Path(self.temp_dir) / "maps"
+        self.output_dir.mkdir(exist_ok=True)
+
+    def teardown_method(self):
+        """Clean up after each test method"""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_valid_maps_pass_validation(self):
+        """Test that valid maps pass validation"""
+        # Create valid map files
+        prob_map = np.random.rand(1, 100, 100).astype(np.float32)
+        thresh_map = np.random.rand(1, 100, 100).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        # Should not raise an exception
+        validate_generated_maps(self.output_dir, 1)
+
+    def test_invalid_shape_fails_validation(self):
+        """Test that maps with invalid shapes fail validation"""
+        # Create invalid map (missing channel dimension)
+        prob_map = np.random.rand(100, 100).astype(np.float32)
+        thresh_map = np.random.rand(100, 100).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        with pytest.raises(ValueError, match="should be 3D"):
+            validate_generated_maps(self.output_dir, 1)
+
+    def test_mismatched_shapes_fail_validation(self):
+        """Test that maps with mismatched shapes fail validation"""
+        # Create maps with different shapes
+        prob_map = np.random.rand(1, 100, 100).astype(np.float32)
+        thresh_map = np.random.rand(1, 50, 50).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        with pytest.raises(ValueError, match="prob_map.*!=.*thresh_map"):
+            validate_generated_maps(self.output_dir, 1)
+
+    def test_nan_values_fail_validation(self):
+        """Test that maps with NaN values fail validation"""
+        prob_map = np.full((1, 100, 100), np.nan, dtype=np.float32)
+        thresh_map = np.random.rand(1, 100, 100).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        with pytest.raises(ValueError, match="NaN"):
+            validate_generated_maps(self.output_dir, 1)
+
+    def test_out_of_range_values_fail_validation(self):
+        """Test that maps with out-of-range values fail validation"""
+        prob_map = np.full((1, 100, 100), 2.0, dtype=np.float32)  # > 1.0
+        thresh_map = np.random.rand(1, 100, 100).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        with pytest.raises(ValueError, match="out of range"):
+            validate_generated_maps(self.output_dir, 1)
+
+    def test_missing_file_fails_validation(self):
+        """Test that missing files fail validation"""
+        with pytest.raises(ValueError, match="Expected 1 map files, found 0"):
+            validate_generated_maps(self.output_dir, 1)
+
+    def test_wrong_dtype_fails_validation(self):
+        """Test that maps with wrong dtype fail validation"""
+        prob_map = np.random.rand(1, 100, 100).astype(np.float64)  # Wrong dtype
+        thresh_map = np.random.rand(1, 100, 100).astype(np.float32)
+
+        np.savez(self.output_dir / "test1.npz", prob_map=prob_map, thresh_map=thresh_map)
+
+        with pytest.raises(ValueError, match="should be float32"):
+            validate_generated_maps(self.output_dir, 1)

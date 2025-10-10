@@ -1,4 +1,29 @@
 # scripts/preprocess_maps.py
+"""
+Preprocess probability and threshold maps for DB text detection.
+
+This script generates and saves probability/threshold maps for faster training.
+Maps are saved as compressed .npz files with the following format:
+
+Map File Format (.npz):
+- prob_map: np.ndarray with shape (1, H, W), dtype=float32
+  - Probability map where values indicate text region likelihood (0.0-1.0)
+  - Channel dimension (1) for compatibility with PyTorch conv layers
+- thresh_map: np.ndarray with shape (1, H, W), dtype=float32
+  - Threshold map for adaptive binarization (typically 0.3-0.7 range)
+  - Same shape as prob_map for element-wise operations
+
+Validation:
+- Both maps must have identical shapes
+- Values must be finite (no NaN/Inf)
+- prob_map values should be in [0, 1] range
+- thresh_map values should be in [0, 1] range
+- Files are validated after generation to ensure correctness
+
+Usage:
+    python scripts/preprocess_maps.py
+"""
+
 import logging
 from pathlib import Path
 
@@ -101,17 +126,110 @@ def preprocess(cfg: DictConfig, dataset_key: str):
         logging.warning("No probability maps generated for %s; check polygon availability or dataset configuration.", dataset_key)
         return
 
-    # Sanity check on one of the generated files
-    sample_file = next(output_dir.glob("*.npz"))
+    # Comprehensive validation of generated maps
+    validate_generated_maps(output_dir, generated_count)
+
+
+def validate_generated_maps(output_dir: Path, expected_count: int):
+    """
+    Validate all generated map files for correctness.
+
+    Args:
+        output_dir: Directory containing the .npz map files
+        expected_count: Expected number of map files
+
+    Raises:
+        ValueError: If validation fails
+    """
+    logging.info("Validating generated map files...")
+
+    map_files = list(output_dir.glob("*.npz"))
+    if len(map_files) != expected_count:
+        raise ValueError(f"Expected {expected_count} map files, found {len(map_files)}")
+
+    if not map_files:
+        raise ValueError("No map files found to validate")
+
+    validation_errors = []
+
+    for map_file in map_files:
+        try:
+            data = np.load(map_file)
+
+            # Check required keys exist
+            if "prob_map" not in data:
+                validation_errors.append(f"{map_file.name}: missing 'prob_map' key")
+                continue
+            if "thresh_map" not in data:
+                validation_errors.append(f"{map_file.name}: missing 'thresh_map' key")
+                continue
+
+            prob_map = data["prob_map"]
+            thresh_map = data["thresh_map"]
+
+            # Validate shapes
+            if prob_map.ndim != 3:
+                validation_errors.append(f"{map_file.name}: prob_map should be 3D (C,H,W), got {prob_map.ndim}D")
+                continue
+            if thresh_map.ndim != 3:
+                validation_errors.append(f"{map_file.name}: thresh_map should be 3D (C,H,W), got {thresh_map.ndim}D")
+                continue
+
+            if prob_map.shape[0] != 1:
+                validation_errors.append(f"{map_file.name}: prob_map should have 1 channel, got {prob_map.shape[0]}")
+                continue
+            if thresh_map.shape[0] != 1:
+                validation_errors.append(f"{map_file.name}: thresh_map should have 1 channel, got {thresh_map.shape[0]}")
+                continue
+
+            if prob_map.shape != thresh_map.shape:
+                validation_errors.append(f"{map_file.name}: prob_map {prob_map.shape} != thresh_map {thresh_map.shape}")
+                continue
+
+            # Validate data types
+            if prob_map.dtype != np.float32:
+                validation_errors.append(f"{map_file.name}: prob_map should be float32, got {prob_map.dtype}")
+                continue
+            if thresh_map.dtype != np.float32:
+                validation_errors.append(f"{map_file.name}: thresh_map should be float32, got {thresh_map.dtype}")
+                continue
+
+            # Validate value ranges
+            if np.any(np.isnan(prob_map)) or np.any(np.isinf(prob_map)):
+                validation_errors.append(f"{map_file.name}: prob_map contains NaN or Inf values")
+                continue
+            if np.any(np.isnan(thresh_map)) or np.any(np.isinf(thresh_map)):
+                validation_errors.append(f"{map_file.name}: thresh_map contains NaN or Inf values")
+                continue
+
+            # Validate prob_map range (should be 0-1 for probability)
+            if prob_map.min() < 0 or prob_map.max() > 1:
+                validation_errors.append(
+                    f"{map_file.name}: prob_map values out of range [0,1]: min={prob_map.min():.3f}, max={prob_map.max():.3f}"
+                )
+                continue
+
+            # Validate thresh_map range (typically 0.3-0.7 based on DB paper)
+            if thresh_map.min() < 0 or thresh_map.max() > 1:
+                validation_errors.append(
+                    f"{map_file.name}: thresh_map values out of range [0,1]: min={thresh_map.min():.3f}, max={thresh_map.max():.3f}"
+                )
+                continue
+
+        except Exception as e:
+            validation_errors.append(f"{map_file.name}: failed to load or validate - {e}")
+            continue
+
+    if validation_errors:
+        error_msg = f"Map validation failed with {len(validation_errors)} errors:\n" + "\n".join(validation_errors)
+        raise ValueError(error_msg)
+
+    # Log successful validation
+    sample_file = map_files[0]
     data = np.load(sample_file)
-    assert data["prob_map"].shape[0] == 1, f"Prob map should have channel dim, got shape {data['prob_map'].shape}"
-    assert data["thresh_map"].shape[0] == 1, f"Thresh map should have channel dim, got shape {data['thresh_map'].shape}"
-    assert (
-        data["prob_map"].shape == data["thresh_map"].shape
-    ), f"Maps should have same shape, prob: {data['prob_map'].shape}, thresh: {data['thresh_map'].shape}"
-    assert data["prob_map"].ndim == 3, f"Prob map should be 3D, got {data['prob_map'].ndim}D"
     logging.info(
-        "Sanity check passed. Map shapes: prob_map %s, thresh_map %s",
+        "✅ Map validation passed for %d files. Sample shapes: prob_map %s, thresh_map %s",
+        len(map_files),
         data["prob_map"].shape,
         data["thresh_map"].shape,
     )

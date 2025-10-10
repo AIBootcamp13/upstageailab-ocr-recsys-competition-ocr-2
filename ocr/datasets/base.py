@@ -136,13 +136,74 @@ class OCRDataset(Dataset):
             if map_filename.exists():
                 try:
                     maps_data = np.load(map_filename)
-                    # Store as dict to avoid keeping file handle open
-                    self.maps_cache[filename] = {"prob_map": maps_data["prob_map"].copy(), "thresh_map": maps_data["thresh_map"].copy()}
-                    loaded_count += 1
+                    prob_map = maps_data["prob_map"]
+                    thresh_map = maps_data["thresh_map"]
+
+                    # Validate map shapes
+                    if self._validate_map_shapes(prob_map, thresh_map, filename=filename):
+                        # Store as dict to avoid keeping file handle open
+                        self.maps_cache[filename] = {"prob_map": prob_map.copy(), "thresh_map": thresh_map.copy()}
+                        loaded_count += 1
+                    else:
+                        self.logger.warning(f"Skipping invalid map for {filename}")
                 except Exception as e:
                     self.logger.warning(f"Failed to load map for {filename}: {e}")
 
         self.logger.info(f"Preloaded {loaded_count}/{len(self.anns)} maps into RAM ({loaded_count / len(self.anns) * 100:.1f}%)")
+
+    def _validate_map_shapes(
+        self,
+        prob_map: np.ndarray,
+        thresh_map: np.ndarray,
+        image_height: int | None = None,
+        image_width: int | None = None,
+        filename: str | None = None,
+    ) -> bool:
+        """
+        Validate that map shapes are correct and compatible.
+
+        Args:
+            prob_map: Probability map array
+            thresh_map: Threshold map array
+            image_height: Expected image height (optional)
+            image_width: Expected image width (optional)
+            filename: Filename for logging (optional)
+
+        Returns:
+            True if validation passes, False otherwise
+        """
+        try:
+            # Check that both maps exist and are arrays
+            if prob_map is None or thresh_map is None:
+                self.logger.warning(f"Map validation failed for {filename}: prob_map or thresh_map is None")
+                return False
+
+            # Check shapes are compatible
+            if prob_map.shape != thresh_map.shape:
+                self.logger.warning(
+                    f"Map validation failed for {filename}: prob_map shape {prob_map.shape} != thresh_map shape {thresh_map.shape}"
+                )
+                return False
+
+            # Check expected shape format (should be CHW with C=1)
+            if len(prob_map.shape) != 3 or prob_map.shape[0] != 1:
+                self.logger.warning(f"Map validation failed for {filename}: prob_map shape {prob_map.shape} should be (1, H, W)")
+                return False
+
+            # If image dimensions provided, check they match
+            if image_height is not None and image_width is not None:
+                expected_shape = (1, image_height, image_width)
+                if prob_map.shape != expected_shape:
+                    self.logger.warning(
+                        f"Map validation failed for {filename}: prob_map shape {prob_map.shape} doesn't match image dimensions {expected_shape}"
+                    )
+                    return False
+
+            return True
+
+        except Exception as e:
+            self.logger.warning(f"Map validation failed for {filename}: {e}")
+            return False
 
     def _preload_images_to_ram(self):
         """Preload decoded PIL images to RAM for faster access."""
@@ -403,8 +464,23 @@ class OCRDataset(Dataset):
                 if map_filename.exists():
                     try:
                         maps_data = np.load(map_filename)
-                        item["prob_map"] = maps_data["prob_map"]
-                        item["thresh_map"] = maps_data["thresh_map"]
+                        prob_map = maps_data["prob_map"]
+                        thresh_map = maps_data["thresh_map"]
+
+                        # Get image dimensions for validation
+                        if hasattr(transformed_image, "shape"):
+                            # For torch tensors, shape is (C, H, W)
+                            image_height, image_width = transformed_image.shape[-2], transformed_image.shape[-1]
+                        else:
+                            # Fallback for other types
+                            image_height, image_width = None, None
+
+                        # Validate map shapes
+                        if self._validate_map_shapes(prob_map, thresh_map, image_height, image_width, image_filename):
+                            item["prob_map"] = prob_map
+                            item["thresh_map"] = thresh_map
+                        else:
+                            self.logger.warning(f"Skipping invalid maps for {image_filename}")
                     except Exception as e:
                         self.logger.warning(f"Failed to load maps for {image_filename}: {e}")
                         # If maps fail to load, we'll let the collate function handle it

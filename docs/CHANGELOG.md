@@ -153,6 +153,49 @@ default_interpolation: 1  # cv2.INTER_LINEAR
 - **`tests/performance/test_polygon_caching.py`**: Obsolete cache performance tests
 - **`configs/data/cache.yaml`**: Obsolete cache configuration file
 
+### Added - 2025-10-11
+
+#### Data Contracts Documentation System
+
+**Comprehensive Pipeline Validation Framework**
+
+Established a complete data contracts system to prevent repetitive data type/shape errors and reduce debugging time from commit rollbacks.
+
+**New Documentation:**
+
+1. **Data Contracts Specification** (`docs/pipeline/data_contracts.md`)
+   - Defines expected shapes and types for all pipeline components
+   - Documents tensor shapes, data types, and validation rules
+   - Includes examples of common shape mismatches and their fixes
+
+2. **Pipeline Validation Guide** (`docs/testing/pipeline_validation.md`)
+   - Automated testing strategies for data contract compliance
+   - Integration testing patterns for pipeline components
+   - Best practices for maintaining data integrity
+
+3. **Shape Issues Troubleshooting** (`docs/troubleshooting/shape_issues.md`)
+   - Common shape mismatch patterns and their root causes
+   - Debugging workflows for tensor shape errors
+   - Prevention strategies for future issues
+
+4. **Validation Script** (`scripts/validate_pipeline_contracts.py`)
+   - Automated validation of data contracts across pipeline
+   - Command-line tool for quick contract verification
+   - Includes test data generation and validation checks
+
+**Documentation Integration:**
+
+- Updated `docs/README.md` with new "Pipeline contracts" category
+- Added quick reference commands for accessing contract documentation
+- Integrated validation script into documentation workflow
+
+**Benefits:**
+
+- Prevents repetitive debugging of shape/type errors
+- Reduces time spent on commit rollbacks due to data issues
+- Provides standardized approach to data validation
+- Improves developer experience with comprehensive troubleshooting guides
+
 ## [0.1.0] - 2025-09-23
 
 ### Added
