@@ -7,12 +7,32 @@ validate tensor and polygon shapes as well as key metadata conventions.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import numpy as np
 import torch
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, field_validator
+from pydantic_core import InitErrorDetails, PydanticCustomError
+
+# Orientations align with EXIF specification; 0 represents "unknown" while
+# 1-8 map to the standard rotation/mirroring states. Align this contract with
+# `ocr.utils.orientation` helpers to avoid mismatches during evaluation.
+VALID_EXIF_ORIENTATIONS: frozenset[int] = frozenset({0, 1, 2, 3, 4, 5, 6, 7, 8})
+
+# Maintain a legacy alias so tools referencing the deprecated decorator name still
+# resolve it, even though the implementation now uses Pydantic v2's ``field_validator``.
+validator = field_validator
+
+
+def _info_data(info: ValidationInfo | None) -> Mapping[str, Any]:
+    """Safely extract validator context data across Pydantic versions."""
+    if info is None:
+        return {}
+    data = getattr(info, "data", None)
+    if isinstance(data, Mapping):
+        return data
+    return {}
 
 
 def _ensure_tuple_pair(value: tuple[int, int] | Sequence[int] | None, field_name: str) -> tuple[int, int] | None:
@@ -42,7 +62,8 @@ class PolygonArray(_ModelBase):
 
     points: np.ndarray = Field(..., description="Polygon with shape (N, 2) and float coordinates.")
 
-    @validator("points")
+    @field_validator("points")
+    @classmethod
     def _validate_points(cls, value: np.ndarray) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise TypeError("Polygon must be provided as a numpy.ndarray.")
@@ -67,38 +88,44 @@ class DatasetSample(_ModelBase):
     inverse_matrix: np.ndarray = Field(..., description="Homography matrix shaped (3, 3).")
     shape: tuple[int, int]
 
-    @validator("image")
+    @field_validator("image")
+    @classmethod
     def _check_image(cls, image: np.ndarray) -> np.ndarray:
         if image.ndim != 3 or image.shape[2] != 3:
             raise ValueError(f"Image must be shaped (H, W, 3); received {image.shape}.")
         return image
 
-    @validator("polygons", each_item=True)
-    def _check_polygons(cls, polygon: np.ndarray) -> np.ndarray:
-        return PolygonArray(points=polygon).points
+    @field_validator("polygons")
+    @classmethod
+    def _check_polygons(cls, polygons: list[np.ndarray]) -> list[np.ndarray]:
+        return [PolygonArray(points=polygon).points for polygon in polygons]
 
-    @validator("prob_maps")
+    @field_validator("prob_maps")
+    @classmethod
     def _check_prob_maps(cls, heatmap: np.ndarray) -> np.ndarray:
         if heatmap.ndim != 2:
             raise ValueError(f"prob_maps must be 2D; received shape {heatmap.shape}.")
         return heatmap
 
-    @validator("thresh_maps")
-    def _check_thresh_maps(cls, thresh_maps: np.ndarray, values: dict[str, Any]) -> np.ndarray:
+    @field_validator("thresh_maps")
+    @classmethod
+    def _check_thresh_maps(cls, thresh_maps: np.ndarray, info: ValidationInfo) -> np.ndarray:
         if thresh_maps.ndim != 2:
             raise ValueError(f"thresh_maps must be 2D; received shape {thresh_maps.shape}.")
-        prob_maps = values.get("prob_maps")
+        prob_maps = _info_data(info).get("prob_maps")
         if isinstance(prob_maps, np.ndarray) and prob_maps.shape != thresh_maps.shape:
             raise ValueError("Probability and threshold maps must share the same shape.")
         return thresh_maps
 
-    @validator("inverse_matrix")
+    @field_validator("inverse_matrix")
+    @classmethod
     def _check_inverse_matrix(cls, matrix: np.ndarray) -> np.ndarray:
         if matrix.shape != (3, 3):
             raise ValueError("Inverse matrix must be shaped (3, 3).")
         return matrix
 
-    @validator("shape")
+    @field_validator("shape")
+    @classmethod
     def _check_shape(cls, shape: tuple[int, int]) -> tuple[int, int]:
         if len(shape) != 2:
             raise ValueError("shape must contain exactly two dimensions.")
@@ -114,29 +141,34 @@ class TransformOutput(_ModelBase):
     thresh_maps: torch.Tensor = Field(..., description="Threshold map tensor shaped (1, H, W).")
     inverse_matrix: np.ndarray = Field(..., description="Inverse transformation matrix shaped (3, 3).")
 
-    @validator("image")
+    @field_validator("image")
+    @classmethod
     def _check_tensor_image(cls, tensor: torch.Tensor) -> torch.Tensor:
         if tensor.ndim != 3 or tensor.shape[0] != 3:
             raise ValueError("Transformed image tensor must be shaped (3, H, W).")
         return tensor
 
-    @validator("polygons", each_item=True)
-    def _check_transformed_polygons(cls, polygon: np.ndarray) -> np.ndarray:
-        return PolygonArray(points=polygon).points
+    @field_validator("polygons")
+    @classmethod
+    def _check_transformed_polygons(cls, polygons: list[np.ndarray]) -> list[np.ndarray]:
+        return [PolygonArray(points=polygon).points for polygon in polygons]
 
-    @validator("prob_maps")
+    @field_validator("prob_maps")
+    @classmethod
     def _check_tensor_prob_maps(cls, tensor: torch.Tensor) -> torch.Tensor:
         if tensor.ndim != 3 or tensor.shape[0] != 1:
             raise ValueError("prob_maps tensor must be shaped (1, H, W).")
         return tensor
 
-    @validator("thresh_maps")
+    @field_validator("thresh_maps")
+    @classmethod
     def _check_tensor_thresh_maps(cls, tensor: torch.Tensor) -> torch.Tensor:
         if tensor.ndim != 3 or tensor.shape[0] != 1:
             raise ValueError("thresh_maps tensor must be shaped (1, H, W).")
         return tensor
 
-    @validator("inverse_matrix")
+    @field_validator("inverse_matrix")
+    @classmethod
     def _check_transform_matrix(cls, matrix: np.ndarray) -> np.ndarray:
         if matrix.shape != (3, 3):
             raise ValueError("Inverse matrix must be shaped (3, 3).")
@@ -155,11 +187,13 @@ class BatchSample(_ModelBase):
     inverse_matrix: np.ndarray
     shape: tuple[int, int]
 
-    @validator("polygons", each_item=True)
-    def _check_sample_polygons(cls, polygon: np.ndarray) -> np.ndarray:
-        return PolygonArray(points=polygon).points
+    @field_validator("polygons")
+    @classmethod
+    def _check_sample_polygons(cls, polygons: list[np.ndarray]) -> list[np.ndarray]:
+        return [PolygonArray(points=polygon).points for polygon in polygons]
 
-    @validator("inverse_matrix")
+    @field_validator("inverse_matrix")
+    @classmethod
     def _check_sample_matrix(cls, matrix: np.ndarray) -> np.ndarray:
         if matrix.shape != (3, 3):
             raise ValueError("Inverse matrix must be shaped (3, 3).")
@@ -181,7 +215,8 @@ class CollateOutput(_ModelBase):
     raw_size: Sequence[tuple[int, int]] | None = None
     canonical_size: Sequence[tuple[int, int] | None] | None = None
 
-    @validator("image_filename", "image_path", "shape", "inverse_matrix", pre=True)
+    @field_validator("image_filename", "image_path", "shape", "inverse_matrix", mode="before")
+    @classmethod
     def _check_list_lengths(cls, value: Sequence[Any] | None) -> list[Any]:
         if value is None:
             raise ValueError("Batch metadata sequences must contain at least one entry.")
@@ -191,18 +226,20 @@ class CollateOutput(_ModelBase):
             raise ValueError("Batch metadata sequences must contain at least one entry.")
         return value
 
-    @validator("images")
-    def _check_images(cls, images: torch.Tensor, values: dict[str, Any]) -> torch.Tensor:
-        batch = len(values.get("image_filename", []))
+    @field_validator("images")
+    @classmethod
+    def _check_images(cls, images: torch.Tensor, info: ValidationInfo) -> torch.Tensor:
+        batch = len(_info_data(info).get("image_filename", []))
         if images.ndim != 4 or images.shape[1] != 3:
             raise ValueError("images tensor must be shaped (B, 3, H, W).")
         if batch and images.shape[0] != batch:
             raise ValueError("Number of images does not match batch metadata.")
         return images
 
-    @validator("polygons")
-    def _check_collated_polygons(cls, polygons: list[list[np.ndarray]], values: dict[str, Any]) -> list[list[np.ndarray]]:
-        filenames = values.get("image_filename", [])
+    @field_validator("polygons")
+    @classmethod
+    def _check_collated_polygons(cls, polygons: list[list[np.ndarray]], info: ValidationInfo) -> list[list[np.ndarray]]:
+        filenames = _info_data(info).get("image_filename", [])
         if len(polygons) != len(filenames):
             raise ValueError("Polygons list must align with batch size.")
         for poly_list in polygons:
@@ -212,38 +249,52 @@ class CollateOutput(_ModelBase):
                 PolygonArray(points=polygon)
         return polygons
 
-    @validator("prob_maps")
-    def _check_collated_prob_maps(cls, tensor: torch.Tensor, values: dict[str, Any]) -> torch.Tensor:
-        batch = len(values.get("image_filename", []))
+    @field_validator("prob_maps")
+    @classmethod
+    def _check_collated_prob_maps(cls, tensor: torch.Tensor, info: ValidationInfo) -> torch.Tensor:
+        batch = len(_info_data(info).get("image_filename", []))
         if tensor.ndim != 4 or tensor.shape[1] != 1:
             raise ValueError("prob_maps tensor must be shaped (B, 1, H, W).")
         if batch and tensor.shape[0] != batch:
             raise ValueError("prob_maps batch dimension must match batch size.")
         return tensor
 
-    @validator("thresh_maps")
-    def _check_collated_thresh_maps(cls, tensor: torch.Tensor, values: dict[str, Any]) -> torch.Tensor:
-        batch = len(values.get("image_filename", []))
+    @field_validator("thresh_maps")
+    @classmethod
+    def _check_collated_thresh_maps(cls, tensor: torch.Tensor, info: ValidationInfo) -> torch.Tensor:
+        batch = len(_info_data(info).get("image_filename", []))
         if tensor.ndim != 4 or tensor.shape[1] != 1:
             raise ValueError("thresh_maps tensor must be shaped (B, 1, H, W).")
         if batch and tensor.shape[0] != batch:
             raise ValueError("thresh_maps batch dimension must match batch size.")
         return tensor
 
-    @validator("orientation")
-    def _check_orientation(cls, value: Sequence[int] | None, values: dict[str, Any]) -> Sequence[int] | None:
+    @field_validator("orientation")
+    @classmethod
+    def _check_orientation(cls, value: Sequence[int] | None, info: ValidationInfo) -> Sequence[int] | None:
         if value is None:
             return None
-        batch = len(values.get("image_filename", []))
+        batch = len(_info_data(info).get("image_filename", []))
         if len(value) != batch:
             raise ValueError("orientation length must match batch size.")
-        return value
+        normalized: list[int] = []
+        for idx, item in enumerate(value):
+            try:
+                orientation = int(item)
+            except (TypeError, ValueError) as exc:
+                raise TypeError(f"orientation[{idx}] must be castable to int.") from exc
+            if orientation not in VALID_EXIF_ORIENTATIONS:
+                allowed = ", ".join(str(v) for v in sorted(VALID_EXIF_ORIENTATIONS))
+                raise ValueError(f"orientation[{idx}] must be one of {{{allowed}}}.")
+            normalized.append(orientation)
+        return normalized
 
-    @validator("raw_size")
-    def _check_raw_sizes(cls, value: Sequence[tuple[int, int]] | None, values: dict[str, Any]) -> Sequence[tuple[int, int]] | None:
+    @field_validator("raw_size")
+    @classmethod
+    def _check_raw_sizes(cls, value: Sequence[tuple[int, int]] | None, info: ValidationInfo) -> Sequence[tuple[int, int]] | None:
         if value is None:
             return None
-        batch = len(values.get("image_filename", []))
+        batch = len(_info_data(info).get("image_filename", []))
         if len(value) != batch:
             raise ValueError("raw_size length must match batch size.")
         normalized: list[tuple[int, int]] = []
@@ -254,16 +305,17 @@ class CollateOutput(_ModelBase):
             normalized.append(normalized_item)
         return normalized
 
-    @validator("canonical_size")
+    @field_validator("canonical_size")
+    @classmethod
     def _check_canonical_sizes(
-        cls, value: Sequence[tuple[int, int] | None] | None, values: dict[str, Any]
+        cls, value: Sequence[tuple[int, int] | None] | None, info: ValidationInfo
     ) -> Sequence[tuple[int, int] | None] | None:
         if value is None:
             return None
-        batch = len(values.get("image_filename", []))
+        batch = len(info.data.get("image_filename", [])) if info.data else 0
         if len(value) != batch:
             raise ValueError("canonical_size length must match batch size.")
-        return [_ensure_tuple_pair(item, "canonical_size") for item in value]  # type: ignore[arg-type]
+        return [_ensure_tuple_pair(item, "canonical_size") for item in value]
 
 
 class ModelOutput(_ModelBase):
@@ -275,9 +327,10 @@ class ModelOutput(_ModelBase):
     loss: torch.Tensor | None = None
     loss_dict: dict[str, Any] | None = None
 
-    @validator("thresh_maps", "binary_maps")
-    def _check_output_shapes(cls, tensor: torch.Tensor, values: dict[str, Any]) -> torch.Tensor:
-        reference = values.get("prob_maps")
+    @field_validator("thresh_maps", "binary_maps")
+    @classmethod
+    def _check_output_shapes(cls, tensor: torch.Tensor, info: ValidationInfo) -> torch.Tensor:
+        reference = _info_data(info).get("prob_maps")
         if isinstance(reference, torch.Tensor) and tensor.shape != reference.shape:
             raise ValueError("Model output tensors must share the same shape.")
         return tensor
@@ -292,25 +345,32 @@ class LightningStepPrediction(_ModelBase):
     canonical_size: tuple[int, int] | None = None
     image_path: str | None = None
 
-    @validator("boxes", each_item=True)
-    def _validate_box(cls, polygon: np.ndarray) -> np.ndarray:
-        return PolygonArray(points=polygon).points
+    @field_validator("boxes")
+    @classmethod
+    def _validate_box(cls, polygons: list[np.ndarray]) -> list[np.ndarray]:
+        return [PolygonArray(points=polygon).points for polygon in polygons]
 
-    @validator("orientation")
+    @field_validator("orientation")
+    @classmethod
     def _validate_orientation(cls, value: int) -> int:
-        if value not in {0, 1, 2, 3, 4}:
-            raise ValueError("Orientation must be one of {0, 1, 2, 3, 4}.")
-        return int(value)
+        orientation = int(value)
+        if orientation not in VALID_EXIF_ORIENTATIONS:
+            allowed = ", ".join(str(v) for v in sorted(VALID_EXIF_ORIENTATIONS))
+            raise ValueError(f"Orientation must be one of {{{allowed}}}.")
+        return orientation
 
-    @validator("raw_size")
-    def _validate_raw_size(cls, value: tuple[int, int] | None, **_: Any) -> tuple[int, int] | None:
+    @field_validator("raw_size")
+    @classmethod
+    def _validate_raw_size(cls, value: tuple[int, int] | None) -> tuple[int, int] | None:
         return _ensure_tuple_pair(value, "raw_size")
 
-    @validator("canonical_size")
-    def _validate_canonical_size(cls, value: tuple[int, int] | None, **_: Any) -> tuple[int, int] | None:
+    @field_validator("canonical_size")
+    @classmethod
+    def _validate_canonical_size(cls, value: tuple[int, int] | None) -> tuple[int, int] | None:
         return _ensure_tuple_pair(value, "canonical_size")
 
-    @validator("image_path")
+    @field_validator("image_path")
+    @classmethod
     def _validate_path(cls, value: str | None) -> str | None:
         if value is None:
             return None
@@ -322,31 +382,42 @@ class LightningStepPrediction(_ModelBase):
 def validate_predictions(filenames: Sequence[str], predictions: Sequence[dict[str, Any]]) -> list[LightningStepPrediction]:
     """Validate a collection of predictions against the expected schema."""
 
+    def _make_error_details(
+        *,
+        error_type: str | PydanticCustomError,
+        loc: tuple[Any, ...],
+        original: Mapping[str, Any] | None = None,
+    ) -> InitErrorDetails:
+        input_value = None if original is None else original.get("input")
+        ctx = None if original is None else original.get("ctx")
+        if ctx:
+            return InitErrorDetails(type=error_type, loc=loc, ctx=ctx, input=input_value)
+        return InitErrorDetails(type=error_type, loc=loc, input=input_value)
+
     if len(filenames) != len(predictions):
-        raise ValidationError(
-            [
-                {
-                    "loc": ("__len__",),
-                    "msg": "Number of filenames and predictions must match.",
-                    "type": "value_error.mismatched_lengths",
-                }
+        raise ValidationError.from_exception_data(
+            LightningStepPrediction.__name__,
+            line_errors=[
+                _make_error_details(
+                    error_type=PydanticCustomError("value_error.mismatched_lengths", "Number of filenames and predictions must match."),
+                    loc=("__len__",),
+                )
             ],
-            LightningStepPrediction,
         )
     validated: list[LightningStepPrediction] = []
     for name, raw_pred in zip(filenames, predictions, strict=True):
         try:
             validated.append(LightningStepPrediction(**raw_pred))
         except ValidationError as exc:
-            raise ValidationError(
-                [
-                    {
-                        "loc": ("prediction", name, *error["loc"]),
-                        "msg": error["msg"],
-                        "type": error["type"],
-                    }
+            raise ValidationError.from_exception_data(
+                LightningStepPrediction.__name__,
+                line_errors=[
+                    _make_error_details(
+                        error_type=error["type"],
+                        loc=("prediction", name, *error["loc"]),
+                        original=error,
+                    )
                     for error in exc.errors()
                 ],
-                LightningStepPrediction,
             ) from exc
     return validated

@@ -42,15 +42,29 @@ class OCRPLModule(pl.LightningModule):
         self.predict_step_outputs: OrderedDict[str, Any] = OrderedDict()
 
     def load_state_dict(self, state_dict, strict: bool = True):
-        """Load state dict, handling _orig_mod prefixes from compiled models."""
-        # Strip _orig_mod prefixes if present (from compiled model checkpoints)
-        cleaned_state_dict = {}
-        for key, value in state_dict.items():
-            if key.startswith("model._orig_mod."):
-                cleaned_key = key.replace("model._orig_mod.", "model.", 1)
-                cleaned_state_dict[cleaned_key] = value
-            else:
-                cleaned_state_dict[key] = value
+        """Load state dict, handling torch.compile `_orig_mod` prefixes when needed."""
+        expected_keys = super().state_dict().keys()
+        expects_compiled = any("_orig_mod" in key for key in expected_keys)
+        incoming_compiled = any("_orig_mod" in key for key in state_dict.keys())
+
+        if expects_compiled and not incoming_compiled:
+            cleaned_state_dict = {}
+            for key, value in state_dict.items():
+                if key.startswith("model."):
+                    cleaned_key = key.replace("model.", "model._orig_mod.", 1)
+                    cleaned_state_dict[cleaned_key] = value
+                else:
+                    cleaned_state_dict[key] = value
+        elif not expects_compiled and incoming_compiled:
+            cleaned_state_dict = {}
+            for key, value in state_dict.items():
+                if key.startswith("model._orig_mod."):
+                    cleaned_key = key.replace("model._orig_mod.", "model.", 1)
+                    cleaned_state_dict[cleaned_key] = value
+                else:
+                    cleaned_state_dict[key] = value
+        else:
+            cleaned_state_dict = state_dict
 
         return super().load_state_dict(cleaned_state_dict, strict=strict)
 
