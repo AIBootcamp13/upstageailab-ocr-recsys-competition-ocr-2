@@ -61,6 +61,33 @@ Implemented comprehensive Pydantic v2 data validation for the OCR Evaluation Vie
 - `ui/data_utils.py`
 - `docs/ai_handbook/05_changelog/2025-10/11_pydantic_evaluation_validation.md`
 
+#### OCR Lightning Module Polishing
+
+**Description**
+
+Completed the final polishing phase of the OCR Lightning Module refactor by extracting complex non-training logic into dedicated utility classes, improving separation of concerns and maintainability.
+
+**Data Contracts:**
+- No new data contracts introduced - all existing data structures preserved
+
+**New Features:**
+- WandbProblemLogger class for handling complex W&B image logging logic
+- SubmissionWriter class for JSON formatting and file saving
+- Model utilities for robust state dict loading with fallback handling
+- Cleaner LightningModule focused purely on training loops
+
+**API Changes:**
+- OCRPLModule now delegates specialized tasks to helper classes
+- Internal implementation details abstracted while maintaining same external behavior
+- Backward compatibility fully preserved
+
+**Related Files:**
+- `ocr/lightning_modules/loggers/wandb_loggers.py`
+- `ocr/utils/submission.py`
+- `ocr/lightning_modules/utils/model_utils.py`
+- `ocr/lightning_modules/ocr_pl.py`
+- `docs/ai_handbook/05_changelog/2025-10/11_ocr_lightning_module_polishing.md`
+
 ### Added - 2025-10-09
 
 #### Data Pipeline Performance Optimization

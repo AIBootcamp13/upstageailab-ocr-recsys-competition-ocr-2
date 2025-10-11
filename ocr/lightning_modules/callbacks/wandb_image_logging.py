@@ -33,6 +33,10 @@ class WandbImageLoggingCallback(pl.Callback):
 
         val_dataset = pl_module.dataset["val"]  # type: ignore
 
+        # Handle Subset datasets - get the underlying dataset
+        if hasattr(val_dataset, "dataset"):
+            val_dataset = val_dataset.dataset  # type: ignore
+
         # Prepare data for logging
         images = []
         gt_bboxes = []

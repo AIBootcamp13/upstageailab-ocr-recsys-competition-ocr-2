@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.18, pytest-8.4.2, pluggy-1.6.0 -- /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2
+configfile: pytest.ini
+plugins: anyio-4.11.0, hydra-core-1.3.2
+collecting ... collected 34 items / 29 deselected / 5 selected
+
+tests/integration/test_ocr_lightning_predict_integration.py::test_ocr_lightning_module_predict_step_happy_path PASSED [ 20%]
+tests/integration/test_ocr_lightning_predict_integration.py::test_ocr_lightning_module_on_predict_epoch_end_creates_submission PASSED [ 40%]
+tests/integration/test_ocr_lightning_predict_integration.py::test_ocr_lightning_module_predict_loop_integration PASSED [ 60%]
+tests/integration/test_ocr_lightning_predict_integration.py::test_ocr_lightning_module_predict_without_confidence PASSED [ 80%]
+tests/integration/test_ocr_lightning_predict_integration.py::test_ocr_lightning_module_predict_with_evaluator_integration PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.10/site-packages/defusedxml/__init__.py:30
+  /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/.venv/lib/python3.10/site-packages/defusedxml/__init__.py:30: DeprecationWarning: defusedxml.cElementTree is deprecated, import from defusedxml.ElementTree instead.
+    from . import cElementTree
+
+ui/utils/command/models.py:39
+  /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/ui/utils/command/models.py:39: PytestCollectionWarning: cannot collect test class 'TestCommandParams' because it has a __init__ constructor (from: tests/integration/test_command_builder_integration.py)
+    @dataclass
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 5 passed, 29 deselected, 2 warnings in 4.48s =================

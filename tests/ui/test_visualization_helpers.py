@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ui._visualization import helpers
+from ui.visualization import helpers
 
 
 def test_parse_polygon_string_accepts_comma_delimiters() -> None:

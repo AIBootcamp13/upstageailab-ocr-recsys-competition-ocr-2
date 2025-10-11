@@ -7,7 +7,7 @@ import pytest
 import torch
 from omegaconf import DictConfig
 
-from scripts.preprocess_maps import preprocess, validate_generated_maps
+from scripts.data_processing.preprocess_maps import preprocess, validate_generated_maps
 
 
 class TestPreprocessFunction:
@@ -49,7 +49,7 @@ class TestPreprocessFunction:
         with pytest.raises(ValueError, match="collate_fn not found in config"):
             preprocess(cfg, dataset_key)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_instantiate_dataset_and_collate_fn(self, mock_instantiate):
         """Test that dataset and collate function are instantiated correctly"""
         # Mock the OCRDataset and collate function
@@ -57,16 +57,22 @@ class TestPreprocessFunction:
         mock_dataset.image_path = str(self.mock_image_path)
         mock_dataset.__len__ = Mock(return_value=2)
 
-        sample = {
-            "image": torch.rand(3, 224, 224),
-            "image_filename": "test_image.jpg",
-            "polygons": [np.array([[[10, 10], [20, 10], [20, 20], [10, 20]]])],
-        }
-        mock_dataset.__getitem__ = Mock(return_value=sample)
+        # Create different samples for each index request
+        def get_sample(index):
+            return {
+                "image": torch.rand(3, 224, 224),
+                "image_filename": f"test_image_{index}.jpg",
+                "polygons": [np.array([[[10, 10], [20, 10], [20, 20], [10, 20]]])],
+            }
+
+        mock_dataset.__getitem__ = Mock(side_effect=get_sample)
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -88,7 +94,7 @@ class TestPreprocessFunction:
         mock_instantiate.assert_any_call(cfg.datasets[dataset_key])
         mock_instantiate.assert_any_call(cfg.collate_fn)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_output_directory_creation(self, mock_instantiate):
         """Test that output directory is correctly created"""
         # Mock the dataset and collate function
@@ -105,7 +111,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -126,7 +135,7 @@ class TestPreprocessFunction:
         expected_output_dir = Path(mock_dataset.image_path).parent / f"{Path(mock_dataset.image_path).name}_maps"
         assert expected_output_dir.exists()
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_successful_preprocessing(self, mock_instantiate):
         """Test successful preprocessing of valid samples"""
         # Mock the dataset and collate function
@@ -155,7 +164,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -178,7 +190,7 @@ class TestPreprocessFunction:
         assert len(output_files) == 2
         assert mock_collate_fn.make_prob_thresh_map.call_count == 2
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_samples_with_no_polygons_skipped(self, mock_instantiate):
         """Test that samples with no valid polygons are skipped"""
         # Mock the dataset and collate function
@@ -207,7 +219,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -230,7 +245,7 @@ class TestPreprocessFunction:
         assert len(output_files) == 1  # Only one file since one sample had no polygons
         assert mock_collate_fn.make_prob_thresh_map.call_count == 1
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_invalid_image_types_handled(self, mock_instantiate):
         """Test that invalid image types are handled with proper error"""
         # Mock the dataset
@@ -266,7 +281,7 @@ class TestPreprocessFunction:
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 0
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_limit_samples_config(self, mock_instantiate):
         """Test that sample limit is respected when specified in config"""
         # Mock the dataset and collate function
@@ -285,7 +300,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -310,7 +328,7 @@ class TestPreprocessFunction:
         assert len(output_files) == 3
         assert mock_collate_fn.make_prob_thresh_map.call_count == 3
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_sample_limit_larger_than_dataset(self, mock_instantiate):
         """Test that when limit is larger than dataset size, all samples are processed"""
         # Mock the dataset and collate function
@@ -329,7 +347,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -354,7 +375,7 @@ class TestPreprocessFunction:
         assert len(output_files) == 2  # Same as dataset size
         assert mock_collate_fn.make_prob_thresh_map.call_count == 2
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_numpy_image_conversion(self, mock_instantiate):
         """Test processing of numpy array images"""
         # Mock the dataset and collate function
@@ -363,7 +384,7 @@ class TestPreprocessFunction:
         mock_dataset.__len__ = Mock(return_value=1)
 
         # Create a sample with numpy array image
-        numpy_image = np.random.rand(224, 224, 3)  # HWC format
+        numpy_image = np.random.rand(224, 224, 3).astype(np.float32)  # HWC format
         sample = {
             "image": numpy_image,
             "image_filename": "test_image.jpg",
@@ -373,7 +394,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -401,7 +425,7 @@ class TestPreprocessFunction:
         # The image should be converted to tensor format (C, H, W)
         assert args[0].shape == (3, 224, 224)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_grayscale_numpy_image_conversion(self, mock_instantiate):
         """Test processing of grayscale numpy array images"""
         # Mock the dataset and collate function
@@ -410,7 +434,7 @@ class TestPreprocessFunction:
         mock_dataset.__len__ = Mock(return_value=1)
 
         # Create a sample with grayscale numpy array image (H, W)
-        grayscale_image = np.random.rand(224, 224)  # HW format
+        grayscale_image = np.random.rand(224, 224).astype(np.float32).astype(np.float32)  # HW format
         sample = {
             "image": grayscale_image,
             "image_filename": "test_image.jpg",
@@ -420,7 +444,10 @@ class TestPreprocessFunction:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -464,7 +491,7 @@ class TestPreprocessFunctionErrorHandling:
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_dataset_initialization_failure(self, mock_instantiate):
         """Test that initialization failures are properly handled"""
         # Mock the instantiation to raise an exception
@@ -483,7 +510,7 @@ class TestPreprocessFunctionErrorHandling:
         with pytest.raises(Exception, match="Instantiation failed"):
             preprocess(cfg, dataset_key)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_error_processing_sample_continues(self, mock_instantiate):
         """Test that when an error occurs during sample processing, it continues with other samples"""
         # Create a dataset that has one good sample and one that causes an error
@@ -513,7 +540,10 @@ class TestPreprocessFunctionErrorHandling:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -538,7 +568,7 @@ class TestPreprocessFunctionErrorHandling:
         # Only the first sample should have called make_prob_thresh_map
         assert mock_collate_fn.make_prob_thresh_map.call_count == 1
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_map_generation_failure_continues(self, mock_instantiate):
         """Test that when map generation fails for a sample, processing continues"""
         # Mock the dataset and collate function
@@ -563,7 +593,7 @@ class TestPreprocessFunctionErrorHandling:
             call_count += 1
             if call_count == 1:
                 # First call succeeds
-                return {"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+                return {"prob_map": np.random.rand(224, 224).astype(np.float32), "thresh_map": np.random.rand(224, 224).astype(np.float32)}
             else:
                 # Second call raises an exception
                 raise Exception("Map generation failed")
@@ -592,7 +622,7 @@ class TestPreprocessFunctionErrorHandling:
         assert len(output_files) == 1
         assert mock_collate_fn.make_prob_thresh_map.call_count == 2  # Called for both samples
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_sanity_check_on_generated_files(self, mock_instantiate):
         """Test that the sanity check is performed on generated files"""
         # Mock the dataset and collate function
@@ -610,8 +640,8 @@ class TestPreprocessFunctionErrorHandling:
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
             return_value={
-                "prob_map": np.random.rand(224, 224),  # 2D array
-                "thresh_map": np.random.rand(224, 224),  # 2D array
+                "prob_map": np.random.rand(224, 224).astype(np.float32),  # 2D array
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),  # 2D array
             }
         )
 
@@ -636,7 +666,7 @@ class TestPreprocessFunctionErrorHandling:
 
     def test_non_iterable_polygons_handled(self):
         """Test that non-iterable polygons are handled with a warning"""
-        with patch("scripts.preprocess_maps.hydra.utils.instantiate") as mock_instantiate:
+        with patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate") as mock_instantiate:
             # Mock the dataset and collate function
             mock_dataset = Mock()
             mock_dataset.image_path = str(self.mock_image_path)
@@ -653,7 +683,10 @@ class TestPreprocessFunctionErrorHandling:
             mock_collate_fn = Mock()
             # make_prob_thresh_map should not be called because polygons are invalid
             mock_collate_fn.make_prob_thresh_map = Mock(
-                return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+                return_value={
+                    "prob_map": np.random.rand(224, 224).astype(np.float32),
+                    "thresh_map": np.random.rand(224, 224).astype(np.float32),
+                }
             )
 
             mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -724,7 +757,7 @@ class TestPreprocessConfigValidation:
         with pytest.raises(ValueError, match="collate_fn not found in config"):
             preprocess(cfg, dataset_key)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_valid_config_structure_passes(self, mock_instantiate):
         """Test that valid config structure processes successfully"""
         # Mock the dataset and collate function
@@ -741,7 +774,10 @@ class TestPreprocessConfigValidation:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -780,7 +816,7 @@ class TestPreprocessEdgeCases:
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_dataset_with_zero_samples(self, mock_instantiate):
         """Test preprocessing when dataset has zero samples"""
         # Mock the dataset with zero length
@@ -790,7 +826,10 @@ class TestPreprocessEdgeCases:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -812,7 +851,7 @@ class TestPreprocessEdgeCases:
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 0
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_dataset_with_invalid_numpy_shapes(self, mock_instantiate):
         """Test handling of numpy arrays with invalid shapes"""
         # Mock the dataset with image that has an invalid shape
@@ -821,7 +860,7 @@ class TestPreprocessEdgeCases:
         mock_dataset.__len__ = Mock(return_value=1)
 
         # Create a sample with a numpy array that has an unsupported shape
-        invalid_shape_image = np.random.rand(5, 3)  # 2D array, but not image format
+        invalid_shape_image = np.random.rand(5, 3).astype(np.float32)  # 2D array, but not image format
         sample = {
             "image": invalid_shape_image,
             "image_filename": "test_image.jpg",
@@ -850,7 +889,7 @@ class TestPreprocessEdgeCases:
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 0
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_samples_with_empty_polygons_list(self, mock_instantiate):
         """Test that samples with empty polygon lists are skipped"""
         # Mock the dataset and collate function
@@ -867,7 +906,10 @@ class TestPreprocessEdgeCases:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -889,7 +931,7 @@ class TestPreprocessEdgeCases:
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 0
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_polygons_with_invalid_ndim(self, mock_instantiate):
         """Test that polygons with invalid dimensions are filtered out"""
         # Mock the dataset and collate function
@@ -910,7 +952,10 @@ class TestPreprocessEdgeCases:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]
@@ -932,7 +977,7 @@ class TestPreprocessEdgeCases:
         output_files = list(expected_output_dir.glob("*.npz"))
         assert len(output_files) == 1
 
-    @patch("scripts.preprocess_maps.hydra.utils.instantiate")
+    @patch("scripts.data_processing.preprocess_maps.hydra.utils.instantiate")
     def test_polygons_with_insufficient_vertices(self, mock_instantiate):
         """Test that polygons with insufficient vertices are filtered out"""
         # Mock the dataset and collate function
@@ -953,7 +998,10 @@ class TestPreprocessEdgeCases:
 
         mock_collate_fn = Mock()
         mock_collate_fn.make_prob_thresh_map = Mock(
-            return_value={"prob_map": np.random.rand(224, 224), "thresh_map": np.random.rand(224, 224)}
+            return_value={
+                "prob_map": np.random.rand(224, 224).astype(np.float32),
+                "thresh_map": np.random.rand(224, 224).astype(np.float32),
+            }
         )
 
         mock_instantiate.side_effect = [mock_dataset, mock_collate_fn]

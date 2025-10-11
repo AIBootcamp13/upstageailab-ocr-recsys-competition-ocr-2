@@ -1,0 +1,9 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.18, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2
+configfile: pytest.ini
+plugins: anyio-4.11.0, hydra-core-1.3.2
+collected 29 items
+
+tests/integration/test_checkpoint_fixes.py ..                            [  6%]
+tests/integration/test_collate_integration.py ...

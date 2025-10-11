@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
+from ui.apps.inference.models.data_contracts import Predictions
 from ui.apps.inference.services import inference_runner
 
 
@@ -61,17 +62,17 @@ def test_perform_inference_with_doc_tr_preprocessing(tmp_path):
         preprocessor=cast(inference_runner.DocumentPreprocessorType, preprocessor),
     )
 
-    assert result["success"] is True
+    assert result.success is True
     assert preprocessor.called is True
-    preprocess_info = result["preprocessing"]
-    assert preprocess_info["enabled"] is True
-    assert preprocess_info["metadata"] == {"processing_steps": ["document_detection", "perspective_correction"]}
-    assert preprocess_info["mode"] == "docTR:on"
-    assert isinstance(preprocess_info["processed"], np.ndarray)
-    assert np.array_equal(preprocess_info["processed"], processed_image)
-    assert np.array_equal(result["image"], processed_image)
-    assert preprocess_info["original"].shape == rgb_image.shape
-    assert isinstance(result["predictions"], dict)
+    preprocess_info = result.preprocessing
+    assert preprocess_info.enabled is True
+    assert preprocess_info.metadata == {"processing_steps": ["document_detection", "perspective_correction"]}
+    assert preprocess_info.mode == "docTR:on"
+    assert isinstance(preprocess_info.processed, np.ndarray)
+    assert np.array_equal(preprocess_info.processed, processed_image)
+    assert np.array_equal(result.image, processed_image)
+    assert preprocess_info.original.shape == rgb_image.shape
+    assert isinstance(result.predictions, Predictions)
 
 
 def test_perform_inference_preprocessing_failure_falls_back(tmp_path):
@@ -92,13 +93,13 @@ def test_perform_inference_preprocessing_failure_falls_back(tmp_path):
         preprocessor=cast(inference_runner.DocumentPreprocessorType, FailingPreprocessor()),
     )
 
-    assert result["success"] is True
-    preprocess_info = result["preprocessing"]
-    assert preprocess_info["enabled"] is False
-    assert preprocess_info["processed"] is None
-    assert preprocess_info["metadata"] is None
-    assert preprocess_info["mode"] == "docTR:on"
-    assert preprocess_info["original"].shape == rgb_image.shape
-    assert preprocess_info.get("error") == "docTR failure"
-    assert np.array_equal(result["image"], rgb_image)
-    assert isinstance(result["predictions"], dict)
+    assert result.success is True
+    preprocess_info = result.preprocessing
+    assert preprocess_info.enabled is False
+    assert preprocess_info.processed is None
+    assert preprocess_info.metadata is None
+    assert preprocess_info.mode == "docTR:on"
+    assert preprocess_info.original is not None and preprocess_info.original.shape == rgb_image.shape
+    assert preprocess_info.error == "docTR failure"
+    assert np.array_equal(result.image, rgb_image)
+    assert isinstance(result.predictions, Predictions)

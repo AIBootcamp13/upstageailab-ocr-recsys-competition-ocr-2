@@ -55,8 +55,8 @@ def test_ocr_dataset_getitem_map_loading():
         map_path = os.path.join(maps_dir, "test.npz")  # Uses stem of image filename without extension
 
         # Create mock probability and threshold maps
-        prob_map = np.random.rand(100, 200).astype(np.float32)
-        thresh_map = np.random.rand(100, 200).astype(np.float32)
+        prob_map = np.random.rand(1, 100, 200).astype(np.float32)
+        thresh_map = np.random.rand(1, 100, 200).astype(np.float32)
         np.savez_compressed(map_path, prob_map=prob_map, thresh_map=thresh_map)
 
         # Create a mock transform

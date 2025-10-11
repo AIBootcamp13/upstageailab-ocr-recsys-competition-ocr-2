@@ -327,4 +327,18 @@ __all__ = [
     "log_experiment_start",
     "log_experiment_end",
     "create_experiment_logger",
+    "get_rich_console",
 ]
+
+
+def get_rich_console(**console_kwargs: Any):
+    """Return a Rich Console instance when the dependency is available.
+
+    Falls back to ``None`` so callers can gracefully degrade to tqdm.
+    """
+    if not RICH_AVAILABLE or Console is None:
+        return None
+    try:
+        return Console(**console_kwargs)
+    except Exception:  # pragma: no cover - console construction errors should not crash pipeline
+        return None

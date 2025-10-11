@@ -13,6 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from ocr.metrics import CLEvalMetric
+from ocr.utils.logging import get_rich_console
 from ocr.utils.orientation import remap_polygons
 from ocr.validation.models import LightningStepPrediction, validate_predictions
 
@@ -164,13 +165,7 @@ class CLEvalEvaluator:
 
     @staticmethod
     def _rich_iterator(filenames: Sequence[str], description: str) -> Iterable[str]:
-        console = None
-        try:
-            from rich.console import Console
-
-            console = Console()
-        except ImportError:  # pragma: no cover - executed when rich console unavailable
-            pass
+        console = get_rich_console()
 
         if console is None:
             return filenames

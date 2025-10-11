@@ -1,21 +1,20 @@
-import json
 from collections import OrderedDict, defaultdict
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import lightning.pytorch as pl
 import numpy as np
-import torch
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 from PIL import Image
 from torch.utils.data import DataLoader
 
 from ocr.evaluation import CLEvalEvaluator
+from ocr.lightning_modules.loggers import WandbProblemLogger
 from ocr.lightning_modules.utils import CheckpointHandler, extract_metric_kwargs, extract_normalize_stats
+from ocr.lightning_modules.utils.model_utils import load_state_dict_with_fallback
 from ocr.metrics import CLEvalMetric
 from ocr.utils.orientation import remap_polygons
+from ocr.utils.submission import SubmissionWriter
 
 
 class OCRPLModule(pl.LightningModule):
@@ -35,39 +34,20 @@ class OCRPLModule(pl.LightningModule):
         self.metric = instantiate(metric_cfg) if metric_cfg is not None else CLEvalMetric(**self.metric_kwargs)
         self.config = config
         self.lr_scheduler = None
-        self._per_batch_logged_batches = 0
         self._normalize_mean, self._normalize_std = extract_normalize_stats(config)
 
         self.valid_evaluator = CLEvalEvaluator(self.dataset["val"], self.metric_kwargs, mode="val") if "val" in self.dataset else None
         self.test_evaluator = CLEvalEvaluator(self.dataset["test"], self.metric_kwargs, mode="test") if "test" in self.dataset else None
         self.predict_step_outputs: OrderedDict[str, Any] = OrderedDict()
+        self.validation_step_outputs: OrderedDict[str, Any] = OrderedDict()
+
+        # Initialize helper classes
+        self.wandb_logger = WandbProblemLogger(config, self._normalize_mean, self._normalize_std)
+        self.submission_writer = SubmissionWriter(config)
 
     def load_state_dict(self, state_dict, strict: bool = True):
-        """Load state dict, handling torch.compile `_orig_mod` prefixes when needed."""
-        expected_keys = super().state_dict().keys()
-        expects_compiled = any("_orig_mod" in key for key in expected_keys)
-        incoming_compiled = any("_orig_mod" in key for key in state_dict.keys())
-
-        if expects_compiled and not incoming_compiled:
-            cleaned_state_dict = {}
-            for key, value in state_dict.items():
-                if key.startswith("model."):
-                    cleaned_key = key.replace("model.", "model._orig_mod.", 1)
-                    cleaned_state_dict[cleaned_key] = value
-                else:
-                    cleaned_state_dict[key] = value
-        elif not expects_compiled and incoming_compiled:
-            cleaned_state_dict = {}
-            for key, value in state_dict.items():
-                if key.startswith("model._orig_mod."):
-                    cleaned_key = key.replace("model._orig_mod.", "model.", 1)
-                    cleaned_state_dict[cleaned_key] = value
-                else:
-                    cleaned_state_dict[key] = value
-        else:
-            cleaned_state_dict = state_dict
-
-        return super().load_state_dict(cleaned_state_dict, strict=strict)
+        """Load state dict with fallback handling for different checkpoint formats."""
+        return load_state_dict_with_fallback(self, state_dict, strict=strict)
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -89,7 +69,6 @@ class OCRPLModule(pl.LightningModule):
         predictions: list[dict[str, Any]] = []
         for idx, boxes in enumerate(boxes_batch):
             normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
-            filename = batch["image_filename"][idx]
             prediction_entry = {
                 "boxes": normalized_boxes,
                 "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
@@ -101,6 +80,11 @@ class OCRPLModule(pl.LightningModule):
             }
             predictions.append(prediction_entry)
 
+        # Store predictions for wandb image logging callback
+        for idx, prediction_entry in enumerate(predictions):
+            filename = batch["image_filename"][idx]
+            self.validation_step_outputs[filename] = prediction_entry
+
         if self.valid_evaluator is not None:
             self.valid_evaluator.update(batch["image_filename"], predictions)
 
@@ -111,157 +95,13 @@ class OCRPLModule(pl.LightningModule):
         self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
 
         # Log problematic batch images
-        per_batch_cfg = getattr(self.config.logger, "per_batch_image_logging", None)
-        max_batches_per_epoch = None
-        if per_batch_cfg is not None:
-            max_batches_per_epoch = getattr(per_batch_cfg, "max_batches_per_epoch", None)
-
-        use_transformed_batch = bool(getattr(per_batch_cfg, "use_transformed_batch", False)) if per_batch_cfg else False
-        image_format = str(getattr(per_batch_cfg, "image_format", "")).lower() if per_batch_cfg else ""
-        max_image_side = None
-        if per_batch_cfg is not None:
-            max_image_side = getattr(per_batch_cfg, "max_image_side", None)
-
-        if (
-            per_batch_cfg
-            and per_batch_cfg.enabled
-            and batch_metrics["recall"] < per_batch_cfg.recall_threshold
-            and (max_batches_per_epoch is None or max_batches_per_epoch <= 0 or self._per_batch_logged_batches < max_batches_per_epoch)
-        ):
-            try:
-                import wandb
-
-                max_images = getattr(per_batch_cfg, "max_images_per_batch", len(batch["image_path"]))
-                if max_images <= 0:
-                    max_images = len(batch["image_path"])
-
-                batch_images_tensor = batch.get("images")
-                if batch_images_tensor is not None and use_transformed_batch:
-                    batch_images_tensor = batch_images_tensor.detach().cpu()
-
-                wandb_images = []
-                pil_images_to_close: list[Image.Image] = []
-
-                for local_idx, path in enumerate(batch["image_path"]):
-                    if len(wandb_images) >= max_images:
-                        break
-
-                    pil_image = None
-
-                    if use_transformed_batch and batch_images_tensor is not None:
-                        try:
-                            pil_image = self._tensor_to_pil_image(batch_images_tensor[local_idx])
-                        except Exception as exc:  # noqa: BLE001
-                            print(f"Warning: Failed to convert transformed image for wandb logging: {exc}")
-
-                    if pil_image is None:
-                        try:
-                            pil_image = Image.open(path)
-                            if pil_image.mode != "RGB":
-                                pil_image = pil_image.convert("RGB")
-                        except Exception as e:  # noqa: BLE001
-                            print(f"Warning: Failed to load image {path} for wandb logging: {e}")
-                            continue
-
-                    processed_image = self._prepare_wandb_image(pil_image, max_image_side)
-
-                    filename = Path(path).name
-                    caption = f"Problematic batch {batch_idx} - {filename} (recall: {batch_metrics['recall']:.3f})"
-
-                    wandb_kwargs: dict[str, Any] = {}
-                    if image_format in {"jpeg", "jpg"}:
-                        wandb_kwargs["file_type"] = "jpg"
-                    elif image_format == "png":
-                        wandb_kwargs["file_type"] = "png"
-
-                    wandb_images.append(wandb.Image(processed_image, caption=caption, **wandb_kwargs))
-
-                    if processed_image is not pil_image:
-                        pil_images_to_close.append(processed_image)
-                    pil_images_to_close.append(pil_image)
-
-                if wandb_images:
-                    wandb.log(
-                        {
-                            f"problematic_batch_{batch_idx}_images": wandb_images,
-                            f"problematic_batch_{batch_idx}_count": len(wandb_images),
-                            f"problematic_batch_{batch_idx}_recall": batch_metrics["recall"],
-                            f"problematic_batch_{batch_idx}_precision": batch_metrics["precision"],
-                            f"problematic_batch_{batch_idx}_hmean": batch_metrics["hmean"],
-                        }
-                    )
-
-                    self._per_batch_logged_batches += 1
-
-                for img in pil_images_to_close:
-                    try:
-                        img.close()
-                    except Exception:
-                        pass
-
-            except ImportError:
-                pass  # wandb not available
+        self.wandb_logger.log_if_needed(batch, predictions, batch_metrics, batch_idx)
 
         return pred["loss"]
 
     def on_validation_epoch_start(self) -> None:
-        self._per_batch_logged_batches = 0
-
-    def _tensor_to_pil_image(self, tensor: torch.Tensor) -> Image.Image:
-        if tensor.ndim not in (3, 4):
-            raise ValueError("Expected tensor with 3 or 4 dimensions for image conversion.")
-
-        if tensor.ndim == 4:
-            tensor = tensor.squeeze(0)
-
-        tensor = tensor.detach().cpu()
-
-        if tensor.ndim != 3:
-            raise ValueError("Expected a 3D tensor after squeezing for image conversion.")
-
-        if tensor.shape[0] in (1, 3):
-            array = tensor.permute(1, 2, 0).numpy()
-        elif tensor.shape[2] in (1, 3):
-            array = tensor.numpy()
-        else:
-            raise ValueError("Unsupported tensor shape for image conversion.")
-
-        if array.dtype != np.float32:
-            array = array.astype(np.float32)
-
-        # Attempt to denormalize using ImageNet defaults when statistics are known.
-        mean = self._normalize_mean
-        std = self._normalize_std
-        if isinstance(mean, np.ndarray) and isinstance(std, np.ndarray) and mean.size == std.size:
-            if mean.size == array.shape[2]:
-                array = array * std.reshape(1, 1, -1) + mean.reshape(1, 1, -1)
-
-        if array.shape[2] == 1:
-            array = np.repeat(array, 3, axis=2)
-
-        array = np.clip(array, 0.0, 1.0)
-        array = (array * 255).astype(np.uint8)
-
-        return Image.fromarray(array)
-
-    @staticmethod
-    def _prepare_wandb_image(pil_image: Image.Image, max_side: int | None) -> Image.Image:
-        image = pil_image
-        if max_side is not None and max_side > 0:
-            width, height = pil_image.size
-            if width > max_side or height > max_side:
-                image = pil_image.copy()
-                resampling: Any
-                try:
-                    resampling = Image.Resampling.LANCZOS
-                except AttributeError:  # Pillow<9 compatibility
-                    resampling = getattr(Image, "LANCZOS", None)
-                    if resampling is None:
-                        resampling = Image.BICUBIC
-                image.thumbnail((max_side, max_side), resampling)
-        if image.mode != "RGB":
-            image = image.convert("RGB")
-        return image
+        self.validation_step_outputs.clear()
+        self.wandb_logger.reset_epoch_counter()
 
     def _compute_batch_metrics(self, batch, predictions: list[dict[str, Any]]):
         """Compute validation metrics for a batch of images."""
@@ -420,38 +260,7 @@ class OCRPLModule(pl.LightningModule):
         return pred
 
     def on_predict_epoch_end(self):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        submission_file = Path(f"{self.config.paths.submission_dir}") / f"{timestamp}.json"
-        submission_file.parent.mkdir(parents=True, exist_ok=True)
-
-        submission = OrderedDict(images=OrderedDict())
-        include_confidence = getattr(self.config, "include_confidence", False)
-
-        for filename, pred_data in self.predict_step_outputs.items():
-            if include_confidence:
-                boxes = pred_data["boxes"]
-                scores = pred_data["scores"]
-            else:
-                boxes = pred_data
-                scores = None
-
-            # Separate box
-            words = OrderedDict()
-            for idx, box in enumerate(boxes):
-                points = box.tolist() if isinstance(box, np.ndarray) else box
-                word_data = OrderedDict(points=points)
-                if include_confidence and scores is not None:
-                    word_data["confidence"] = float(scores[idx])
-                words[f"{idx + 1:04}"] = word_data
-
-            # Append box
-            submission["images"][filename] = OrderedDict(words=words)  # Export submission
-        with submission_file.open("w") as fp:
-            if self.config.minified_json:
-                json.dump(submission, fp, indent=None, separators=(",", ":"))
-            else:
-                json.dump(submission, fp, indent=4)
-
+        self.submission_writer.save(self.predict_step_outputs)
         self.predict_step_outputs.clear()
 
     def configure_optimizers(self):

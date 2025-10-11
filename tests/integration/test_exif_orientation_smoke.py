@@ -9,8 +9,8 @@ from PIL import Image
 
 from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
 from ocr.utils.orientation import normalize_pil_image, remap_polygons
-from ui._visualization.helpers import parse_polygon_string
 from ui.utils.inference.engine import InferenceEngine
+from ui.visualization.helpers import parse_polygon_string
 
 RAW_POLYGON_POINTS = [
     [10, 20],

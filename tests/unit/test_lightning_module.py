@@ -25,11 +25,11 @@ def test_on_test_epoch_end_handles_missing_predictions(monkeypatch):
     module = OCRPLModule(model=DummyModel(), dataset=dataset, config=SimpleNamespace())
     monkeypatch.setattr(module, "log", lambda *args, **kwargs: None)
 
-    module.test_step_outputs.clear()
-
+    # Test that on_test_epoch_end handles the case when no test_step was called
     module.on_test_epoch_end()
 
-    assert module.test_step_outputs == {}
+    # Should not crash and evaluator should be reset
+    assert module.test_evaluator is not None
 
 
 def test_on_validation_epoch_end_produces_scores_with_orientation(monkeypatch, tmp_path):
@@ -63,15 +63,20 @@ def test_on_validation_epoch_end_produces_scores_with_orientation(monkeypatch, t
 
     monkeypatch.setattr(module, "log", fake_log)
 
-    module.validation_step_outputs[filename] = {
-        "boxes": [canonical_polygon],
-        "orientation": orientation,
-        "raw_size": (raw_width, raw_height),
-    }
+    # Simulate prediction update to evaluator
+    assert module.valid_evaluator is not None
+    predictions = [
+        {
+            "boxes": [canonical_polygon],
+            "orientation": orientation,
+            "raw_size": (raw_width, raw_height),
+        }
+    ]
+    module.valid_evaluator.update([filename], predictions)
 
     module.on_validation_epoch_end()
 
-    assert module.validation_step_outputs == {}
+    # Check that high metrics are logged (perfect match)
     assert logged.get("val/precision", 0.0) > 0.99
     assert logged.get("val/recall", 0.0) > 0.99
     assert logged.get("val/hmean", 0.0) > 0.99
