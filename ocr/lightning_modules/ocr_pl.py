@@ -11,15 +11,8 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
-try:
-    from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
-
-    RICH_AVAILABLE = True
-except ImportError:
-    RICH_AVAILABLE = False
-
+from ocr.evaluation import CLEvalEvaluator
 from ocr.metrics import CLEvalMetric
 from ocr.utils.orientation import remap_polygons
 
@@ -44,8 +37,8 @@ class OCRPLModule(pl.LightningModule):
         self._per_batch_logged_batches = 0
         self._normalize_mean, self._normalize_std = self._extract_normalize_stats()
 
-        self.validation_step_outputs: OrderedDict[str, Any] = OrderedDict()
-        self.test_step_outputs: OrderedDict[str, Any] = OrderedDict()
+        self.valid_evaluator = CLEvalEvaluator(self.dataset["val"], self.metric_kwargs, mode="val") if "val" in self.dataset else None
+        self.test_evaluator = CLEvalEvaluator(self.dataset["test"], self.metric_kwargs, mode="test") if "test" in self.dataset else None
         self.predict_step_outputs: OrderedDict[str, Any] = OrderedDict()
 
     def load_state_dict(self, state_dict, strict: bool = True):
@@ -109,15 +102,6 @@ class OCRPLModule(pl.LightningModule):
 
         return None, None
 
-    def _get_rich_console(self):
-        """Get Rich console for progress bars."""
-        try:
-            from rich.console import Console
-
-            return Console()
-        except ImportError:
-            return None
-
     def forward(self, x):
         return self.model(return_loss=False, **x)
 
@@ -135,10 +119,11 @@ class OCRPLModule(pl.LightningModule):
             self.log(f"val_{key}", value, batch_size=batch["images"].shape[0])
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
+        predictions: list[dict[str, Any]] = []
         for idx, boxes in enumerate(boxes_batch):
             normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
             filename = batch["image_filename"][idx]
-            self.validation_step_outputs[filename] = {
+            prediction_entry = {
                 "boxes": normalized_boxes,
                 "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
                 "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
@@ -147,9 +132,13 @@ class OCRPLModule(pl.LightningModule):
                 else None,  # BUG REPORTED Error: `TypeError: 'int' object is not iterable` in canonical_size handling
                 "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
             }
+            predictions.append(prediction_entry)
+
+        if self.valid_evaluator is not None:
+            self.valid_evaluator.update(batch["image_filename"], predictions)
 
         # Compute per-batch validation metrics
-        batch_metrics = self._compute_batch_metrics(batch, boxes_batch)
+        batch_metrics = self._compute_batch_metrics(batch, predictions)
         self.log(f"batch_{batch_idx}/recall", batch_metrics["recall"], batch_size=batch["images"].shape[0])
         self.log(f"batch_{batch_idx}/precision", batch_metrics["precision"], batch_size=batch["images"].shape[0])
         self.log(f"batch_{batch_idx}/hmean", batch_metrics["hmean"], batch_size=batch["images"].shape[0])
@@ -307,7 +296,7 @@ class OCRPLModule(pl.LightningModule):
             image = image.convert("RGB")
         return image
 
-    def _compute_batch_metrics(self, batch, boxes_batch):
+    def _compute_batch_metrics(self, batch, predictions: list[dict[str, Any]]):
         """Compute validation metrics for a batch of images."""
         cleval_metrics = defaultdict(list)
 
@@ -317,27 +306,24 @@ class OCRPLModule(pl.LightningModule):
             # It's a Subset, get the underlying dataset
             val_dataset = val_dataset.dataset
 
-        for idx, boxes in enumerate(boxes_batch):
+        for idx, prediction_entry in enumerate(predictions):
             filename = batch["image_filename"][idx]
             if filename not in val_dataset.anns:
                 continue
             gt_words = val_dataset.anns[filename]
 
-            entry = self.validation_step_outputs.get(filename, {})
-
-            orientation = 1
+            orientation = prediction_entry.get("orientation", 1)
             if "orientation" in batch:
-                orientation = batch["orientation"][idx]
-            orientation = entry.get("orientation", orientation)
+                orientation = prediction_entry.get("orientation", batch["orientation"][idx])
 
-            raw_size = entry.get("raw_size")
+            raw_size = prediction_entry.get("raw_size")
             if raw_size is None and "raw_size" in batch:
                 raw_size = batch["raw_size"][idx]
 
-            image_path = entry.get("image_path")
+            image_path = prediction_entry.get("image_path")
             if image_path is None and "image_path" in batch:
                 image_path = batch["image_path"][idx]
-            if image_path is None:
+            if image_path is None and hasattr(self.dataset["val"], "image_path"):
                 image_path = self.dataset["val"].image_path / filename  # type: ignore[attr-defined]
 
             raw_width, raw_height = 0, 0
@@ -350,7 +336,7 @@ class OCRPLModule(pl.LightningModule):
                 except Exception:
                     raw_width, raw_height = 0, 0
 
-            det_polygons = [np.asarray(polygon, dtype=np.float32) for polygon in boxes if polygon]
+            det_polygons = [np.asarray(polygon, dtype=np.float32) for polygon in prediction_entry.get("boxes", []) if polygon is not None]
             det_quads = [polygon.reshape(-1).tolist() for polygon in det_polygons if polygon.size > 0]
 
             # Filter and clip detection polygons to image bounds
@@ -398,152 +384,20 @@ class OCRPLModule(pl.LightningModule):
         return {"recall": recall, "precision": precision, "hmean": hmean}
 
     def on_validation_epoch_end(self):
-        # Log cache statistics from validation dataset if caching is enabled
-        val_dataset = self.dataset["val"]
-        if hasattr(val_dataset, "log_cache_statistics"):
-            val_dataset.log_cache_statistics()
+        if self.valid_evaluator is None:
+            return
 
-        cleval_metrics = defaultdict(list)
+        metrics = self.valid_evaluator.compute()
+        for key, value in metrics.items():
+            self.log(key, value, on_epoch=True, prog_bar=True)
 
-        # Get the actual filenames that should be evaluated (handle Subset datasets)
-        val_dataset = self.dataset["val"]
-        if hasattr(val_dataset, "indices") and hasattr(val_dataset, "dataset"):
-            # This is a Subset dataset, get filenames from the subset indices
-            filenames_to_check = [list(val_dataset.dataset.anns.keys())[idx] for idx in val_dataset.indices]
-        else:
-            # Regular dataset, check all annotations
-            filenames_to_check = list(val_dataset.anns.keys())
-
-        # Only evaluate files that have predictions to avoid warnings and incorrect metrics
-        processed_filenames = [gt_filename for gt_filename in filenames_to_check if gt_filename in self.validation_step_outputs]
-
-        if not processed_filenames:
-            # If no files were processed, log a warning and return zeros
-            import logging
-
-            logging.warning("No validation predictions found. This may indicate a data loading or prediction issue.")
-            recall = 0.0
-            precision = 0.0
-            hmean = 0.0
-        else:
-            if RICH_AVAILABLE:
-                console = self._get_rich_console()
-                with Progress(
-                    TextColumn("[bold red]{task.description}"),
-                    BarColumn(bar_width=50, style="red"),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    TextColumn("•"),
-                    TextColumn("[progress.completed]{task.completed}/{task.total}"),
-                    TextColumn("•"),
-                    TimeElapsedColumn(),
-                    console=console,
-                    refresh_per_second=2,
-                ) as progress:
-                    task = progress.add_task("Evaluation", total=len(processed_filenames))
-                    for gt_filename in processed_filenames:
-                        gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
-
-                        entry = self.validation_step_outputs[gt_filename]
-                        pred_polygons = entry.get("boxes", [])
-                        orientation = entry.get("orientation", 1)
-                        raw_size = entry.get("raw_size")
-
-                        if raw_size is None:
-                            image_path = entry.get("image_path")
-                            if image_path is None:
-                                image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
-                            try:
-                                with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                                    raw_width, raw_height = pil_image.size
-                            except Exception:
-                                raw_width, raw_height = 0, 0
-                        else:
-                            raw_width, raw_height = raw_size
-
-                        det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-                        canonical_gt = []
-                        if gt_words is not None and len(gt_words) > 0:
-                            if raw_width > 0 and raw_height > 0:
-                                canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
-                            else:
-                                canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-                        gt_quads = [
-                            np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0
-                        ]
-
-                        metric = self.metric
-                        metric.reset()
-                        metric(det_quads, gt_quads)
-                        result = metric.compute()
-
-                        cleval_metrics["recall"].append(result["recall"].item())
-                        cleval_metrics["precision"].append(result["precision"].item())
-                        cleval_metrics["hmean"].append(result["f1"].item())
-
-                        progress.advance(task)
-            else:
-                for gt_filename in tqdm(
-                    processed_filenames,
-                    desc="Evaluation",
-                    bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
-                    colour="red",
-                ):
-                    gt_words = val_dataset.anns[gt_filename] if hasattr(val_dataset, "anns") else val_dataset.dataset.anns[gt_filename]
-
-                entry = self.validation_step_outputs[gt_filename]
-                pred_polygons = entry.get("boxes", [])
-                orientation = entry.get("orientation", 1)
-                raw_size = entry.get("raw_size")
-
-                if raw_size is None:
-                    image_path = entry.get("image_path")
-                    if image_path is None:
-                        image_path = self.dataset["val"].image_path / gt_filename  # type: ignore[attr-defined]
-                    try:
-                        with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                            raw_width, raw_height = pil_image.size
-                    except Exception:
-                        raw_width, raw_height = 0, 0
-                else:
-                    raw_width, raw_height = map(int, raw_size)
-
-                det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-                canonical_gt = []
-                if gt_words is not None and len(gt_words) > 0:
-                    if raw_width > 0 and raw_height > 0:
-                        canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
-                    else:
-                        canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-                gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
-
-                metric = self.metric
-                metric.reset()
-                metric(det_quads, gt_quads)
-                result = metric.compute()
-
-                cleval_metrics["recall"].append(result["recall"].item())
-                cleval_metrics["precision"].append(result["precision"].item())
-                cleval_metrics["hmean"].append(result["f1"].item())
-                metric.reset()
-
-            recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
-            precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
-            hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
-
-        self.log("val/recall", recall, on_epoch=True, prog_bar=True)
-        self.log("val/precision", precision, on_epoch=True, prog_bar=True)
-        self.log("val/hmean", hmean, on_epoch=True, prog_bar=True)
-
-        # Store final metrics for checkpoint saving
         self._checkpoint_metrics = {
-            "recall": recall,
-            "precision": precision,
-            "hmean": hmean,
+            "recall": metrics.get("val/recall", 0.0),
+            "precision": metrics.get("val/precision", 0.0),
+            "hmean": metrics.get("val/hmean", 0.0),
         }
 
-        self.validation_step_outputs.clear()
+        self.valid_evaluator.reset()
 
     def on_save_checkpoint(self, checkpoint):
         """Save additional metrics in the checkpoint."""
@@ -560,155 +414,32 @@ class OCRPLModule(pl.LightningModule):
         pred = self.model(return_loss=False, **batch)
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
+        predictions: list[dict[str, Any]] = []
         for idx, boxes in enumerate(boxes_batch):
             normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
-            filename = batch["image_filename"][idx]
-            self.test_step_outputs[filename] = {
-                "boxes": normalized_boxes,
-                "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
-                "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
-                "canonical_size": tuple(batch.get("canonical_size", [None])[idx]) if "canonical_size" in batch else None,
-                "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
-            }
+            predictions.append(
+                {
+                    "boxes": normalized_boxes,
+                    "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
+                    "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
+                    "canonical_size": tuple(batch.get("canonical_size", [None])[idx]) if "canonical_size" in batch else None,
+                    "image_path": batch.get("image_path", [None])[idx] if "image_path" in batch else None,
+                }
+            )
+
+        if self.test_evaluator is not None:
+            self.test_evaluator.update(batch["image_filename"], predictions)
         return pred
 
     def on_test_epoch_end(self):
-        cleval_metrics = defaultdict(list)
+        if self.test_evaluator is None:
+            return
 
-        # Get the actual filenames that should be evaluated (handle Subset datasets)
-        test_dataset = self.dataset["test"]
-        if hasattr(test_dataset, "indices") and hasattr(test_dataset, "dataset"):
-            # This is a Subset dataset, get filenames from the subset indices
-            filenames_to_check = [list(test_dataset.dataset.anns.keys())[idx] for idx in test_dataset.indices]
-        else:
-            # Regular dataset, check all annotations
-            filenames_to_check = list(test_dataset.anns.keys())
+        metrics = self.test_evaluator.compute()
+        for key, value in metrics.items():
+            self.log(key, value, on_epoch=True, prog_bar=True)
 
-        # Only evaluate files that have predictions to avoid warnings and incorrect metrics
-        processed_filenames = [gt_filename for gt_filename in filenames_to_check if gt_filename in self.test_step_outputs]
-
-        if not processed_filenames:
-            # If no files were processed, log a warning and return zeros
-            import logging
-
-            logging.warning("No test predictions found. This may indicate a data loading or prediction issue.")
-            recall = 0.0
-            precision = 0.0
-            hmean = 0.0
-        else:
-            if RICH_AVAILABLE:
-                console = self._get_rich_console()
-                with Progress(
-                    TextColumn("[bold red]{task.description}"),
-                    BarColumn(bar_width=50, style="red"),
-                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                    TextColumn("•"),
-                    TextColumn("[progress.completed]{task.completed}/{task.total}"),
-                    TextColumn("•"),
-                    TimeElapsedColumn(),
-                    console=console,
-                    refresh_per_second=2,
-                ) as progress:
-                    task = progress.add_task("Evaluation", total=len(processed_filenames))
-                    for gt_filename in processed_filenames:
-                        gt_words = (
-                            test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
-                        )
-
-                        entry = self.test_step_outputs[gt_filename]
-                        pred_polygons = entry.get("boxes", [])
-                        orientation = entry.get("orientation", 1)
-                        raw_size = entry.get("raw_size")
-
-                        if raw_size is None:
-                            image_path = entry.get("image_path")
-                            if image_path is None:
-                                image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
-                            try:
-                                with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                                    raw_width, raw_height = pil_image.size
-                            except Exception:
-                                raw_width, raw_height = 0, 0
-                        else:
-                            raw_width, raw_height = map(int, raw_size)
-
-                        det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-                        canonical_gt = []
-                        if gt_words is not None and len(gt_words) > 0:
-                            if raw_width > 0 and raw_height > 0:
-                                canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
-                            else:
-                                canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-                        gt_quads = [
-                            np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0
-                        ]
-
-                        metric = self.metric
-                        metric.reset()
-                        metric(det_quads, gt_quads)
-                        result = metric.compute()
-
-                        cleval_metrics["recall"].append(result["recall"].item())
-                        cleval_metrics["precision"].append(result["precision"].item())
-                        cleval_metrics["hmean"].append(result["f1"].item())
-
-                        progress.advance(task)
-            else:
-                for gt_filename in tqdm(
-                    processed_filenames,
-                    desc="Evaluation",
-                    bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
-                    colour="red",
-                ):
-                    gt_words = test_dataset.anns[gt_filename] if hasattr(test_dataset, "anns") else test_dataset.dataset.anns[gt_filename]
-
-                entry = self.test_step_outputs[gt_filename]
-                pred_polygons = entry.get("boxes", [])
-                orientation = entry.get("orientation", 1)
-                raw_size = entry.get("raw_size")
-
-                if raw_size is None:
-                    image_path = entry.get("image_path")
-                    if image_path is None:
-                        image_path = self.dataset["test"].image_path / gt_filename  # type: ignore[attr-defined]
-                    try:
-                        with Image.open(image_path) as pil_image:  # type: ignore[arg-type]
-                            raw_width, raw_height = pil_image.size
-                    except Exception:
-                        raw_width, raw_height = 0, 0
-                else:
-                    raw_width, raw_height = map(int, raw_size)
-
-                det_quads = [polygon.reshape(-1).tolist() for polygon in pred_polygons if polygon.size > 0]
-
-                canonical_gt = []
-                if gt_words is not None and len(gt_words) > 0:
-                    if raw_width > 0 and raw_height > 0:
-                        canonical_gt = remap_polygons(gt_words, raw_width, raw_height, orientation)
-                    else:
-                        canonical_gt = [np.asarray(poly, dtype=np.float32) for poly in gt_words]
-                gt_quads = [np.asarray(poly, dtype=np.float32).reshape(-1).tolist() for poly in canonical_gt if np.asarray(poly).size > 0]
-
-                metric = self.metric
-                metric.reset()
-                metric(det_quads, gt_quads)
-                result = metric.compute()
-
-                cleval_metrics["recall"].append(result["recall"].item())
-                cleval_metrics["precision"].append(result["precision"].item())
-                cleval_metrics["hmean"].append(result["f1"].item())
-                metric.reset()
-
-            recall = float(np.mean(cleval_metrics["recall"])) if cleval_metrics["recall"] else 0.0
-            precision = float(np.mean(cleval_metrics["precision"])) if cleval_metrics["precision"] else 0.0
-            hmean = float(np.mean(cleval_metrics["hmean"])) if cleval_metrics["hmean"] else 0.0
-
-        self.log("test/recall", recall, on_epoch=True, prog_bar=True)
-        self.log("test/precision", precision, on_epoch=True, prog_bar=True)
-        self.log("test/hmean", hmean, on_epoch=True, prog_bar=True)
-
-        self.test_step_outputs.clear()
+        self.test_evaluator.reset()
 
     def predict_step(self, batch):
         pred = self.model(return_loss=False, **batch)
