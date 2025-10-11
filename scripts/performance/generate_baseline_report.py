@@ -99,6 +99,9 @@ def analyze_bottlenecks(metrics: dict[str, Any]) -> dict[str, Any]:
     """
     summary = metrics.get("summary", {})
 
+    # Check if performance profiling metrics are available
+    has_performance_metrics = any(key.startswith("performance/") for key in summary.keys())
+
     # Define explicit types for the analysis dictionary
     analysis: dict[str, Any] = {
         "validation_time": {
@@ -115,52 +118,89 @@ def analyze_bottlenecks(metrics: dict[str, Any]) -> dict[str, Any]:
             "gpu_memory_reserved_gb": summary.get("performance/gpu_memory_reserved_gb", 0),
             "cpu_memory_percent": summary.get("performance/cpu_memory_percent", 0),
         },
+        "training_metrics": {
+            "val_hmean": summary.get("val/hmean", 0),
+            "val_precision": summary.get("val/precision", 0),
+            "val_recall": summary.get("val/recall", 0),
+            "test_hmean": summary.get("test/hmean", 0),
+            "test_precision": summary.get("test/precision", 0),
+            "test_recall": summary.get("test/recall", 0),
+            "train_loss": summary.get("train/loss", 0),
+            "val_loss": summary.get("val_loss", 0),
+            "epoch": summary.get("epoch", 0),
+            "global_step": summary.get("trainer/global_step", 0),
+        },
+        "has_performance_profiling": has_performance_metrics,
         "bottlenecks": [],
         "comparisons": {},
     }
 
-    # Identify bottlenecks
-    batch_mean = analysis["validation_time"]["batch_mean_ms"]
-    batch_p95 = analysis["validation_time"]["batch_p95_ms"]
-    batch_std = analysis["validation_time"]["batch_std_ms"]
+    # Only analyze performance bottlenecks if metrics are available
+    if has_performance_metrics:
+        # Identify bottlenecks
+        batch_mean = analysis["validation_time"]["batch_mean_ms"]
+        batch_p95 = analysis["validation_time"]["batch_p95_ms"]
+        batch_std = analysis["validation_time"]["batch_std_ms"]
 
-    if batch_p95 > batch_mean * 1.5:
-        analysis["bottlenecks"].append(
-            {
-                "type": "High variance in batch times",
-                "description": f"P95 ({batch_p95:.1f}ms) is {batch_p95 / batch_mean:.1f}x the mean ({batch_mean:.1f}ms)",
-                "severity": "HIGH",
+        if batch_p95 > batch_mean * 1.5:
+            analysis["bottlenecks"].append(
+                {
+                    "type": "High variance in batch times",
+                    "description": f"P95 ({batch_p95:.1f}ms) is {batch_p95 / batch_mean:.1f}x the mean ({batch_mean:.1f}ms)",
+                    "severity": "HIGH",
+                }
+            )
+
+        if batch_std > batch_mean * 0.5:  # If standard deviation is more than 50% of mean
+            analysis["bottlenecks"].append(
+                {
+                    "type": "High variability in batch processing",
+                    "description": f"Standard deviation ({batch_std:.1f}ms) is {batch_std / batch_mean:.1f}x the mean ({batch_mean:.1f}ms)",
+                    "severity": "MEDIUM",
+                }
+            )
+
+        # PyClipper bottleneck check based on performance_optimization_plan.md
+        if batch_mean > 1000:  # More than 1 second per batch is considered slow
+            analysis["bottlenecks"].append(
+                {
+                    "type": "Slow validation bottleneck likely due to PyClipper",
+                    "description": f"Average batch time ({batch_mean:.1f}ms) is significantly high, likely due to PyClipper polygon processing",
+                    "severity": "HIGH",
+                }
+            )
+
+        # Add training comparison if available from config or other sources
+        # This would typically require comparing with training metrics as well
+        train_batch_time = metrics.get("config", {}).get("train_batch_time", 0) * 1000
+        if train_batch_time > 0:
+            slowdown_ratio = batch_mean / train_batch_time if train_batch_time > 0 else 0
+            analysis["comparisons"]["validation_slowdown"] = {
+                "ratio": slowdown_ratio,
+                "description": f"Validation is {slowdown_ratio:.1f}x slower than training",
             }
-        )
+    else:
+        # Analyze training metrics for insights
+        val_hmean = analysis["training_metrics"]["val_hmean"]
+        if val_hmean < 0.8:
+            analysis["bottlenecks"].append(
+                {
+                    "type": "Low validation performance",
+                    "description": f"Validation H-mean ({val_hmean:.3f}) is below 0.8, indicating potential model issues",
+                    "severity": "HIGH",
+                }
+            )
 
-    if batch_std > batch_mean * 0.5:  # If standard deviation is more than 50% of mean
-        analysis["bottlenecks"].append(
-            {
-                "type": "High variability in batch processing",
-                "description": f"Standard deviation ({batch_std:.1f}ms) is {batch_std / batch_mean:.1f}x the mean ({batch_mean:.1f}ms)",
-                "severity": "MEDIUM",
-            }
-        )
-
-    # PyClipper bottleneck check based on performance_optimization_plan.md
-    if batch_mean > 1000:  # More than 1 second per batch is considered slow
-        analysis["bottlenecks"].append(
-            {
-                "type": "Slow validation bottleneck likely due to PyClipper",
-                "description": f"Average batch time ({batch_mean:.1f}ms) is significantly high, likely due to PyClipper polygon processing",
-                "severity": "HIGH",
-            }
-        )
-
-    # Add training comparison if available from config or other sources
-    # This would typically require comparing with training metrics as well
-    train_batch_time = metrics.get("config", {}).get("train_batch_time", 0) * 1000
-    if train_batch_time > 0:
-        slowdown_ratio = batch_mean / train_batch_time if train_batch_time > 0 else 0
-        analysis["comparisons"]["validation_slowdown"] = {
-            "ratio": slowdown_ratio,
-            "description": f"Validation is {slowdown_ratio:.1f}x slower than training",
-        }
+        train_loss = analysis["training_metrics"]["train_loss"]
+        val_loss = analysis["training_metrics"]["val_loss"]
+        if val_loss > train_loss * 2:
+            analysis["bottlenecks"].append(
+                {
+                    "type": "Overfitting detected",
+                    "description": f"Validation loss ({val_loss:.3f}) is significantly higher than training loss ({train_loss:.3f})",
+                    "severity": "MEDIUM",
+                }
+            )
 
     return analysis
 
@@ -195,39 +235,67 @@ def generate_markdown_report(
         ]
     )
 
-    # Validation Performance
-    val_time = analysis["validation_time"]
-    report_lines.extend(
-        [
-            "## Validation Performance",
-            "",
-            "| Metric | Value |",
-            "|--------|-------|",
-            f"| **Total Validation Time** | {val_time['total_seconds']:.2f}s |",
-            f"| **Number of Batches** | {val_time['num_batches']} |",
-            f"| **Mean Batch Time** | {val_time['batch_mean_ms']:.1f}ms |",
-            f"| **Median Batch Time** | {val_time['batch_median_ms']:.1f}ms |",
-            f"| **P95 Batch Time** | {val_time['batch_p95_ms']:.1f}ms |",
-            f"| **P99 Batch Time** | {val_time['batch_p99_ms']:.1f}ms |",
-            f"| **Batch Time Std Dev** | {val_time['batch_std_ms']:.1f}ms |",
-            "",
-        ]
-    )
+    # Check if performance profiling was enabled
+    has_performance = analysis.get("has_performance_profiling", False)
 
-    # Memory Usage
-    mem = analysis["memory_usage"]
-    report_lines.extend(
-        [
-            "## Memory Usage",
-            "",
-            "| Resource | Usage |",
-            "|----------|-------|",
-            f"| **GPU Memory** | {mem['gpu_memory_gb']:.2f} GB |",
-            f"| **GPU Memory Reserved** | {mem['gpu_memory_reserved_gb']:.2f} GB |",
-            f"| **CPU Memory** | {mem['cpu_memory_percent']:.1f}% |",
-            "",
-        ]
-    )
+    if has_performance:
+        # Validation Performance Section (only if performance metrics available)
+        val_time = analysis["validation_time"]
+        report_lines.extend(
+            [
+                "## Validation Performance",
+                "",
+                "| Metric | Value |",
+                "|--------|-------|",
+                f"| **Total Validation Time** | {val_time['total_seconds']:.2f}s |",
+                f"| **Number of Batches** | {val_time['num_batches']} |",
+                f"| **Mean Batch Time** | {val_time['batch_mean_ms']:.1f}ms |",
+                f"| **Median Batch Time** | {val_time['batch_median_ms']:.1f}ms |",
+                f"| **P95 Batch Time** | {val_time['batch_p95_ms']:.1f}ms |",
+                f"| **P99 Batch Time** | {val_time['batch_p99_ms']:.1f}ms |",
+                f"| **Batch Time Std Dev** | {val_time['batch_std_ms']:.1f}ms |",
+                "",
+            ]
+        )
+
+        # Memory Usage
+        mem = analysis["memory_usage"]
+        report_lines.extend(
+            [
+                "## Memory Usage",
+                "",
+                "| Resource | Usage |",
+                "|----------|-------|",
+                f"| **GPU Memory** | {mem['gpu_memory_gb']:.2f} GB |",
+                f"| **GPU Memory Reserved** | {mem['gpu_memory_reserved_gb']:.2f} GB |",
+                f"| **CPU Memory** | {mem['cpu_memory_percent']:.1f}% |",
+                "",
+            ]
+        )
+    else:
+        # Training Metrics Section (when no performance profiling)
+        train_metrics = analysis["training_metrics"]
+        report_lines.extend(
+            [
+                "## Training Metrics Summary",
+                "",
+                "**Note:** This run did not have performance profiling enabled. Showing available training metrics instead.",
+                "",
+                "| Metric | Validation | Test |",
+                "|--------|------------|------|",
+                f"| **H-Mean** | {train_metrics['val_hmean']:.4f} | {train_metrics['test_hmean']:.4f} |",
+                f"| **Precision** | {train_metrics['val_precision']:.4f} | {train_metrics['test_precision']:.4f} |",
+                f"| **Recall** | {train_metrics['val_recall']:.4f} | {train_metrics['test_recall']:.4f} |",
+                "",
+                "| Training Details | Value |",
+                "|------------------|-------|",
+                f"| **Training Loss** | {train_metrics['train_loss']:.4f} |",
+                f"| **Validation Loss** | {train_metrics['val_loss']:.4f} |",
+                f"| **Epoch** | {train_metrics['epoch']} |",
+                f"| **Global Step** | {train_metrics['global_step']} |",
+                "",
+            ]
+        )
 
     # Comparison with Training
     if analysis.get("comparisons", {}).get("validation_slowdown"):
@@ -241,19 +309,29 @@ def generate_markdown_report(
             ]
         )
     else:
-        report_lines.extend(
-            [
-                "## Training vs Validation Comparison",
-                "",
-                "- **Note:** Training batch time not available in this run for comparison. Based on the performance plan, validation is typically ~10x slower than training due to PyClipper bottleneck.",
-                "",
-            ]
-        )
+        if has_performance:
+            report_lines.extend(
+                [
+                    "## Training vs Validation Comparison",
+                    "",
+                    "- **Note:** Training batch time not available in this run for comparison. Based on the performance plan, validation is typically ~10x slower than training due to PyClipper bottleneck.",
+                    "",
+                ]
+            )
+        else:
+            report_lines.extend(
+                [
+                    "## Training vs Validation Comparison",
+                    "",
+                    "- **Note:** Performance profiling not enabled - cannot compare training vs validation timing.",
+                    "",
+                ]
+            )
 
     # Bottlenecks
     report_lines.extend(
         [
-            "## Identified Bottlenecks",
+            "## Identified Issues",
             "",
         ]
     )
@@ -269,40 +347,48 @@ def generate_markdown_report(
                 ]
             )
     else:
-        report_lines.append("No significant bottlenecks detected.")
+        if has_performance:
+            report_lines.append("No significant bottlenecks detected.")
+        else:
+            report_lines.append("No major issues detected in available metrics.")
         report_lines.append("")
 
     # Additional Analysis
-    report_lines.extend(
-        [
-            "## Additional Analysis",
-            "",
-            "Based on the performance optimization plan documented in the project handbook, the following issues are likely present:",
-            "",
-            "- **PyClipper Polygon Processing**: Known bottleneck causing ~10x validation slowdown",
-            "- **Memory Usage**: Check for potential memory leaks during validation",
-            "- **Batch Variance**: High variance in processing times indicating inconsistent performance",
-            "",
-        ]
-    )
-
-    # Recommendations
-    report_lines.extend(
-        [
-            "## Recommendations",
-            "",
-            "Based on the baseline analysis and the performance optimization plan:",
-            "",
-            "1. **PyClipper Caching** (Phase 1.1) - Implement caching for polygon processing operations",
-            "2. **Parallel Processing** (Phase 1.2) - Use multiprocessing for preprocessing steps",
-            "3. **Memory-Mapped Caching** (Phase 1.3) - Optimize memory usage with memory-mapped files",
-            "4. **Memory Optimization** (Phase 2) - Reduce memory footprint for larger batches",
-            "5. **Automated Profiling** (Phase 3) - Establish continuous performance monitoring",
-            "",
-            "For more details on the optimization roadmap, see the performance optimization plan in the documentation.",
-            "",
-        ]
-    )
+    if has_performance:
+        report_lines.extend(
+            [
+                "## Additional Analysis",
+                "",
+                "Based on the performance optimization plan documented in the project handbook, the following issues are likely present:",
+                "",
+                "- **PyClipper Polygon Processing**: Known bottleneck causing ~10x validation slowdown",
+                "- **Memory Usage**: Check for potential memory leaks during validation",
+                "- **Batch Variance**: High variance in processing times indicating inconsistent performance",
+                "",
+            ]
+        )
+    else:
+        report_lines.extend(
+            [
+                "## Recommendations",
+                "",
+                "To get detailed performance analysis, enable performance profiling in future runs:",
+                "",
+                "1. **Add Performance Profiler Callback**: Include `performance_profiler` in your training configuration",
+                "2. **Re-run Training**: Execute training with performance monitoring enabled",
+                "3. **Generate Full Report**: Use this script again on the profiled run",
+                "",
+                "Example config addition:",
+                "```yaml",
+                "callbacks:",
+                "  performance_profiler:",
+                "    _target_: ocr.lightning_modules.callbacks.performance_profiler.PerformanceProfilerCallback",
+                "    enabled: true",
+                "    log_interval: 10",
+                "```",
+                "",
+            ]
+        )
 
     # Raw Metrics Summary
     report_lines.extend(

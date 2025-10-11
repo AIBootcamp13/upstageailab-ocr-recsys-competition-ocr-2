@@ -41,9 +41,7 @@ ui_elements:
     default: "dbnet"
     help: "OCR architecture preset (DBNet, CRAFT, DBNet++)."
     visible_if: "resume_training == false"
-    hydra_override:
-      - "model.architecture_name"
-      - "model/architectures"
+    hydra_override: "model/architectures"
     metadata_help_key: "notes"
     architecture_fallback: "dbnet"
 

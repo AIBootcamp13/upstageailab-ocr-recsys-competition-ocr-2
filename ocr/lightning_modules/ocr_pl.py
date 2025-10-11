@@ -48,6 +48,19 @@ class OCRPLModule(pl.LightningModule):
         self.test_step_outputs: OrderedDict[str, Any] = OrderedDict()
         self.predict_step_outputs: OrderedDict[str, Any] = OrderedDict()
 
+    def load_state_dict(self, state_dict, strict: bool = True):
+        """Load state dict, handling _orig_mod prefixes from compiled models."""
+        # Strip _orig_mod prefixes if present (from compiled model checkpoints)
+        cleaned_state_dict = {}
+        for key, value in state_dict.items():
+            if key.startswith("model._orig_mod."):
+                cleaned_key = key.replace("model._orig_mod.", "model.", 1)
+                cleaned_state_dict[cleaned_key] = value
+            else:
+                cleaned_state_dict[key] = value
+
+        return super().load_state_dict(cleaned_state_dict, strict=strict)
+
     @staticmethod
     def _extract_metric_kwargs(metric_cfg: DictConfig | None) -> dict:
         if metric_cfg is None:
