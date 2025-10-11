@@ -31,6 +31,7 @@
 {
     "image": np.ndarray,           # Shape: (H, W, 3), dtype: uint8 or float32
     "polygons": List[np.ndarray],  # Each: shape (N, 2), dtype: float32
+    "metadata": dict,              # Optional, see Metadata section
     "prob_maps": np.ndarray,       # Shape: (H, W), dtype: float32, range: [0, 1]
     "thresh_maps": np.ndarray,     # Shape: (H, W), dtype: float32, range: [0, 1]
     "image_filename": str,         # Relative path to image file
@@ -46,6 +47,7 @@
 - All polygons have shape `(N, 2)` where N ≥ 3
 - `prob_maps.shape == thresh_maps.shape == (H, W)`
 - `image.shape[:2] == (H, W)` matches prob_maps shape
+- When present, metadata must include canonically-typed fields described below
 
 **Common Violations**:
 - PIL Image passed instead of numpy array
@@ -65,6 +67,7 @@
 {
     "image": np.ndarray,           # Shape: (H, W, 3), dtype: uint8 or float32
     "polygons": List[np.ndarray],  # Each: shape (N, 2), dtype: float32
+    "metadata": dict | None,
 }
 ```
 
@@ -76,6 +79,7 @@
     "prob_maps": torch.Tensor,     # Shape: (1, H', W'), dtype: float32
     "thresh_maps": torch.Tensor,   # Shape: (1, H', W'), dtype: float32
     "inverse_matrix": np.ndarray,  # Shape: (3, 3), dtype: float32 (updated)
+    "metadata": dict | None,       # Merged metadata from dataset + transforms
 }
 ```
 
@@ -83,6 +87,7 @@
 - Image: `uint8 (H,W,3)` → `float32 (3,H',W')` (normalized to [-2.1, 2.6])
 - Polygons: Geometric transformation applied, may change point count
 - Maps: `float32 (H,W)` → `float32 (1,H',W')` (added channel dimension)
+- Metadata: union of dataset-provided fields (ImageMetadata) and transform-emitted metadata
 
 **Albumentations Contract**:
 - Must return dict with `"image"` key
@@ -258,6 +263,28 @@ images: torch.Tensor  # Shape: (B, 3, H, W), dtype: float32
 ```
 
 ### Map Formats
+### Metadata Schema
+
+Metadata exchanged between dataset and transforms follows the `ImageMetadata` Pydantic model:
+
+```python
+{
+    "filename": str | None,
+    "path": str | None,              # Absolute path string
+    "original_shape": Tuple[int, int],  # (height, width)
+    "raw_size": Tuple[int, int] | None, # (width, height) from source image
+    "orientation": int,              # 1-8 EXIF orientation
+    "polygon_frame": str | None,     # "raw" | "canonical"
+    "is_normalized": bool,
+    "dtype": str,
+    "cache_source": str | None,      # e.g., "disk", "image_cache"
+    "cache_hits": int | None,
+    "cache_misses": int | None,
+}
+```
+
+All tuple fields must contain exactly two integers. Additional metadata emitted by Albumentations transforms should be dictionaries with JSON-serializable values so they can merge cleanly with the dataset metadata.
+
 
 ```python
 # Single map (dataset output)

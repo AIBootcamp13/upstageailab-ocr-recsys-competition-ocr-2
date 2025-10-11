@@ -7,8 +7,11 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
+from pydantic import ValidationError
 from torch.utils.data import Dataset
 
+from ocr.datasets.schemas import ImageMetadata, PolygonData, TransformInput
+from ocr.datasets.transforms import DBTransforms
 from ocr.utils.orientation import (
     EXIF_ORIENTATION_TAG,
     FLIP_LEFT_RIGHT,
@@ -336,22 +339,20 @@ class OCRDataset(Dataset):
             self._cache_miss_count += 1
 
         image_path = self.image_path / image_filename
+        cache_source = "disk"
 
         # Check if image is in cache
         if image_filename in self.image_cache:
-            # Use preloaded image from RAM
             cached_data = self.image_cache[image_filename]
             image_array = cached_data["image_array"]
             raw_width = cached_data["raw_width"]
             raw_height = cached_data["raw_height"]
             orientation = cached_data["orientation"]
+            cache_source = "image_cache"
 
             # Always use numpy arrays for transforms (Albumentations/DBTransforms require numpy)
-            # BUG FIX (BUG-2025-002): Previously converted to PIL Image when is_normalized=False,
-            # causing AttributeError in transforms.py:42 (PIL Image has no .shape attribute)
-            image = image_array  # Keep as numpy array (uint8 or float32)
+            image = image_array
         else:
-            # Load from disk (original behavior)
             try:
                 from ocr.utils.image_loading import load_image_optimized
 
@@ -375,8 +376,6 @@ class OCRDataset(Dataset):
             else:
                 rgb_image = normalized_image.copy()
 
-            # Convert to numpy array for consistency with cached path
-            # BUG FIX (BUG-2025-002): Always pass numpy arrays to transforms
             image = np.array(rgb_image)
             rgb_image.close()
 
@@ -422,10 +421,39 @@ class OCRDataset(Dataset):
         if self.transform is None:
             raise ValueError("Transform function is a required value.")
 
+        height, width = image.shape[:2]
+
+        metadata = ImageMetadata(
+            filename=image_filename,
+            path=image_path,
+            original_shape=(height, width),
+            orientation=orientation,
+            is_normalized=image.dtype == np.float32,
+            dtype=str(image.dtype),
+            raw_size=(raw_width, raw_height),
+            polygon_frame=polygon_frame,
+            cache_source=cache_source,
+            cache_hits=self._cache_hit_count if self.cache_transformed_tensors else None,
+            cache_misses=self._cache_miss_count if self.cache_transformed_tensors else None,
+        )
+
+        polygon_models: list[PolygonData] | None = None
+        if polygons:
+            polygon_models = []
+            for poly in polygons:
+                try:
+                    polygon_models.append(PolygonData(points=poly))
+                except ValidationError as exc:
+                    self.logger.warning("Dropping invalid polygon for %s: %s", image_filename, exc)
+
         # Image transform
         # The transform pipeline handles PIL images and numpy arrays correctly.
         # The explicit np.array() call was causing issues with pre-normalized float32 arrays.
-        transformed = self.transform(image=image, polygons=polygons)
+        if isinstance(self.transform, DBTransforms):
+            transform_payload = TransformInput(image=image, polygons=polygon_models, metadata=metadata)
+            transformed = self.transform(transform_payload)
+        else:
+            transformed = self.transform(image=image, polygons=polygons)
 
         transformed_image = transformed["image"]
         transformed_polygons = transformed.get("polygons", []) or []

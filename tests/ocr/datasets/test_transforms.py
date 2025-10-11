@@ -5,9 +5,13 @@ Tests the BUG-2025-004 fix for polygon dimension error that caused
 catastrophic performance degradation (hmean: 0.890 → 0.00011).
 """
 
+from pathlib import Path
+
 import numpy as np
 import pytest
+from pydantic import ValidationError
 
+from ocr.datasets.schemas import ImageMetadata, PolygonData, TransformInput
 from ocr.datasets.transforms import DBTransforms
 
 
@@ -28,58 +32,44 @@ class TestPolygonShapeHandling:
         keypoint_params = A.KeypointParams(format="xy", remove_invisible=False)
         return DBTransforms(transforms, keypoint_params)
 
-    def test_validate_polygons_valid_2d_shapes(self, transforms_instance):
-        """Test validation of valid 2D polygon shapes."""
-        # Valid polygons with different point counts
+    def test_polygon_data_accepts_valid_shapes(self):
+        """PolygonData accepts various valid polygon layouts."""
         valid_polygons = [
-            np.array([[10, 20], [30, 40], [50, 60]], dtype=np.float32),  # Triangle
-            np.array([[0, 0], [100, 0], [100, 100], [0, 100]], dtype=np.float32),  # Rectangle
-            np.array([[50, 10], [80, 40], [60, 80], [20, 70], [10, 30]], dtype=np.float32),  # Pentagon
+            np.array([[10, 20], [30, 40], [50, 60]], dtype=np.float32),
+            np.array([[0, 0], [100, 0], [100, 100], [0, 100]], dtype=np.float32),
+            np.array([[[10, 20], [30, 40], [50, 60]]], dtype=np.float32),
         ]
 
-        # Should not raise any exceptions
-        transforms_instance._validate_polygons(valid_polygons)
+        for polygon in valid_polygons:
+            model = PolygonData(points=polygon)
+            assert model.points.shape[1] == 2
+            assert model.points.dtype == np.float32
 
-    def test_validate_polygons_valid_3d_shapes(self, transforms_instance):
-        """Test validation of valid 3D polygon shapes (backward compatibility)."""
-        # Valid 3D polygons with batch dimension
-        valid_polygons = [
-            np.array([[[10, 20], [30, 40], [50, 60]]], dtype=np.float32),  # Triangle
-            np.array([[[0, 0], [100, 0], [100, 100], [0, 100]]], dtype=np.float32),  # Rectangle
-        ]
+    def test_polygon_data_rejects_invalid_types(self):
+        """PolygonData raises validation errors for invalid inputs."""
+        invalid_inputs = ["not an array", 42, [1, 2, 3]]
 
-        # Should not raise any exceptions
-        transforms_instance._validate_polygons(valid_polygons)
+        for invalid in invalid_inputs:
+            with pytest.raises(ValidationError):
+                PolygonData(points=invalid)
 
-    def test_validate_polygons_invalid_types(self, transforms_instance):
-        """Test validation rejects invalid polygon types."""
+    def test_polygon_data_rejects_invalid_shapes(self):
+        """PolygonData enforces minimum points and correct dimensionality."""
         invalid_polygons = [
-            "not an array",  # String
-            42,  # Integer
-            [1, 2, 3],  # List instead of numpy array
+            np.array([10, 20, 30]),
+            np.array([[10, 20, 30]]),
+            np.array([[[10, 20]], [[30, 40]]]),
         ]
 
-        for invalid_polygon in invalid_polygons:
-            with pytest.raises(TypeError, match="polygon at index .* must be numpy array"):
-                transforms_instance._validate_polygons([invalid_polygon])
+        for polygon in invalid_polygons:
+            with pytest.raises(ValidationError):
+                PolygonData(points=polygon)
 
-    def test_validate_polygons_invalid_shapes(self, transforms_instance):
-        """Test validation rejects invalid polygon shapes."""
-        invalid_polygons = [
-            np.array([10, 20, 30]),  # 1D array
-            np.array([[10, 20, 30]]),  # Wrong coordinate dimension
-            np.array([[[10, 20]], [[30, 40]]]),  # Wrong 3D shape
-            # Note: 2-point polygons are allowed in validation, filtered in processing
-        ]
-
-        for i, invalid_polygon in enumerate(invalid_polygons[:3]):  # Skip the 2-point one
-            with pytest.raises((ValueError, TypeError)):
-                transforms_instance._validate_polygons([invalid_polygon])
-
-    def test_validate_polygons_none_input(self, transforms_instance):
-        """Test validation handles None input gracefully."""
-        # Should not raise any exceptions
-        transforms_instance._validate_polygons(None)
+    def test_transform_input_allows_missing_polygons(self, sample_image):
+        """TransformInput accepts None polygons for polygon-less samples."""
+        metadata = ImageMetadata(original_shape=(224, 224), dtype=str(sample_image.dtype))
+        payload = TransformInput(image=sample_image, polygons=None, metadata=metadata)
+        assert payload.polygons is None
 
     def test_polygon_point_count_extraction_2d(self, transforms_instance, sample_image):
         """Test correct point count extraction for 2D polygons (BUG-2025-004)."""
@@ -162,6 +152,37 @@ class TestPolygonShapeHandling:
 
         # Should have 2 valid polygons (invalid one skipped)
         assert len(result["polygons"]) == 2
+
+    def test_metadata_preserved_through_pipeline(self, transforms_instance, sample_image):
+        """Input metadata should be present in transform output."""
+        metadata = ImageMetadata(
+            filename="test.jpg",
+            path=Path("/tmp/test.jpg"),
+            original_shape=(224, 224),
+            orientation=3,
+            is_normalized=False,
+            dtype=str(sample_image.dtype),
+            raw_size=(640, 480),
+            polygon_frame="canonical",
+            cache_source="image_cache",
+            cache_hits=5,
+            cache_misses=2,
+        )
+
+        payload = TransformInput(image=sample_image, polygons=None, metadata=metadata)
+        result = transforms_instance(payload)
+
+        assert "metadata" in result
+        output_metadata = result["metadata"]
+        assert output_metadata["filename"] == "test.jpg"
+        assert output_metadata["path"] == str(Path("/tmp/test.jpg"))
+        assert output_metadata["orientation"] == 3
+        assert tuple(output_metadata["original_shape"]) == (224, 224)
+        assert tuple(output_metadata["raw_size"]) == (640, 480)
+        assert output_metadata["polygon_frame"] == "canonical"
+        assert output_metadata["cache_source"] == "image_cache"
+        assert output_metadata["cache_hits"] == 5
+        assert output_metadata["cache_misses"] == 2
 
 
 class TestPolygonShapeBugRegression:
