@@ -76,11 +76,32 @@ def polygon_points(coords: Iterable[float]) -> list[tuple[float, float]]:
     return [(coords_list[i], coords_list[i + 1]) for i in range(0, len(coords_list), 2)]
 
 
-def draw_predictions_on_image(image: Image.Image, polygons_str: str, color: tuple[int, int, int]) -> Image.Image:
+def transform_polygons_for_ccw90(polygons: list[Polygon], width: int, height: int) -> list[Polygon]:
+    """Transform polygons for 90-degree counter-clockwise rotation."""
+    transformed = []
+    for coords in polygons:
+        new_coords = []
+        for i in range(0, len(coords), 2):
+            x, y = coords[i], coords[i + 1]
+            new_x = y
+            new_y = width - x
+            new_coords.extend([new_x, new_y])
+        transformed.append(new_coords)
+    return transformed
+
+
+def draw_predictions_on_image(
+    image: Image.Image, polygons_str: str, color: tuple[int, int, int], rotate_ccw90: bool = False
+) -> Image.Image:
     """Draw polygon predictions on a copy of the image."""
     polygons = parse_polygon_string(polygons_str)
     if not polygons:
         return image
+
+    if rotate_ccw90:
+        original_size = image.size
+        image = image.rotate(-90, expand=True)
+        polygons = transform_polygons_for_ccw90(polygons, original_size[0], original_size[1])
 
     overlay = image.copy()
     draw = ImageDraw.Draw(overlay, "RGBA")

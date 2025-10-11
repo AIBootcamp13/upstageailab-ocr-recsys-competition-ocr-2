@@ -24,7 +24,7 @@ def load_predictions_file(file_path: str | Path | Any) -> pd.DataFrame:
     df = pd.read_csv(file_path)
 
     # Convert polygons column to string type and fill NaN values
-    df["polygons"] = df["polygons"].astype(str).fillna("")
+    df["polygons"] = df["polygons"].astype(str).replace("nan", "").fillna("")
 
     # Validate each row using RawPredictionRow (only basic fields from CSV)
     validated_rows = []
@@ -70,9 +70,13 @@ def calculate_prediction_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
     # Generate more realistic confidence scores based on heuristics
     # In a real system, these would come from the model's output probabilities
-    if "avg_confidence" not in df.columns:
+    if "avg_confidence" not in df.columns or df["avg_confidence"].isna().any():
         np.random.seed(42)  # For reproducible results
-        df["avg_confidence"] = df.apply(lambda row: generate_confidence_score(row), axis=1)
+        generated_scores = df.apply(lambda row: generate_confidence_score(row), axis=1)
+        if "avg_confidence" not in df.columns:
+            df["avg_confidence"] = generated_scores
+        else:
+            df["avg_confidence"] = df["avg_confidence"].fillna(generated_scores)
 
     # Aspect ratio (placeholder)
     df["aspect_ratio"] = 1.0
@@ -233,7 +237,11 @@ def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.Da
 
         # Calculate confidence differences (using placeholder values for now)
         conf_a = row_a.get("avg_confidence", 0.8)
+        if pd.isna(conf_a):
+            conf_a = 0.8
         conf_b = row_b.get("avg_confidence", 0.8)
+        if pd.isna(conf_b):
+            conf_b = 0.8
 
         differences.append(
             {

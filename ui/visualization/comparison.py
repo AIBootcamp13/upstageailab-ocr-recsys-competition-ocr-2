@@ -68,7 +68,7 @@ def display_model_comparison_stats(df_a: pd.DataFrame, df_b: pd.DataFrame) -> No
         st.metric("Empty Preds", metrics_b.empty_predictions, delta=-delta)
 
 
-def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir: str) -> None:
+def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir: str, gt_df: pd.DataFrame | None = None) -> None:
     """Display visual comparison of predictions on the same images."""
     st.subheader("🖼️ Visual Comparison")
 
@@ -98,10 +98,12 @@ def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir:
         ):
             st.session_state.visual_comparison_page += 1
 
-    display_side_by_side_comparison(df_a, df_b, current_image, image_dir)
+    display_side_by_side_comparison(df_a, df_b, current_image, image_dir, gt_df)
 
 
-def display_side_by_side_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_name: str, image_dir: str) -> None:
+def display_side_by_side_comparison(
+    df_a: pd.DataFrame, df_b: pd.DataFrame, image_name: str, image_dir: str, gt_df: pd.DataFrame | None = None
+) -> None:
     """Display side-by-side comparison of two models on the same image."""
     image_path = Path(image_dir) / image_name
     if not image_path.exists():
@@ -116,23 +118,34 @@ def display_side_by_side_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, imag
 
     row_a = df_a[df_a["filename"] == image_name].iloc[0]
     row_b = df_b[df_b["filename"] == image_name].iloc[0]
+    gt_row = None
+    if gt_df is not None:
+        gt_matches = gt_df[gt_df["filename"] == image_name]
+        if not gt_matches.empty:
+            gt_row = gt_matches.iloc[0]
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown("**Original Image**")
-        st.image(original_image, caption="Original")
+        if gt_row is not None:
+            img_gt = draw_predictions_on_image(original_image.copy(), str(gt_row.get("polygons", "")), (0, 255, 0), rotate_ccw90=True)
+            st.image(img_gt, caption="Original with GT")
+        else:
+            st.image(original_image.rotate(-90, expand=True), caption="Original")
 
     with col2:
         st.markdown("**Model A Predictions**")
-        img_a = draw_predictions_on_image(original_image.copy(), str(row_a.get("polygons", "")), (255, 0, 0))
+        img_a = draw_predictions_on_image(original_image.copy(), str(row_a.get("polygons", "")), (255, 0, 0), rotate_ccw90=True)
         pred_count_a = len(str(row_a.get("polygons", "")).split("|")) if pd.notna(row_a.get("polygons")) else 0
         conf_a = row_a.get("avg_confidence", 0.8)
         st.image(img_a, caption=f"Model A ({pred_count_a} predictions, conf: {conf_a:.2f})")
 
     with col3:
         st.markdown("**Model B Predictions**")
-        img_b = draw_predictions_on_image(original_image.copy(), str(row_b.get("polygons", "")), (0, 255, 0))
+        img_b = draw_predictions_on_image(
+            original_image.copy(), str(row_b.get("polygons", "")), (0, 0, 255), rotate_ccw90=True
+        )  # Changed to blue
         pred_count_b = len(str(row_b.get("polygons", "")).split("|")) if pd.notna(row_b.get("polygons")) else 0
         conf_b = row_b.get("avg_confidence", 0.8)
         st.image(img_b, caption=f"Model B ({pred_count_b} predictions, conf: {conf_b:.2f})")

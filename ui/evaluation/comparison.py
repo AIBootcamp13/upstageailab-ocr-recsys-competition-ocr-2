@@ -71,6 +71,8 @@ def render_comparison_view():
     )
     image_dir = Path(image_dir_path)
 
+    gt_file = st.file_uploader("Upload Ground Truth (optional)", type=["csv"], key="gt_upload")
+
     def validate_predictions_file(file_obj):
         """Validate a predictions file before processing."""
         try:
@@ -107,9 +109,12 @@ def render_comparison_view():
     if model_a_file and model_b_file:
         df_a = validate_predictions_file(model_a_file)
         df_b = validate_predictions_file(model_b_file)
+        gt_df = validate_predictions_file(gt_file) if gt_file else None
 
         if df_a is not None and df_b is not None:
             st.success("Successfully loaded both prediction files.")
+            if gt_df is not None:
+                st.success("Ground truth loaded successfully.")
 
             comp_tab1, comp_tab2, comp_tab3 = st.tabs(["📊 Statistics", "🔍 Differences", "🖼️ Visual Comparison"])
 
@@ -119,7 +124,7 @@ def render_comparison_view():
                 display_model_differences(df_a, df_b)
             with comp_tab3:
                 if image_dir.is_dir():
-                    display_visual_comparison(df_a, df_b, str(image_dir))
+                    display_visual_comparison(df_a, df_b, str(image_dir), gt_df)
                 else:
                     st.warning("The specified image directory does not exist. Please provide a valid path.")
 

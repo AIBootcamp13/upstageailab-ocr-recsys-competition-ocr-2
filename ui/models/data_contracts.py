@@ -45,13 +45,15 @@ class RawPredictionRow(_EvaluationBase):
         """Validate that polygons string is properly formatted."""
         if not isinstance(value, str):
             raise TypeError("Polygons must be a string")
+        if value.strip().lower() == "nan":
+            return ""  # Treat "nan" as empty
         if not value.strip():
             return ""  # Allow empty polygons
         # Basic validation that it's pipe-separated coordinate strings
         for polygon_str in value.split("|"):
             if not polygon_str.strip():
                 continue
-            coords = polygon_str.split(",")
+            coords = polygon_str.split()
             if len(coords) < 8 or len(coords) % 2 != 0:
                 raise ValueError(f"Invalid polygon format: {polygon_str}. Must have even number of coordinates >= 8")
             try:
@@ -95,13 +97,15 @@ class PredictionRow(_EvaluationBase):
         """Validate that polygons string is properly formatted."""
         if not isinstance(value, str):
             raise TypeError("Polygons must be a string")
+        if value.strip().lower() == "nan":
+            return ""  # Treat "nan" as empty
         if not value.strip():
             return ""  # Allow empty polygons
         # Basic validation that it's pipe-separated coordinate strings
         for polygon_str in value.split("|"):
             if not polygon_str.strip():
                 continue
-            coords = polygon_str.split(",")
+            coords = polygon_str.split()
             if len(coords) < 8 or len(coords) % 2 != 0:
                 raise ValueError(f"Invalid polygon format: {polygon_str}. Must have even number of coordinates >= 8")
             try:
@@ -243,7 +247,7 @@ class ModelComparisonResult(_EvaluationBase):
             raise ValueError("Filename cannot be empty")
         return value.strip()
 
-    @field_validator("pred_a", "pred_b", "pred_diff", "abs_pred_diff")
+    @field_validator("pred_a", "pred_b", "abs_pred_diff")
     @classmethod
     def _validate_prediction_counts(cls, value: int) -> int:
         """Validate prediction counts are non-negative."""
