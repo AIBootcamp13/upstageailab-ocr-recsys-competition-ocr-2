@@ -9,6 +9,6 @@ def _alias_module(alias: str, target: str) -> None:
     sys.modules[alias] = module
 
 
-_alias_module("ui.visualization", "ui._visualization")
+# _alias_module("ui.visualization", "ui.visualization")
 
 __all__ = []

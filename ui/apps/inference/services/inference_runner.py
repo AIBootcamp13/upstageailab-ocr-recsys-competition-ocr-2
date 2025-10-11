@@ -1,4 +1,4 @@
-from __future__ import annotations
+from pydantic import ValidationError
 
 """Service layer orchestrating inference requests.
 
@@ -29,6 +29,7 @@ import numpy as np
 import streamlit as st
 
 from ..models.config import PreprocessingConfig
+from ..models.data_contracts import InferenceResult, Predictions, PreprocessingInfo
 from ..models.ui_events import InferenceRequest
 from ..state import InferenceState
 
@@ -60,20 +61,28 @@ else:  # pragma: no cover - runtime fallback for optional dependency
 
 class InferenceService:
     def run(self, state: InferenceState, request: InferenceRequest, hyperparams: dict[str, float]) -> None:
-        mode_key = "docTR:on" if request.use_preprocessing else "docTR:off"
-        state.ensure_processed_bucket(request.model_path, mode_key)
-        total_files = len(request.files)
-        new_results: list[dict[str, Any]] = []
+        # Validate request data contract
+        try:
+            validated_request = InferenceRequest.model_validate(request)
+        except ValidationError as exc:
+            LOGGER.error("Invalid inference request: %s", exc)
+            st.error(f"❌ Invalid request data: {exc}")
+            return
+
+        mode_key = "docTR:on" if validated_request.use_preprocessing else "docTR:off"
+        state.ensure_processed_bucket(validated_request.model_path, mode_key)
+        total_files = len(validated_request.files)
+        new_results: list[InferenceResult] = []
 
         progress = st.progress(0.0, text=f"Starting inference for {total_files} images...")
 
         preprocessor = None
-        if request.use_preprocessing and DocumentPreprocessor is not None:
-            preprocessor = self._build_preprocessor(request.preprocessing_config)
+        if validated_request.use_preprocessing and DocumentPreprocessor is not None:
+            preprocessor = self._build_preprocessor(validated_request.preprocessing_config)
 
-        for index, uploaded_file in enumerate(request.files):
+        for index, uploaded_file in enumerate(validated_request.files):
             filename = uploaded_file.name
-            processed_bucket = state.processed_images[request.model_path][mode_key]
+            processed_bucket = state.processed_images[validated_request.model_path][mode_key]
             if filename in processed_bucket:
                 progress.progress(
                     (index + 1) / total_files,
@@ -90,10 +99,10 @@ class InferenceService:
             try:
                 result = self._perform_inference(
                     temp_path,
-                    Path(request.model_path),
+                    Path(validated_request.model_path),
                     filename,
                     hyperparams,
-                    request.use_preprocessing,
+                    validated_request.use_preprocessing,
                     preprocessor,
                 )
                 new_results.append(result)
@@ -117,7 +126,7 @@ class InferenceService:
         hyperparams: dict[str, float],
         use_preprocessing: bool,
         preprocessor: DocumentPreprocessorType | None,
-    ) -> dict[str, Any]:
+    ) -> InferenceResult:
         processed_temp_path: Path | None = None
         try:
             image = cv2.imread(str(image_path))
@@ -127,14 +136,14 @@ class InferenceService:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
             inference_rgb = image_rgb
-            preprocessing_info: dict[str, Any] = {
-                "enabled": use_preprocessing,
-                "metadata": None,
-                "original": image_rgb,
-                "processed": None,
-                "doctr_available": DOCTR_AVAILABLE,
-                "mode": "docTR:on" if use_preprocessing else "docTR:off",
-            }
+            preprocessing_info = PreprocessingInfo(
+                enabled=use_preprocessing,
+                metadata=None,
+                original=image_rgb,
+                processed=None,
+                doctr_available=DOCTR_AVAILABLE,
+                mode="docTR:on" if use_preprocessing else "docTR:off",
+            )
             inference_target_path = image_path
 
             if use_preprocessing and preprocessor is not None:
@@ -144,14 +153,15 @@ class InferenceService:
                     if processed_image is None:
                         raise ValueError("DocumentPreprocessor returned no image result.")
                     inference_rgb = np.asarray(processed_image)
-                    preprocessing_info["metadata"] = processed.get("metadata")
-                    preprocessing_info["processed"] = inference_rgb
+                    metadata = processed.get("metadata")
+                    preprocessing_info.metadata = metadata if isinstance(metadata, dict) else None
+                    preprocessing_info.processed = inference_rgb
                     inference_target_path = self._write_temp_image(inference_rgb, suffix=image_path.suffix)
                     processed_temp_path = inference_target_path
                 except Exception as exc:  # noqa: BLE001
                     LOGGER.exception("docTR preprocessing failed for %s: %s", filename, exc)
-                    preprocessing_info["error"] = str(exc)
-                    preprocessing_info["enabled"] = False
+                    preprocessing_info.error = str(exc)
+                    preprocessing_info.enabled = False
                     inference_rgb = image_rgb
                     inference_target_path = image_path
 
@@ -169,6 +179,11 @@ class InferenceService:
                     )
                     if predictions is None:
                         raise ValueError("Inference engine returned no results.")
+                    LOGGER.info(f"Inference engine returned predictions: {predictions}")
+                    if not self._are_predictions_valid(predictions, inference_rgb.shape):
+                        LOGGER.warning(f"Predictions failed validation: {predictions}")
+                        raise ValueError("Inference engine returned invalid predictions.")
+                    predictions = Predictions(**predictions)
                 except Exception as exc:  # noqa: BLE001
                     LOGGER.exception("Real inference failed; using mock predictions fallback: %s", exc)
                     st.warning(f"⚠️ Real inference failed ({exc}), using mock predictions as a fallback.")
@@ -177,33 +192,54 @@ class InferenceService:
             if predictions is None:
                 predictions = self._generate_mock_predictions(inference_rgb.shape)
 
-            return {
-                "filename": filename,
-                "success": True,
-                "image": inference_rgb,
-                "predictions": predictions,
-                "preprocessing": preprocessing_info,
-            }
+            # Create and validate the result data contract
+            result = InferenceResult(
+                filename=filename,
+                success=True,
+                image=inference_rgb,
+                predictions=predictions,
+                preprocessing=preprocessing_info,
+            )
+            try:
+                validated_result = InferenceResult.model_validate(result)
+                return validated_result
+            except ValidationError as exc:
+                LOGGER.error("Invalid inference result for %s: %s", filename, exc)
+                return InferenceResult(
+                    filename=filename,
+                    success=False,
+                    image=inference_rgb,
+                    predictions=Predictions(polygons="", texts=[], confidences=[]),
+                    preprocessing=preprocessing_info,
+                    error=f"Result validation failed: {exc}",
+                )
         except Exception as exc:  # noqa: BLE001
             LOGGER.exception("Inference failed for %s", filename)
-            return {"filename": filename, "success": False, "error": str(exc)}
+            return InferenceResult(
+                filename=filename,
+                success=False,
+                image=np.zeros((1, 1, 3), dtype=np.uint8),  # Placeholder image for error case
+                predictions=Predictions(polygons="", texts=[], confidences=[]),  # Empty predictions
+                preprocessing=PreprocessingInfo(enabled=False),  # Default preprocessing
+                error=str(exc),
+            )
         finally:
             if processed_temp_path and processed_temp_path.exists():
                 processed_temp_path.unlink()
 
     @staticmethod
-    def _generate_mock_predictions(image_shape: Sequence[int]) -> dict[str, Any]:
+    def _generate_mock_predictions(image_shape: Sequence[int]) -> Predictions:
         height, width, _ = image_shape
         box1 = [int(width * 0.1), int(height * 0.1), int(width * 0.4), int(height * 0.2)]
         box2 = [int(width * 0.5), int(height * 0.4), int(width * 0.9), int(height * 0.5)]
         box3 = [int(width * 0.2), int(height * 0.7), int(width * 0.7), int(height * 0.8)]
         mock_boxes = [box1, box2, box3]
 
-        return {
-            "polygons": "|".join(f"{b[0]},{b[1]},{b[2]},{b[1]},{b[2]},{b[3]},{b[0]},{b[3]}" for b in mock_boxes),
-            "texts": ["Sample Text 1", "Another Example", "Third Line"],
-            "confidences": [0.95, 0.87, 0.92],
-        }
+        return Predictions(
+            polygons="|".join(f"{b[0]},{b[1]},{b[2]},{b[1]},{b[2]},{b[3]},{b[0]},{b[3]}" for b in mock_boxes),
+            texts=["Sample Text 1", "Another Example", "Third Line"],
+            confidences=[0.95, 0.87, 0.92],
+        )
 
     @staticmethod
     def _write_temp_image(image_rgb: np.ndarray, suffix: str) -> Path:
@@ -223,3 +259,24 @@ class InferenceService:
 
         kwargs = config.to_kwargs()
         return DocumentPreprocessor(**kwargs)
+
+    @staticmethod
+    def _are_predictions_valid(predictions: dict[str, Any], image_shape: tuple[int, ...]) -> bool:
+        polygons_text = predictions.get("polygons", "")
+        if not polygons_text:
+            LOGGER.warning("Predictions missing polygons field or empty")
+            return False
+        height, width = image_shape[:2]
+        LOGGER.debug(f"Validating predictions for image {width}x{height}, polygons: {polygons_text[:100]}...")
+        for polygon_str in polygons_text.split("|"):
+            coords = [int(float(value)) for value in polygon_str.split(",") if value]
+            if len(coords) < 8 or len(coords) % 2 != 0:
+                LOGGER.warning(f"Invalid polygon format: {polygon_str} (coords: {coords})")
+                return False
+            for i in range(0, len(coords), 2):
+                x, y = coords[i], coords[i + 1]
+                # Allow polygons to extend reasonably outside image bounds
+                if x < -width or x > 2 * width or y < -height or y > 2 * height:
+                    LOGGER.warning(f"Polygon coordinate out of bounds: ({x}, {y}) for image {width}x{height}")
+                    return False
+        return True

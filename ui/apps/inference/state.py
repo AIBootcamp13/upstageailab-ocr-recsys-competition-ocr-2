@@ -13,6 +13,7 @@ from typing import Any
 import streamlit as st
 
 from .models.config import PreprocessingConfig, SliderConfig
+from .models.data_contracts import InferenceResult
 
 SESSION_KEYS = {
     "inference_results": list,
@@ -29,7 +30,7 @@ SESSION_KEYS = {
 
 @dataclass(slots=True)
 class InferenceState:
-    inference_results: list[dict[str, Any]] = field(default_factory=list)
+    inference_results: list[InferenceResult] = field(default_factory=list)
     selected_images: set[str] = field(default_factory=set)
     processed_images: dict[str, dict[str, set[str]]] = field(default_factory=dict)
     selected_model: str | None = None

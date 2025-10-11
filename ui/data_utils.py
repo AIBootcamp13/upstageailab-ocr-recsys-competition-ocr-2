@@ -7,19 +7,63 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from pydantic import ValidationError
+
+from ui.models import DatasetStatistics, EvaluationMetrics, ModelComparisonResult, PredictionRow, RawPredictionRow
 
 
 def load_predictions_file(file_path: str | Path | Any) -> pd.DataFrame:
-    """Load predictions from CSV file."""
-    return pd.read_csv(file_path)
+    """Load predictions from CSV file with validation.
+
+    # AI_DOCS: load_predictions_file
+    # Validates raw prediction data from CSV files using Pydantic models
+    # Ensures filename extensions and polygon formats are correct
+    # Returns pandas DataFrame with validated data ready for metric calculation
+    """
+    # Read CSV and ensure polygons column is treated as string
+    df = pd.read_csv(file_path)
+
+    # Convert polygons column to string type and fill NaN values
+    df["polygons"] = df["polygons"].astype(str).fillna("")
+
+    # Validate each row using RawPredictionRow (only basic fields from CSV)
+    validated_rows = []
+    for idx, row in df.iterrows():
+        try:
+            # Only validate filename and polygons from CSV
+            polygons_value = str(row["polygons"]) if pd.notna(row["polygons"]) else ""
+            polygons_value = polygons_value if polygons_value != "nan" else ""
+            row_dict = {"filename": row["filename"], "polygons": polygons_value}
+            validated_row = RawPredictionRow.model_validate(row_dict)
+            validated_rows.append(validated_row.model_dump())
+        except ValidationError as e:
+            raise ValueError(f"Invalid data in row {idx}: {e}") from e
+
+    # Create validated DataFrame
+    if validated_rows:
+        df = pd.DataFrame(validated_rows)
+    else:
+        # Handle empty DataFrame case
+        df = pd.DataFrame(columns=list(RawPredictionRow.model_fields.keys()))
+
+    return df
 
 
 def calculate_prediction_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate derived metrics for predictions dataframe."""
+    """Calculate derived metrics for predictions dataframe with validation.
+
+    # AI_DOCS: calculate_prediction_metrics
+    # Computes prediction count, total area, and confidence scores from polygon data
+    # Validates all derived metrics against raw polygon data for consistency
+    # Returns DataFrame with additional validated metric columns
+    """
     df = df.copy()
 
+    # Ensure polygons column is string type
+    df["polygons"] = df["polygons"].astype(str).fillna("")
+
     # Prediction count
-    df["prediction_count"] = df["polygons"].apply(lambda x: len(x.split("|")) if pd.notna(x) and x.strip() else 0)
+    df["prediction_count"] = df["polygons"].apply(lambda x: len(x.split("|")) if pd.notna(x) and x.strip() and x != "nan" else 0)
 
     # Total area
     df["total_area"] = df["polygons"].apply(calculate_total_area)
@@ -33,7 +77,17 @@ def calculate_prediction_metrics(df: pd.DataFrame) -> pd.DataFrame:
     # Aspect ratio (placeholder)
     df["aspect_ratio"] = 1.0
 
-    return df
+    # Validate each row after calculations
+    validated_rows = []
+    for idx, row in df.iterrows():
+        try:
+            row_dict = row.to_dict()
+            validated_row = PredictionRow.model_validate(row_dict)
+            validated_rows.append(validated_row.model_dump())
+        except ValidationError as e:
+            raise ValueError(f"Invalid calculated data in row {idx}: {e}") from e
+
+    return pd.DataFrame(validated_rows)
 
 
 def generate_confidence_score(row) -> float:
@@ -72,21 +126,29 @@ def generate_confidence_score(row) -> float:
 
 def calculate_total_area(polygons_str: str) -> float:
     """Calculate total area of all polygons in a prediction."""
-    if not polygons_str or not polygons_str.strip():
+    if not polygons_str or not isinstance(polygons_str, str) or not polygons_str.strip() or polygons_str == "nan":
         return 0.0
 
     total_area = 0.0
     polygons = polygons_str.split("|")
 
     for polygon in polygons:
-        coords = [float(x) for x in polygon.split()]
-        if len(coords) >= 8:
-            # Simple area calculation using bounding box approximation
-            x_coords = coords[::2]
-            y_coords = coords[1::2]
-            width = max(x_coords) - min(x_coords)
-            height = max(y_coords) - min(y_coords)
-            total_area += width * height
+        polygon = polygon.strip()
+        if not polygon:
+            continue
+
+        try:
+            coords = [float(x.strip()) for x in polygon.split(",") if x.strip()]
+            if len(coords) >= 8 and len(coords) % 2 == 0:
+                # Simple area calculation using bounding box approximation
+                x_coords = coords[::2]
+                y_coords = coords[1::2]
+                width = max(x_coords) - min(x_coords)
+                height = max(y_coords) - min(y_coords)
+                total_area += width * height
+        except (ValueError, IndexError):
+            # Skip malformed polygons
+            continue
 
     return total_area
 
@@ -116,16 +178,24 @@ def apply_sorting_filtering(df: pd.DataFrame, sort_by: str, sort_order: str, fil
     return filtered_df
 
 
-def calculate_model_metrics(df: pd.DataFrame) -> dict[str, float]:
-    """Calculate key metrics for a model's predictions."""
+def calculate_model_metrics(df: pd.DataFrame) -> EvaluationMetrics:
+    """Calculate key metrics for a model's predictions with validation.
+
+    # AI_DOCS: calculate_model_metrics
+    # Aggregates prediction statistics across entire dataset
+    # Returns validated EvaluationMetrics object with type-safe access
+    # Used for model comparison and performance reporting
+    """
     df = calculate_prediction_metrics(df)
 
-    return {
-        "total_predictions": df["prediction_count"].sum(),
-        "avg_predictions": df["prediction_count"].mean(),
-        "images_with_predictions": (df["prediction_count"] > 0).sum(),
-        "empty_predictions": (df["prediction_count"] == 0).sum(),
+    metrics_dict = {
+        "total_predictions": int(df["prediction_count"].sum()),
+        "avg_predictions": float(df["prediction_count"].mean()),
+        "images_with_predictions": int((df["prediction_count"] > 0).sum()),
+        "empty_predictions": int((df["prediction_count"] == 0).sum()),
     }
+
+    return EvaluationMetrics.model_validate(metrics_dict)
 
 
 def find_common_images(df_a: pd.DataFrame, df_b: pd.DataFrame) -> list[str]:
@@ -134,7 +204,14 @@ def find_common_images(df_a: pd.DataFrame, df_b: pd.DataFrame) -> list[str]:
 
 
 def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.DataFrame:
-    """Calculate differences between predictions for common images."""
+    """Calculate differences between predictions for common images.
+
+    # AI_DOCS: calculate_image_differences
+    # Compares predictions between two models for overlapping images
+    # Calculates prediction count, area, and confidence differences
+    # Returns validated DataFrame with comparison metrics
+    # Used for model comparison and performance analysis
+    """
     common_images = find_common_images(df_a, df_b)
 
     if not common_images:
@@ -145,11 +222,14 @@ def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.Da
         row_a = df_a[df_a["filename"] == image].iloc[0]
         row_b = df_b[df_b["filename"] == image].iloc[0]
 
-        pred_count_a = len(row_a["polygons"].split("|")) if pd.notna(row_a["polygons"]) else 0
-        pred_count_b = len(row_b["polygons"].split("|")) if pd.notna(row_b["polygons"]) else 0
+        polygons_a = str(row_a["polygons"]) if pd.notna(row_a["polygons"]) else ""
+        polygons_b = str(row_b["polygons"]) if pd.notna(row_b["polygons"]) else ""
 
-        area_a = calculate_total_area(row_a["polygons"] if pd.notna(row_a["polygons"]) else "")
-        area_b = calculate_total_area(row_b["polygons"] if pd.notna(row_b["polygons"]) else "")
+        pred_count_a = len(polygons_a.split("|")) if polygons_a and polygons_a != "nan" else 0
+        pred_count_b = len(polygons_b.split("|")) if polygons_b and polygons_b != "nan" else 0
+
+        area_a = calculate_total_area(polygons_a)
+        area_b = calculate_total_area(polygons_b)
 
         # Calculate confidence differences (using placeholder values for now)
         conf_a = row_a.get("avg_confidence", 0.8)
@@ -177,27 +257,45 @@ def calculate_image_differences(df_a: pd.DataFrame, df_b: pd.DataFrame) -> pd.Da
     diff_df["abs_area_diff"] = diff_df["area_diff"].abs()
     diff_df["abs_conf_diff"] = diff_df["conf_diff"].abs()
 
-    return diff_df
+    # Validate each difference row
+    validated_differences = []
+    for idx, row in diff_df.iterrows():
+        try:
+            row_dict = row.to_dict()
+            validated_diff = ModelComparisonResult.model_validate(row_dict)
+            validated_differences.append(validated_diff.model_dump())
+        except ValidationError as e:
+            raise ValueError(f"Invalid difference data in row {idx}: {e}") from e
+
+    return pd.DataFrame(validated_differences)
 
 
-def get_dataset_statistics(df: pd.DataFrame) -> dict[str, Any]:
-    """Calculate comprehensive dataset statistics."""
+def get_dataset_statistics(df: pd.DataFrame) -> DatasetStatistics:
+    """Calculate comprehensive dataset statistics with validation.
+
+    # AI_DOCS: get_dataset_statistics
+    # Computes detailed statistics for entire evaluation dataset
+    # Returns validated DatasetStatistics object with comprehensive metrics
+    # Used for dataset overview and analysis reporting
+    """
     df = calculate_prediction_metrics(df)
 
-    return {
+    stats_dict = {
         "total_images": len(df),
-        "total_predictions": df["prediction_count"].sum(),
-        "avg_predictions_per_image": df["prediction_count"].mean(),
-        "max_predictions_per_image": df["prediction_count"].max(),
-        "total_area": df["total_area"].sum(),
-        "avg_area_per_image": df["total_area"].mean(),
+        "total_predictions": int(df["prediction_count"].sum()),
+        "avg_predictions_per_image": float(df["prediction_count"].mean()),
+        "max_predictions_per_image": int(df["prediction_count"].max()),
+        "total_area": float(df["total_area"].sum()),
+        "avg_area_per_image": float(df["total_area"].mean()),
         "images_with_predictions": int((df["prediction_count"] > 0).sum()),
         "empty_predictions": int((df["prediction_count"] == 0).sum()),
     }
 
+    return DatasetStatistics.model_validate(stats_dict)
 
-def prepare_export_data(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Prepare data for export."""
+
+def prepare_export_data(df: pd.DataFrame) -> tuple[pd.DataFrame, DatasetStatistics]:
+    """Prepare data for export with validated statistics."""
     df = calculate_prediction_metrics(df)
 
     # Summary statistics

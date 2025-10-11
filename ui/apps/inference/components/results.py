@@ -23,6 +23,7 @@ import streamlit as st
 from PIL import Image, ImageDraw
 
 from ..models.config import UIConfig
+from ..models.data_contracts import InferenceResult, Predictions, PreprocessingInfo
 from ..state import InferenceState
 
 
@@ -44,18 +45,18 @@ def render_results(state: InferenceState, config: UIConfig) -> None:
     # Keep detailed expandable view
     st.subheader("📋 Detailed Results")
     for index, result in enumerate(state.inference_results):
-        title = f"Image {index + 1}: {result.get('filename', 'unknown')}"
+        title = f"Image {index + 1}: {result.filename}"
         expanded = config.results.expand_first_result and index == 0
         with st.expander(title, expanded=expanded):
             _render_single_result(result, config)
 
 
 def _render_summary(state: InferenceState) -> None:
-    successful = [r for r in state.inference_results if r.get("success")]
+    successful = [r for r in state.inference_results if r.success]
     total_images = len(state.inference_results)
     successes = len(successful)
     failures = total_images - successes
-    confidences = [conf for r in successful for conf in r.get("predictions", {}).get("confidences", [])]
+    confidences = [conf for r in successful for conf in r.predictions.confidences]
     avg_confidence = sum(confidences) / len(confidences) if confidences else 0
 
     col1, col2, col3, col4 = st.columns(4)
@@ -75,12 +76,12 @@ def _render_results_table(state: InferenceState, config: UIConfig) -> None:
     table_data = []
 
     for result in state.inference_results:
-        filename = result.get("filename", "unknown")
-        success = result.get("success", False)
+        filename = result.filename
+        success = result.success
 
         if success:
-            predictions = result.get("predictions", {})
-            confidences = predictions.get("confidences", [])
+            predictions = result.predictions
+            confidences = predictions.confidences
             num_detections = len(confidences)
             avg_confidence = sum(confidences) / num_detections if num_detections else 0
 
@@ -93,7 +94,7 @@ def _render_results_table(state: InferenceState, config: UIConfig) -> None:
                 }
             )
         else:
-            error = result.get("error", "Unknown error")
+            error = result.error or "Unknown error"
             table_data.append(
                 {
                     "Filename": filename,
@@ -107,16 +108,16 @@ def _render_results_table(state: InferenceState, config: UIConfig) -> None:
     import pandas as pd
 
     df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
 
-def _render_single_result(result: dict[str, Any], config: UIConfig) -> None:
-    if not result.get("success"):
-        st.error(f"❌ Inference failed: {result.get('error', 'Unknown error')}")
+def _render_single_result(result: InferenceResult, config: UIConfig) -> None:
+    if not result.success:
+        st.error(f"❌ Inference failed: {result.error or 'Unknown error'}")
         return
 
-    predictions = result.get("predictions", {})
-    confidences = predictions.get("confidences", [])
+    predictions = result.predictions
+    confidences = predictions.confidences
     num_detections = len(confidences)
     avg_confidence = sum(confidences) / num_detections if num_detections else 0
 
@@ -124,26 +125,26 @@ def _render_single_result(result: dict[str, Any], config: UIConfig) -> None:
     col1.metric("Detections", str(num_detections))
     col2.metric("Avg. Confidence", f"{avg_confidence:.2%}")
 
-    if "image" in result and predictions:
-        _display_image_with_predictions(result["image"], predictions, config)
+    if result.image is not None and predictions:
+        _display_image_with_predictions(result.image, predictions, config)
 
-    if preprocessing := result.get("preprocessing"):
-        _render_preprocessing_section(preprocessing, config)
+    if result.preprocessing:
+        _render_preprocessing_section(result.preprocessing, config)
 
     if config.results.show_raw_predictions and predictions:
         with st.expander("🔧 Raw Prediction Data"):
-            st.json(predictions)
+            st.json(predictions.model_dump())
 
 
-def _display_image_with_predictions(image_array: np.ndarray, predictions: dict[str, Any], config: UIConfig) -> None:
+def _display_image_with_predictions(image_array: np.ndarray, predictions: Predictions, config: UIConfig) -> None:
     try:
         pil_image = Image.fromarray(image_array)
         draw = ImageDraw.Draw(pil_image, "RGBA")
 
-        if polygons_text := predictions.get("polygons", ""):
-            polygons = polygons_text.split("|")
-            texts = predictions.get("texts", [])
-            confidences = predictions.get("confidences", [])
+        if predictions.polygons:
+            polygons = predictions.polygons.split("|")
+            texts = predictions.texts
+            confidences = predictions.confidences
 
             for index, polygon_str in enumerate(polygons):
                 coords = [int(value) for value in polygon_str.split(",") if value]
@@ -185,21 +186,20 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: dict[s
         raise exc from exc
 
 
-def _render_preprocessing_section(preprocessing: dict[str, Any], config: UIConfig) -> None:
-    if not preprocessing.get("enabled") and not preprocessing.get("processed"):
-        if error := preprocessing.get("error"):
-            st.warning(f"docTR preprocessing unavailable: {error}")
+def _render_preprocessing_section(preprocessing: PreprocessingInfo, config: UIConfig) -> None:
+    if not preprocessing.enabled and not preprocessing.processed:
+        if preprocessing.error:
+            st.warning(f"docTR preprocessing unavailable: {preprocessing.error}")
         return
 
     st.markdown("#### 🧪 docTR Preprocessing")
 
-    doctr_available = preprocessing.get("doctr_available", False)
-    if preprocessing.get("enabled") and not doctr_available:
+    if preprocessing.enabled and not preprocessing.doctr_available:
         st.warning("docTR geometry helpers are unavailable. Showing OpenCV-only preprocessing output.")
 
-    original_image = preprocessing.get("original")
-    processed_image = preprocessing.get("processed")
-    metadata = preprocessing.get("metadata") or {}
+    original_image = preprocessing.original
+    processed_image = preprocessing.processed
+    metadata = preprocessing.metadata or {}
 
     col_raw, col_processed = st.columns(2)
 

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict
 
-@dataclass
-class SliderConfig:
+
+class _ConfigBase(BaseModel):
+    """Common configuration for UI config models."""
+
+    model_config = ConfigDict(validate_assignment=True)
+
+
+class SliderConfig(_ConfigBase):
     key: str
     label: str
     min: float
@@ -35,8 +41,7 @@ class SliderConfig:
         return all(float(v).is_integer() for v in values)
 
 
-@dataclass
-class AppSection:
+class AppSection(_ConfigBase):
     title: str
     subtitle: str
     page_icon: str = "🧩"
@@ -44,50 +49,42 @@ class AppSection:
     initial_sidebar_state: str = "auto"
 
 
-@dataclass
-class ModelSelectorConfig:
-    sort_by: list[str] = field(default_factory=lambda: ["architecture", "backbone"])
+class ModelSelectorConfig(_ConfigBase):
+    sort_by: list[str] = ["architecture", "backbone"]
     demo_label: str = "No trained models found - using Demo Mode"
     success_message: str = ""
     unavailable_message: str = ""
     empty_message: str = ""
 
 
-@dataclass
-class UploadConfig:
-    enabled_file_types: list[str] = field(default_factory=lambda: ["jpg", "jpeg", "png"])
+class UploadConfig(_ConfigBase):
+    enabled_file_types: list[str] = ["jpg", "jpeg", "png"]
     multi_file_selection: bool = True
     immediate_inference_for_single: bool = True
 
 
-@dataclass
-class ResultsConfig:
+class ResultsConfig(_ConfigBase):
     expand_first_result: bool = True
     show_summary: bool = True
     show_raw_predictions: bool = True
     image_width: str = "stretch"
 
 
-@dataclass
-class NotificationConfig:
+class NotificationConfig(_ConfigBase):
     inference_complete_delay_seconds: float = 1.0
 
 
-@dataclass
-class PathConfig:
+class PathConfig(_ConfigBase):
     outputs_dir: Path = Path("outputs")
-    hydra_config_filenames: list[str] = field(
-        default_factory=lambda: [
-            "config.yaml",
-            "hparams.yaml",
-            "train.yaml",
-            "predict.yaml",
-        ]
-    )
+    hydra_config_filenames: list[str] = [
+        "config.yaml",
+        "hparams.yaml",
+        "train.yaml",
+        "predict.yaml",
+    ]
 
 
-@dataclass
-class PreprocessingConfig:
+class PreprocessingConfig(_ConfigBase):
     enable_label: str = "Enable docTR preprocessing"
     enable_help: str = "Run docTR geometry (orientation, rcrops, padding cleanup) before inference and capture visuals."
     default_enabled: bool = False
@@ -133,8 +130,7 @@ class PreprocessingConfig:
         }
 
 
-@dataclass
-class UIConfig:
+class UIConfig(_ConfigBase):
     app: AppSection
     model_selector: ModelSelectorConfig
     hyperparameters: dict[str, SliderConfig]

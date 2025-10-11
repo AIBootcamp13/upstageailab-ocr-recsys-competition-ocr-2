@@ -8,11 +8,12 @@ import lightning.pytorch as pl
 import numpy as np
 import torch
 from hydra.utils import instantiate
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf import DictConfig
 from PIL import Image
 from torch.utils.data import DataLoader
 
 from ocr.evaluation import CLEvalEvaluator
+from ocr.lightning_modules.utils import CheckpointHandler, extract_metric_kwargs, extract_normalize_stats
 from ocr.metrics import CLEvalMetric
 from ocr.utils.orientation import remap_polygons
 
@@ -30,12 +31,12 @@ class OCRPLModule(pl.LightningModule):
             self.model = torch.compile(self.model, mode="default")
         self.dataset = dataset
         self.metric_cfg = metric_cfg
-        self.metric_kwargs = self._extract_metric_kwargs(metric_cfg)
+        self.metric_kwargs = extract_metric_kwargs(metric_cfg)
         self.metric = instantiate(metric_cfg) if metric_cfg is not None else CLEvalMetric(**self.metric_kwargs)
         self.config = config
         self.lr_scheduler = None
         self._per_batch_logged_batches = 0
-        self._normalize_mean, self._normalize_std = self._extract_normalize_stats()
+        self._normalize_mean, self._normalize_std = extract_normalize_stats(config)
 
         self.valid_evaluator = CLEvalEvaluator(self.dataset["val"], self.metric_kwargs, mode="val") if "val" in self.dataset else None
         self.test_evaluator = CLEvalEvaluator(self.dataset["test"], self.metric_kwargs, mode="test") if "test" in self.dataset else None
@@ -67,54 +68,6 @@ class OCRPLModule(pl.LightningModule):
             cleaned_state_dict = state_dict
 
         return super().load_state_dict(cleaned_state_dict, strict=strict)
-
-    @staticmethod
-    def _extract_metric_kwargs(metric_cfg: DictConfig | None) -> dict:
-        if metric_cfg is None:
-            return {}
-
-        cfg_dict = OmegaConf.to_container(metric_cfg, resolve=True)
-        if not isinstance(cfg_dict, dict):
-            return {}
-
-        cfg_dict.pop("_target_", None)
-        return cfg_dict
-
-    def _extract_normalize_stats(self) -> tuple[np.ndarray | None, np.ndarray | None]:
-        transforms_cfg = getattr(self.config, "transforms", None)
-        if transforms_cfg is None:
-            return None, None
-
-        sections: list[ListConfig] = []
-        for attr in ("train_transform", "val_transform", "test_transform", "predict_transform"):
-            section = getattr(transforms_cfg, attr, None)
-            if section is None:
-                continue
-            transforms = getattr(section, "transforms", None)
-            if isinstance(transforms, ListConfig):
-                sections.append(transforms)
-
-        for transforms in sections:
-            for transform in transforms:
-                transform_dict = OmegaConf.to_container(transform, resolve=True)
-                if not isinstance(transform_dict, dict):
-                    continue
-                target = transform_dict.get("_target_")
-                if target != "albumentations.Normalize":
-                    continue
-                mean = transform_dict.get("mean")
-                std = transform_dict.get("std")
-                if mean is None or std is None:
-                    continue
-                try:
-                    mean_array = np.array(mean, dtype=np.float32)
-                    std_array = np.array(std, dtype=np.float32)
-                except Exception:  # noqa: BLE001
-                    continue
-                if mean_array.size == std_array.size and mean_array.size in {1, 3}:
-                    return mean_array, std_array
-
-        return None, None
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -415,14 +368,11 @@ class OCRPLModule(pl.LightningModule):
 
     def on_save_checkpoint(self, checkpoint):
         """Save additional metrics in the checkpoint."""
-        if hasattr(self, "_checkpoint_metrics"):
-            checkpoint["cleval_metrics"] = self._checkpoint_metrics
-        return checkpoint
+        return CheckpointHandler.on_save_checkpoint(self, checkpoint)
 
     def on_load_checkpoint(self, checkpoint):
         """Restore metrics from checkpoint (optional)."""
-        if "cleval_metrics" in checkpoint:
-            self._checkpoint_metrics = checkpoint["cleval_metrics"]
+        CheckpointHandler.on_load_checkpoint(self, checkpoint)
 
     def test_step(self, batch):
         pred = self.model(return_loss=False, **batch)

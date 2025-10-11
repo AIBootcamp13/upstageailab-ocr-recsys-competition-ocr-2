@@ -847,7 +847,7 @@
     {
       "id": "canonical_orientation_mismatch_bug",
       "title": "Canonical Orientation Mismatch Bug",
-      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/canonical_orientation_mismatch_bug.md",
+      "path": "./05_changelog/2025-10/2025-10-06_dataloader_worker_debug/canonical_orientation_mismatch_bug.md",
       "section": "Changelog (Changelog)",
       "tags": [
         "changelog"
@@ -861,7 +861,7 @@
     {
       "id": "01_debugging_plan",
       "title": "Dataloader Worker Crash Debug Plan",
-      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/01_debugging_plan.md",
+      "path": "./05_changelog/2025-10/2025-10-06_dataloader_worker_debug/01_debugging_plan.md",
       "section": "Changelog (Changelog)",
       "tags": [
         "debugging"
@@ -875,7 +875,7 @@
     {
       "id": "02_rolling_log",
       "title": "Dataloader Debug Rolling Log",
-      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/02_rolling_log.md",
+      "path": "./05_changelog/2025-10/2025-10-06_dataloader_worker_debug/02_rolling_log.md",
       "section": "Changelog (Changelog)",
       "tags": [
         "changelog"
@@ -889,7 +889,7 @@
     {
       "id": "session_handover_rotation_debug",
       "title": "Rotation Debug Continuation",
-      "path": "./05_changelog/2025-10-06_dataloader_worker_debug/session_handover_rotation_debug.md",
+      "path": "./05_changelog/2025-10/2025-10-06_dataloader_worker_debug/session_handover_rotation_debug.md",
       "section": "Changelog (Changelog)",
       "tags": [
         "debugging"

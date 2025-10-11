@@ -16,7 +16,8 @@ This directory contains standardized protocols, procedures, and guidelines for d
 │   ├── 07_iterative_debugging.md
 │   ├── 08_context_checkpointing.md
 │   ├── 09_hydra_config_refactoring.md
-│   └── 10_refactoring_guide.md
+│   ├── 10_refactoring_guide.md
+│   └── 21_feature_implementation_protocol.md
 ├── components/              # Component-specific protocols
 │   ├── 11_docTR_preprocessing_workflow.md
 │   ├── 12_streamlit_refactoring_protocol.md
@@ -32,13 +33,14 @@ This directory contains standardized protocols, procedures, and guidelines for d
 └── governance/              # Documentation and maintenance protocols
     ├── 18_documentation_governance_protocol.md
     ├── 19_streamlit_maintenance_protocol.md
+    ├── 20_bug_fix_protocol.md
     └── documentation-update-protocol.md
 ```
 
 ## Subdirectory Descriptions
 
 ### development/
-Core development protocols covering coding standards, debugging workflows, refactoring procedures, and general development practices. These are the foundational protocols that apply across all development activities.
+Core development protocols covering coding standards, debugging workflows, refactoring procedures, feature implementation guidelines, and general development practices. These are the foundational protocols that apply across all development activities.
 
 ### components/
 Protocols specific to particular system components or technologies, such as Streamlit UI development, docTR preprocessing, training pipelines, and template adoption.
@@ -47,7 +49,7 @@ Protocols specific to particular system components or technologies, such as Stre
 Protocols for managing configuration systems, particularly Hydra configuration, command builder functionality, and configuration testing procedures.
 
 ### governance/
-Protocols for maintaining documentation, managing the handbook structure, and ensuring consistency in documentation practices across the project.
+Protocols for maintaining documentation, managing the handbook structure, ensuring consistency in documentation practices, and handling bug fixes across the project.
 
 ## Guidelines
 
