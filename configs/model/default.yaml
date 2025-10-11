@@ -11,4 +11,7 @@ _target_: ocr.models.architecture.OCRModel
 component_overrides: {}
 
 # Optional learning rate scheduler configuration populated by presets or UI overrides.
-scheduler: null
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 1000
+  eta_min: 0

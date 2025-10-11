@@ -9,7 +9,7 @@ defaults:
 
 seed: 42
 exp_name: "ocr_training"
-resume: null
+resume: "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/outputs/pan_resnet18_no_polygons_canonical/checkpoints/last_20251011_004442.ckpt"
 project_name: null
 experiment_tag: null
 wandb: true

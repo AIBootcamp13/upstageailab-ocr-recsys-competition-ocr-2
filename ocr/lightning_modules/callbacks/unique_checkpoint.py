@@ -6,6 +6,8 @@ from datetime import datetime
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
+import wandb
+
 
 class UniqueModelCheckpoint(ModelCheckpoint):
     """
@@ -126,3 +128,9 @@ class UniqueModelCheckpoint(ModelCheckpoint):
                 state_dict["dirpath"] = self.dirpath
 
         super().load_state_dict(state_dict)
+
+    def on_save_checkpoint(self, trainer, pl_module, checkpoint):
+        """Log checkpoint directory to wandb when a checkpoint is saved."""
+        if wandb.run and self.dirpath:
+            wandb.log({"checkpoint_dir": self.dirpath})
+        return checkpoint

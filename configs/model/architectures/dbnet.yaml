@@ -6,7 +6,7 @@ component_overrides:
   encoder:
     model_name: "resnet18"
     select_features: [1, 2, 3, 4]
-    pretrained: true
+    pretrained: false
   decoder:
     name: "fpn_decoder"
     params:
@@ -21,7 +21,7 @@ component_overrides:
         thresh: 0.2
         box_thresh: 0.3
         max_candidates: 300
-        use_polygon: false
+        use_polygon: true
   loss:
     name: "db_loss"
     params:

@@ -24,7 +24,4 @@ optimizer:
   lr: 0.0003
   weight_decay: 0.0001
 
-scheduler:
-  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
-  T_max: 200
-  eta_min: 1.0e-6
+# Scheduler is now defined in the base model config
