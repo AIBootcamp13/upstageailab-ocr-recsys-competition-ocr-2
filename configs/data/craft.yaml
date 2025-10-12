@@ -6,24 +6,32 @@ dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"   # Relative to current
 
 datasets:
   train_dataset:
-    _target_: ${dataset_path}.OCRDataset
-    image_path: ${dataset_base_path}images/train
-    annotation_path: ${dataset_base_path}jsons/train.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${dataset_base_path}images/train
+      annotation_path: ${dataset_base_path}jsons/train.json
     transform: ${transforms.train_transform}
   val_dataset:
-    _target_: ${dataset_path}.OCRDataset
-    image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
-    annotation_path: ${dataset_base_path}jsons/val.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
+      annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${transforms.val_transform}
   test_dataset:
-    _target_: ${dataset_path}.OCRDataset
-    image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
-    annotation_path: ${dataset_base_path}jsons/val.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${dataset_base_path}images_val_canonical  # Using canonical (rotation-corrected) data
+      annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${transforms.test_transform}
   predict_dataset:
-    _target_: ${dataset_path}.OCRDataset
-    image_path: ${dataset_base_path}images/test
-    annotation_path: null
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${dataset_base_path}images/test
+      annotation_path: null
     transform: ${transforms.test_transform}
 
 transforms:

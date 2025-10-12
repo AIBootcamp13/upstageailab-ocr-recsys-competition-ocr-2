@@ -16,8 +16,12 @@ defaults:
   - hydra: default
   - extras: default
 
+dataset_module: ocr.datasets
+dataset_config_module: ocr.datasets.schemas
+
 # Model and component paths
-dataset_path: ocr.datasets
+dataset_path: ${dataset_module}
+dataset_config_path: ${dataset_config_module}
 model_path: ocr.models
 encoder_path: ocr.models.encoder
 decoder_path: ocr.models.decoder

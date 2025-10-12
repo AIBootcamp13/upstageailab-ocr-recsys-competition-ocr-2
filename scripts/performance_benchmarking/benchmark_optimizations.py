@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""
-Benchmark script to measure performance improvements from data loading optimizations.
-Compares TurboJPEG vs PIL and interpolation optimizations.
-"""
+"""Benchmark data loading and transform optimisations via Hydra datasets."""
+
+from __future__ import annotations
 
 import logging
 import time
 from collections import defaultdict
 
 import albumentations as A
+import hydra
 import numpy as np
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 from PIL import Image
 
-# Import project modules
-from ocr.datasets.base import OCRDataset
+from ocr.datasets import ValidatedOCRDataset
 from ocr.datasets.transforms import DBTransforms
 from ocr.utils.image_loading import get_image_loader_info, load_image_optimized
+from ocr.utils.path_utils import get_path_resolver
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +35,7 @@ def create_val_transform(interpolation=1):  # cv2.INTER_LINEAR
     return DBTransforms(transforms, keypoint_params)
 
 
-def benchmark_image_loading(dataset, num_samples=50):
+def benchmark_image_loading(dataset: ValidatedOCRDataset, num_samples: int = 50):
     """Benchmark different image loading methods."""
     timings = defaultdict(list)
 
@@ -63,7 +65,7 @@ def benchmark_image_loading(dataset, num_samples=50):
     return timings
 
 
-def benchmark_transforms(dataset, num_samples=50):
+def benchmark_transforms(dataset: ValidatedOCRDataset, num_samples: int = 50):
     """Benchmark transform performance with different interpolations."""
     timings = defaultdict(list)
 
@@ -84,13 +86,13 @@ def benchmark_transforms(dataset, num_samples=50):
 
         # Benchmark LINEAR interpolation
         start = time.time()
-        linear_transform(image=image_array, polygons=polygons)
+        linear_transform(image_array, polygons=polygons)
         linear_time = time.time() - start
         timings["linear_transform"].append(linear_time)
 
         # Benchmark CUBIC interpolation
         start = time.time()
-        cubic_transform(image=image_array, polygons=polygons)
+        cubic_transform(image_array, polygons=polygons)
         cubic_time = time.time() - start
         timings["cubic_transform"].append(cubic_time)
 
@@ -102,7 +104,7 @@ def benchmark_transforms(dataset, num_samples=50):
     return timings
 
 
-def benchmark_full_pipeline(dataset, num_samples=50):
+def benchmark_full_pipeline(dataset: ValidatedOCRDataset, num_samples: int = 50):
     """Benchmark the complete data loading pipeline."""
     timings = defaultdict(list)
 
@@ -149,45 +151,54 @@ def calculate_speedup(baseline_times, optimized_times):
     return speedup
 
 
-def main():
-    # Configuration
-    image_path = "data/datasets/images_val_canonical"
-    annotation_path = "data/datasets/jsons/val.json"
-    num_samples = 50
+def _resolve_dataset(cfg: DictConfig, dataset_key: str) -> ValidatedOCRDataset:
+    datasets_cfg = cfg.get("datasets")
+    if datasets_cfg is None:
+        raise KeyError("Hydra config is missing the 'datasets' section required for benchmarking")
 
+    if dataset_key not in datasets_cfg:
+        available = ", ".join(sorted(datasets_cfg.keys()))
+        raise KeyError(f"Dataset '{dataset_key}' not found. Available datasets: {available}")
+
+    dataset: ValidatedOCRDataset = instantiate(datasets_cfg[dataset_key])
+    return dataset
+
+
+def _resolve_benchmark_options(cfg: DictConfig) -> tuple[str, int, int]:
+    options = cfg.get("benchmark_optimizations") or {}
+    dataset_key = options.get("dataset_key", "val_dataset")
+    num_samples = int(options.get("num_samples", 50))
+    transform_samples = int(options.get("transform_samples", min(20, num_samples)))
+    return dataset_key, num_samples, transform_samples
+
+
+@hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="performance_test", version_base="1.2")
+def main(cfg: DictConfig) -> dict[str, dict[str, list[float]]]:
     print("Data Loading Optimization Benchmark")
     print("=" * 40)
 
-    # Check available backends
     loader_info = get_image_loader_info()
     print("Image Loading Backends:")
     print(f"  TurboJPEG: {'Available' if loader_info['turbojpeg_available'] else 'Not Available'}")
     print(f"  PIL: {'Available' if loader_info['pil_available'] else 'Not Available'}")
     print()
 
-    # Create dataset with optimized transform (LINEAR interpolation)
-    transform = create_val_transform(interpolation=1)  # cv2.INTER_LINEAR
-    dataset = OCRDataset(image_path=image_path, annotation_path=annotation_path, transform=transform, preload_maps=False)
+    dataset_key, num_samples, transform_samples = _resolve_benchmark_options(cfg)
+    dataset = _resolve_dataset(cfg, dataset_key)
 
+    print(f"Dataset key: {dataset_key}")
     print(f"Dataset size: {len(dataset)}")
     print(f"Using {num_samples} samples for benchmarking")
     print()
 
-    # Benchmark image loading methods
     loading_timings = benchmark_image_loading(dataset, num_samples=num_samples)
-
-    # Benchmark transform interpolations
-    transform_timings = benchmark_transforms(dataset, num_samples=min(20, num_samples))
-
-    # Benchmark full pipeline
+    transform_timings = benchmark_transforms(dataset, num_samples=transform_samples)
     pipeline_timings = benchmark_full_pipeline(dataset, num_samples=num_samples)
 
-    # Print summaries
     print_benchmark_summary(loading_timings, "IMAGE LOADING BENCHMARK")
     print_benchmark_summary(transform_timings, "TRANSFORM INTERPOLATION BENCHMARK")
     print_benchmark_summary(pipeline_timings, "FULL PIPELINE BENCHMARK")
 
-    # Calculate and print speedups
     print(f"\n{'=' * 60}")
     print("SPEEDUP ANALYSIS")
     print(f"{'=' * 60}")
@@ -201,6 +212,12 @@ def main():
         print(f"Transform Speedup (Cubic → Linear): {transform_speedup:.2f}x")
 
     print("\nBenchmark completed successfully!")
+
+    return {
+        "loading": loading_timings,
+        "transforms": transform_timings,
+        "pipeline": pipeline_timings,
+    }
 
 
 if __name__ == "__main__":

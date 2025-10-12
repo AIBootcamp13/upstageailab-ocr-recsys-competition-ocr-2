@@ -31,6 +31,15 @@ ocr/
     └── polygon_utils.py    # NEW: Polygon processing utilities
 ```
 
+### Migration Outline (Rolling Plan)
+1. [x] Introduce compatibility accessors on `ValidatedOCRDataset` (image/map flags, paths) so downstream code can transition without large rewrites.
+2. [x] Update Hydra schemas (`configs/schemas/default_*.yaml` and related OmegaConf fixtures) to instantiate `DatasetConfig` + `ValidatedOCRDataset` instead of the legacy class.
+3. [X] Migrate runtime scripts (preprocessing, benchmarking, agent tools) and callbacks to build `DatasetConfig`, import polygon helpers from `ocr.utils.polygon_utils`, and rely on the refactored dataset.
+    - Completed: profiling utility (`scripts/analysis_validation/profile_data_loading.py`), contract validator (`scripts/analysis_validation/validate_pipeline_contracts.py`), and DB collate metadata ingestion.
+    - Pending: preprocessing CLI, benchmarking/ablation scripts, Hydra runtime configs, Lightning callbacks.
+4. [ ] Refactor unit/integration tests to use the new schemas and dataset constructor; retire asserts tied to the legacy init signature.
+5. [ ] After consumers switch over, remove dead code paths (legacy helper statics, duplicate polygon/image utilities) and run the targeted pytest suite to confirm parity.
+
 ## 1. API Surface Definitions
 
 ### `ocr.utils.cache_manager.CacheManager`

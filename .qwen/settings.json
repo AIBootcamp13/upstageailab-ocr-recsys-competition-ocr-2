@@ -1,0 +1,39 @@
+{
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": true,
+      "respectGeminiIgnore": true,
+      "includePatterns": [
+        "**/*.py",
+        "**/*.md",
+        "**/requirements.txt",
+        "**/pyproject.toml"
+      ],
+      "excludePatterns": [
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/__pycache__/**",
+        "**/*.pyc",
+        "**/logs/**",
+        "**/outputs/**",
+        "**/data/**",
+        "**/multirun/**",
+        "**/results/**",
+        "**/wandb/**",
+        "**/docs/_deprecated/**",
+        "**/DEPRECATED/**",
+        "**/_archive/**",
+        "**/_*/**",
+        "**/raw_metrics*.json",
+        "**/*.jsonl",
+        "**/multirun.yaml",
+        "**/test_runs/**"
+      ]
+    },
+    "includeDirectories": [],
+    "loadMemoryFromIncludeDirectories": false,
+    "discoveryMaxDirs": 15,
+    "importFormat": "tree"
+  },
+  "approvalMode": "yolo"
+}

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from pathlib import Path
+from typing import Any
 
 import lightning.pytorch as pl
 import numpy as np
 from PIL import Image
 
-from ocr.datasets.base import OCRDataset
 from ocr.utils.orientation import normalize_pil_image, remap_polygons
+from ocr.utils.polygon_utils import ensure_polygon_array
 from ocr.utils.wandb_utils import log_validation_images
 
 
@@ -50,6 +52,12 @@ class WandbImageLoggingCallback(pl.Callback):
             pred_boxes = entry.get("boxes", [])
             orientation_hint = entry.get("orientation", 1)
             raw_size_hint = entry.get("raw_size")
+            metadata = self._normalize_metadata(entry.get("metadata"))
+            if metadata:
+                if "orientation" in metadata and metadata["orientation"] is not None:
+                    orientation_hint = int(metadata["orientation"])
+                if "raw_size" in metadata and metadata["raw_size"] is not None:
+                    raw_size_hint = metadata["raw_size"]
             if not hasattr(val_dataset, "anns") or filename not in val_dataset.anns:  # type: ignore
                 continue
 
@@ -60,7 +68,7 @@ class WandbImageLoggingCallback(pl.Callback):
 
             # Get image directly from filesystem (similar to dataset loading)
             try:
-                image_path = entry.get("image_path") or val_dataset.image_path / filename  # type: ignore
+                image_path = self._resolve_image_path(entry, metadata, val_dataset, filename)
                 pil_image = Image.open(image_path)
                 raw_width, raw_height = pil_image.size
                 normalized_image, orientation = normalize_pil_image(pil_image)
@@ -74,8 +82,11 @@ class WandbImageLoggingCallback(pl.Callback):
                     normalized_image.close()
                 pil_image.close()
 
+                polygon_frame = metadata.get("polygon_frame") if metadata else None
                 if gt_quads:
-                    if orientation != 1:
+                    if polygon_frame == "canonical":
+                        pass
+                    elif orientation != 1:
                         gt_quads = remap_polygons(gt_quads, raw_width, raw_height, orientation)
                     elif orientation_hint != 1:
                         hint_width, hint_height = raw_size_hint or (raw_width, raw_height)
@@ -120,7 +131,7 @@ class WandbImageLoggingCallback(pl.Callback):
         normalised: list[np.ndarray] = []
         for polygon in polygons:  # type: ignore[arg-type]
             try:
-                polygon_array = OCRDataset._ensure_polygon_array(polygon)  # type: ignore[arg-type]
+                polygon_array = ensure_polygon_array(np.asarray(polygon))  # type: ignore[arg-type]
             except ValueError as exc:
                 print(f"Warning: Skipping polygon due to shape error: {exc}")
                 continue
@@ -160,3 +171,67 @@ class WandbImageLoggingCallback(pl.Callback):
 
         width, height = image_size
         return processed
+
+    @staticmethod
+    def _normalize_metadata(metadata: Any) -> dict[str, Any] | None:
+        if metadata is None:
+            return None
+        if hasattr(metadata, "model_dump"):
+            metadata = metadata.model_dump()
+        elif not isinstance(metadata, dict):
+            try:
+                metadata = dict(metadata)
+            except Exception:  # noqa: BLE001
+                return None
+
+        normalized: dict[str, Any] = {}
+        for key, value in metadata.items():
+            if key == "path" and value is not None:
+                normalized[key] = Path(value)
+            elif key in {"raw_size", "canonical_size"} and value is not None:
+                normalized[key] = WandbImageLoggingCallback._ensure_size_tuple(value)
+            elif key == "orientation" and value is not None:
+                try:
+                    normalized[key] = int(value)
+                except (TypeError, ValueError):  # noqa: BLE001
+                    continue
+            else:
+                normalized[key] = value
+
+        return normalized
+
+    @staticmethod
+    def _ensure_size_tuple(value: Any) -> tuple[int, int] | None:
+        if value is None:
+            return None
+        if isinstance(value, tuple) and len(value) == 2:
+            return int(value[0]), int(value[1])
+        if isinstance(value, list) and len(value) == 2:
+            return int(value[0]), int(value[1])
+        try:
+            width, height = value  # type: ignore[misc]
+            return int(width), int(height)
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
+    def _resolve_image_path(entry: dict[str, Any], metadata: dict[str, Any] | None, dataset: Any, filename: str) -> Path:
+        candidates: list[Any] = [entry.get("image_path")]
+        if metadata is not None:
+            candidates.append(metadata.get("path"))
+
+        for candidate in candidates:
+            if candidate is None:
+                continue
+            candidate_path = Path(candidate)
+            if candidate_path.is_absolute():
+                return candidate_path
+            if hasattr(dataset, "image_path"):
+                base_path = dataset.image_path  # type: ignore[attr-defined]
+                return Path(base_path) / candidate_path
+
+        # Fallback to dataset root
+        if hasattr(dataset, "image_path"):
+            return Path(dataset.image_path) / filename  # type: ignore[attr-defined]
+
+        return Path(filename)

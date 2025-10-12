@@ -68,11 +68,13 @@ model:
     gamma: 0.1
 datasets:
   train:
-    _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images/train
-    annotation_path: data/datasets/jsons/train.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: data/datasets/images/train
+      annotation_path: data/datasets/jsons/train.json
     transform:
-      _target_: ocr.datasets.DBTransforms
+      _target_: ${dataset_path}.DBTransforms
       transforms:
         - _target_: albumentations.LongestMaxSize
           max_size: 640
@@ -85,11 +87,13 @@ datasets:
         - _target_: albumentations.HorizontalFlip
           p: 0.5
   val:
-    _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
-    annotation_path: data/datasets/jsons/val.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
+      annotation_path: data/datasets/jsons/val.json
     transform:
-      _target_: ocr.datasets.DBTransforms
+      _target_: ${dataset_path}.DBTransforms
       transforms:
         - _target_: albumentations.LongestMaxSize
           max_size: 640
@@ -100,11 +104,13 @@ datasets:
           border_mode: 0
           p: 1.0
   test:
-    _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
-    annotation_path: data/datasets/jsons/val.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: data/datasets/images_val_canonical  # Using canonical (rotation-corrected) data
+      annotation_path: data/datasets/jsons/val.json
     transform:
-      _target_: ocr.datasets.DBTransforms
+      _target_: ${dataset_path}.DBTransforms
       transforms:
         - _target_: albumentations.LongestMaxSize
           max_size: 640

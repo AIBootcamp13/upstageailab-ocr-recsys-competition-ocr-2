@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from ocr.datasets.base import OCRDataset
+from ocr.utils.polygon_utils import filter_degenerate_polygons
 
 
 class TestPolygonFiltering:
@@ -27,7 +27,7 @@ class TestPolygonFiltering:
 
         polygons = [valid_triangle, valid_quad]
 
-        filtered = OCRDataset._filter_degenerate_polygons(polygons)
+        filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 2
         np.testing.assert_array_equal(filtered[0], valid_triangle)
@@ -39,7 +39,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 0
 
@@ -50,7 +50,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 0
 
@@ -66,7 +66,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 0
 
@@ -82,7 +82,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons, min_side=2.0)
+            filtered = filter_degenerate_polygons(polygons, min_side=2.0)
 
         assert len(filtered) == 0
 
@@ -98,7 +98,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 0
 
@@ -117,7 +117,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons, min_side=5.0)
+            filtered = filter_degenerate_polygons(polygons, min_side=5.0)
 
         assert len(filtered) == 1
         np.testing.assert_array_equal(filtered[0], valid)
@@ -134,7 +134,7 @@ class TestPolygonFiltering:
 
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
         assert len(filtered) == 2
 
@@ -146,14 +146,14 @@ class TestPolygonFiltering:
         # Test with min_side = 10 (should be filtered)
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered_strict = OCRDataset._filter_degenerate_polygons([medium_poly], min_side=10.0)
+            filtered_strict = filter_degenerate_polygons([medium_poly], min_side=10.0)
 
         assert len(filtered_strict) == 0
 
         # Test with min_side = 2 (should be kept)
         with patch("ocr.datasets.base.logging.getLogger") as mock_logger:
             mock_logger.return_value.isEnabledFor.return_value = True
-            filtered_lenient = OCRDataset._filter_degenerate_polygons([medium_poly], min_side=2.0)
+            filtered_lenient = filter_degenerate_polygons([medium_poly], min_side=2.0)
 
         assert len(filtered_lenient) == 1
 
@@ -172,7 +172,7 @@ class TestPolygonFiltering:
             mock_logger_instance = mock_logger.return_value
             mock_logger_instance.isEnabledFor.return_value = True
 
-            filtered = OCRDataset._filter_degenerate_polygons(polygons, min_side=5.0)
+            filtered = filter_degenerate_polygons(polygons, min_side=5.0)
 
             # Should have logged the filtering statistics
             mock_logger_instance.info.assert_called_once()
@@ -197,7 +197,7 @@ class TestPolygonFiltering:
             mock_logger_instance = mock_logger.return_value
             mock_logger_instance.isEnabledFor.return_value = False  # Logging disabled
 
-            filtered = OCRDataset._filter_degenerate_polygons(polygons)
+            filtered = filter_degenerate_polygons(polygons)
 
             # Should not have logged anything
             mock_logger_instance.info.assert_not_called()

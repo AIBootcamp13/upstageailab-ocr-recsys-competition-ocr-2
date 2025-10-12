@@ -7,7 +7,58 @@ from typing import Any
 
 import numpy as np
 import torch
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
+
+class CacheConfig(BaseModel):
+    """Configuration flags controlling dataset caching behaviour."""
+
+    cache_images: bool = True
+    cache_maps: bool = True
+    cache_transformed_tensors: bool = False
+    log_statistics_every_n: int | None = Field(default=None, ge=1)
+
+
+class ImageLoadingConfig(BaseModel):
+    """Configuration for image loading backends and fallbacks."""
+
+    use_turbojpeg: bool = False
+    turbojpeg_fallback: bool = False
+
+
+class DatasetConfig(BaseModel):
+    """All runtime configuration required to build a validated OCR dataset."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    image_path: Path
+    annotation_path: Path | None = None
+    image_extensions: list[str] = Field(default_factory=lambda: [".jpg", ".jpeg", ".png"])
+    preload_maps: bool = False
+    load_maps: bool = False
+    preload_images: bool = False
+    prenormalize_images: bool = False
+    cache_config: CacheConfig = Field(default_factory=CacheConfig)
+    image_loading_config: ImageLoadingConfig = Field(default_factory=ImageLoadingConfig)
+
+    @field_validator("image_extensions", mode="before")
+    @classmethod
+    def normalize_extensions(cls, value: Any) -> list[str]:
+        if value is None:
+            return [".jpg", ".jpeg", ".png"]
+
+        if isinstance(value, str):
+            value = [value]
+
+        extensions: list[str] = []
+        for ext in value:
+            if not isinstance(ext, str) or not ext.strip():
+                raise ValueError("Image extensions must be non-empty strings")
+            normalized = ext.lower()
+            if not normalized.startswith("."):
+                normalized = f".{normalized}"
+            extensions.append(normalized)
+        return extensions
 
 
 class ImageMetadata(BaseModel):
@@ -170,3 +221,95 @@ class TransformConfig(BaseModel):
         if len(value) != 3:
             raise ValueError("Mean and std must each provide 3 values for RGB channels")
         return tuple(float(v) for v in value)  # type: ignore[return-value]
+
+
+class ImageData(BaseModel):
+    """Cached image payload containing decoded pixel data and metadata."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    image_array: np.ndarray
+    raw_width: int
+    raw_height: int
+    orientation: int = Field(ge=0, le=8, default=1)
+    is_normalized: bool = False
+
+    @field_validator("image_array", mode="before")
+    @classmethod
+    def validate_image_array(cls, value: Any) -> np.ndarray:
+        if not isinstance(value, np.ndarray):
+            value = np.asarray(value)
+        if value.ndim not in (2, 3):
+            raise ValueError("Cached image array must be 2D or 3D")
+        return value
+
+
+class MapData(BaseModel):
+    """Cached probability/threshold maps aligned with an image sample."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    prob_map: np.ndarray
+    thresh_map: np.ndarray
+
+    @field_validator("prob_map", "thresh_map", mode="before")
+    @classmethod
+    def validate_maps(cls, value: Any) -> np.ndarray:
+        if not isinstance(value, np.ndarray):
+            value = np.asarray(value)
+        if value.ndim != 3:
+            raise ValueError("Maps must be rank-3 arrays shaped (C, H, W)")
+        return value.astype(np.float32)
+
+    @field_validator("thresh_map")
+    @classmethod
+    def ensure_shape_match(cls, thresh_map: np.ndarray, info: ValidationInfo) -> np.ndarray:
+        prob_map = info.data.get("prob_map") if info.data else None
+        if prob_map is not None and getattr(prob_map, "shape", None) != thresh_map.shape:
+            raise ValueError("Probability and threshold maps must share identical shapes")
+        return thresh_map
+
+
+class DataItem(BaseModel):
+    """Validated dataset sample returned by the OCR pipeline."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    image: Any
+    polygons: list[np.ndarray] = Field(default_factory=list)
+    metadata: dict[str, Any] | ImageMetadata | None = None
+    prob_map: np.ndarray | None = None
+    thresh_map: np.ndarray | None = None
+    inverse_matrix: np.ndarray | None = None
+
+    @field_validator("image", mode="before")
+    @classmethod
+    def validate_tensor(cls, value: Any) -> Any:
+        if isinstance(value, torch.Tensor | np.ndarray):
+            return value
+        raise TypeError(f"Image output must be torch.Tensor or np.ndarray, got {type(value)}")
+
+    @field_validator("polygons", mode="before")
+    @classmethod
+    def validate_polygons(cls, value: Any) -> list[np.ndarray]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise TypeError("Polygons must be provided as a list")
+        normalized: list[np.ndarray] = []
+        for poly in value:
+            if not isinstance(poly, np.ndarray):
+                poly = np.asarray(poly, dtype=np.float32)
+            normalized.append(poly.astype(np.float32))
+        return normalized
+
+    @field_validator("inverse_matrix", mode="before")
+    @classmethod
+    def validate_inverse_matrix(cls, value: Any) -> np.ndarray | None:
+        if value is None:
+            return None
+        if not isinstance(value, np.ndarray):
+            value = np.asarray(value, dtype=np.float32)
+        if value.shape != (3, 3):
+            raise ValueError("Inverse matrix must have shape (3, 3)")
+        return value.astype(np.float32)

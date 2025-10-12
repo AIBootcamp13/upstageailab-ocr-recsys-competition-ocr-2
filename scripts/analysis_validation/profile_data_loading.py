@@ -14,9 +14,10 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import DataLoader
 
-# Import project modules
-from ocr.datasets.base import OCRDataset
+from ocr.datasets import ValidatedOCRDataset
+from ocr.datasets.schemas import DatasetConfig, ImageMetadata, PolygonData, TransformInput
 from ocr.datasets.transforms import DBTransforms
+from ocr.utils.polygon_utils import filter_degenerate_polygons
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -99,14 +100,36 @@ def profile_individual_stages(dataset, num_samples=10):
         # Stage 3: Transform application
         start = time.time()
         polygons = dataset.anns[image_filename] or None
-        transformed = dataset.transform(image=np.array(image), polygons=polygons)
+
+        polygon_models = None
+        if polygons:
+            polygon_models = []
+            for polygon in polygons:
+                try:
+                    polygon_models.append(PolygonData(points=np.asarray(polygon, dtype=np.float32)))
+                except Exception:
+                    continue
+
+        image_array = np.array(image)
+        metadata = ImageMetadata(
+            filename=image_filename,
+            path=image_path,
+            original_shape=(image_array.shape[0], image_array.shape[1]),
+            dtype=str(image_array.dtype),
+            raw_size=(raw_width, raw_height),
+            orientation=1,
+            polygon_frame="raw",
+        )
+
+        transform_input = TransformInput(image=image_array, polygons=polygon_models, metadata=metadata)
+        transformed = dataset.transform(transform_input)
         timings["transforms"].append(time.time() - start)
 
         # Stage 4: Polygon filtering
         start = time.time()
         transformed_polygons = transformed.get("polygons", []) or []
         if transformed_polygons:
-            dataset._filter_degenerate_polygons(transformed_polygons)
+            _ = filter_degenerate_polygons([np.asarray(poly) for poly in transformed_polygons])
         timings["polygon_filter"].append(time.time() - start)
 
         # Stage 5: Map loading
@@ -158,7 +181,14 @@ def main():
 
     # Create dataset
     transform = create_val_transform()
-    dataset = OCRDataset(image_path=image_path, annotation_path=annotation_path, transform=transform, preload_maps=False)
+    config = DatasetConfig(
+        image_path=Path(image_path),
+        annotation_path=Path(annotation_path),
+        preload_maps=False,
+        load_maps=False,
+        preload_images=False,
+    )
+    dataset = ValidatedOCRDataset(config=config, transform=transform)
 
     print(f"Dataset size: {len(dataset)}")
     print(f"Using {num_samples} samples for profiling")

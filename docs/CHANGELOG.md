@@ -88,6 +88,36 @@ Completed the final polishing phase of the OCR Lightning Module refactor by extr
 - `ocr/lightning_modules/ocr_pl.py`
 - `docs/ai_handbook/05_changelog/2025-10/11_ocr_lightning_module_polishing.md`
 
+### Added - 2025-10-13
+
+#### OCR Dataset Refactor - Migration to ValidatedOCRDataset
+
+**Description**
+
+Completed the systematic migration of the OCR dataset base from the legacy OCRDataset to the new ValidatedOCRDataset implementation. This refactor introduces Pydantic v2 data validation throughout the data pipeline, ensuring data integrity and preventing runtime errors from malformed data. The migration maintains full backward compatibility while providing stronger type safety and validation.
+
+**Data Contracts:**
+- New Pydantic models for ValidatedOCRDataset and enhanced CollateOutput
+- Validation rules for polygon coordinates, image paths, and data consistency
+- Runtime validation at dataset and collation boundaries
+
+**New Features:**
+- Strongly typed dataset with automatic validation
+- Improved error messages for data contract violations
+- Type-safe data access throughout the training pipeline
+
+**API Changes:**
+- OCRDataset replaced with ValidatedOCRDataset across all components
+- DBCollateFN now returns validated CollateOutput objects
+- Backward compatibility maintained for existing scripts
+
+**Related Files:**
+- `ocr/datasets/base.py`
+- `ocr/datasets/db_collate_fn.py`
+- `tests/integration/test_ocr_lightning_predict_integration.py`
+- `scripts/data_processing/preprocess_maps.py`
+- `docs/ai_handbook/05_changelog/2025-10/13_ocr_dataset_refactor.md`
+
 ### Added - 2025-10-12
 
 #### Data Contract for OCRPLModule Completion

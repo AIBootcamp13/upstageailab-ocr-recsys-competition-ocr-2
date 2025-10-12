@@ -17,42 +17,68 @@
 5. [Loss Function Contract](#loss-function-contract)
 6. [Common Data Types](#common-data-types)
 7. [Validation Rules](#validation-rules)
-8. [Debugging Guide](#debugging-guide)
+8. [Pydantic v2 Data Validation](#pydantic-v2-data-validation)
+9. [Debugging Guide](#debugging-guide)
+
+---
+
+## Pydantic v2 Data Validation
+
+**Purpose**: The OCR pipeline uses Pydantic v2 models for runtime data validation to prevent type/shape errors and ensure data integrity.
+
+**Key Models**:
+- **DatasetSample**: Validates individual dataset samples from `__getitem__`
+- **CollateOutput**: Validates batched data from collate functions
+- **TransformOutput**: Validates transform pipeline outputs
+- **BatchSample**: Validates pre-collation batch items
+
+**Validation Strategy**:
+- **Strict Mode**: All contracts use strict validation with no automatic coercion
+- **Error Messages**: Clear, actionable error messages for contract violations
+- **Runtime Checks**: Validation occurs at pipeline boundaries (dataset, collate, model steps)
+- **Type Safety**: Full type hints and validation prevent common data errors
+
+**Common Pydantic Errors**:
+- `ValidationError: 1 validation error for DatasetSample` - Check field types and shapes
+- `ValidationError: Field required` - Missing required fields in data structures
+- `ValidationError: Input should be a valid tensor` - Wrong tensor types or shapes
 
 ---
 
 ## Dataset Output Contract
 
-### OCRDataset.__getitem__() → dict
+### ValidatedOCRDataset.__getitem__() → DatasetSample (Pydantic v2 Model)
 
-**Purpose**: Defines the exact format returned by dataset samples before transformation.
+**Purpose**: Defines the exact format returned by dataset samples before transformation. Now validated using Pydantic v2 models.
 
 ```python
-{
-    "image": np.ndarray,           # Shape: (H, W, 3), dtype: uint8 or float32
-    "polygons": List[np.ndarray],  # Each: shape (N, 2), dtype: float32
-    "metadata": dict,              # Optional, see Metadata section
-    "prob_maps": np.ndarray,       # Shape: (H, W), dtype: float32, range: [0, 1]
-    "thresh_maps": np.ndarray,     # Shape: (H, W), dtype: float32, range: [0, 1]
-    "image_filename": str,         # Relative path to image file
-    "image_path": str,             # Absolute path to image file
-    "inverse_matrix": np.ndarray,  # Shape: (3, 3), dtype: float32 (affine transform)
-    "shape": Tuple[int, int],      # Original image shape (H, W)
-}
+DatasetSample(
+    image: np.ndarray,           # Shape: (H, W, 3), dtype: uint8 or float32
+    polygons: List[np.ndarray],  # Each: shape (N, 2), dtype: float32
+    metadata: Optional[dict],    # Optional, see Metadata section
+    prob_maps: np.ndarray,       # Shape: (H, W), dtype: float32, range: [0, 1]
+    thresh_maps: np.ndarray,     # Shape: (H, W), dtype: float32, range: [0, 1]
+    image_filename: str,         # Relative path to image file
+    image_path: str,             # Absolute path to image file
+    inverse_matrix: np.ndarray,  # Shape: (3, 3), dtype: float32 (affine transform)
+    shape: Tuple[int, int],      # Original image shape (H, W)
+)
 ```
 
-**Validation Rules**:
+**Validation Rules** (enforced by Pydantic):
 - `image.shape[2] == 3` (RGB channels)
 - `len(polygons)` ≥ 0 (can be empty for images without text)
 - All polygons have shape `(N, 2)` where N ≥ 3
 - `prob_maps.shape == thresh_maps.shape == (H, W)`
 - `image.shape[:2] == (H, W)` matches prob_maps shape
 - When present, metadata must include canonically-typed fields described below
+- All fields are required unless marked Optional
 
 **Common Violations**:
 - PIL Image passed instead of numpy array
 - Polygons with wrong shape `(1, N, 2)` instead of `(N, 2)`
 - Missing or extra channels in image
+- ValidationError raised for contract violations
 
 ---
 
@@ -98,50 +124,53 @@
 
 ## Collate Function Contract
 
-### DBCollateFN.__call__() → dict
+### DBCollateFN.__call__() → CollateOutput (Pydantic v2 Model)
 
-**Purpose**: Defines batch collation contract for DataLoader.
+**Purpose**: Defines batch collation contract for DataLoader. Now returns validated Pydantic model.
 
-**Input Contract** (batch: List[dict]):
+**Input Contract** (batch: List[DatasetSample]):
 ```python
 [
-    {
-        "image": torch.Tensor,         # Shape: (3, H_i, W_i), dtype: float32
-        "polygons": List[np.ndarray],  # Variable length, each shape (N, 2)
-        "prob_maps": torch.Tensor,     # Shape: (1, H_i, W_i), dtype: float32
-        "thresh_maps": torch.Tensor,   # Shape: (1, H_i, W_i), dtype: float32
-        "image_filename": str,
-        "image_path": str,
-        "inverse_matrix": np.ndarray,  # Shape: (3, 3)
-        "shape": Tuple[int, int],
-    },
+    DatasetSample(
+        image=torch.Tensor,         # Shape: (3, H_i, W_i), dtype: float32
+        polygons=List[np.ndarray],  # Variable length, each shape (N, 2)
+        prob_maps=torch.Tensor,     # Shape: (1, H_i, W_i), dtype: float32
+        thresh_maps=torch.Tensor,   # Shape: (1, H_i, W_i), dtype: float32
+        image_filename=str,
+        image_path=str,
+        inverse_matrix=np.ndarray,  # Shape: (3, 3)
+        shape=Tuple[int, int],
+        # ... other DatasetSample fields
+    ),
     # ... batch_size items with potentially different H_i, W_i
 ]
 ```
 
-**Output Contract**:
+**Output Contract** (CollateOutput):
 ```python
-{
-    "images": torch.Tensor,        # Shape: (batch_size, 3, H_max, W_max), dtype: float32
-    "polygons": List[List[np.ndarray]],  # Shape: (batch_size, variable), each polygon (N, 2)
-    "prob_maps": torch.Tensor,     # Shape: (batch_size, 1, H_max, W_max), dtype: float32
-    "thresh_maps": torch.Tensor,   # Shape: (batch_size, 1, H_max, W_max), dtype: float32
-    "image_filenames": List[str],  # Length: batch_size
-    "image_paths": List[str],      # Length: batch_size
-    "inverse_matrices": List[np.ndarray],  # Length: batch_size, each (3, 3)
-    "shapes": List[Tuple[int, int]],      # Length: batch_size
-}
+CollateOutput(
+    images=torch.Tensor,        # Shape: (batch_size, 3, H_max, W_max), dtype: float32
+    polygons=List[List[np.ndarray]],  # Shape: (batch_size, variable), each polygon (N, 2)
+    prob_maps=torch.Tensor,     # Shape: (batch_size, 1, H_max, W_max), dtype: float32
+    thresh_maps=torch.Tensor,   # Shape: (batch_size, 1, H_max, W_max), dtype: float32
+    image_filenames=List[str],  # Length: batch_size
+    image_paths=List[str],      # Length: batch_size
+    inverse_matrices=List[np.ndarray],  # Length: batch_size, each (3, 3)
+    shapes=List[Tuple[int, int]],      # Length: batch_size
+)
 ```
 
 **Key Operations**:
 - **Padding**: Images/maps padded to `max(H_i, W_i)` with zeros
 - **Polygon Filtering**: Invalid polygons removed, shapes normalized to `(N, 2)`
 - **Batch Stacking**: Individual tensors stacked into batch dimension
+- **Validation**: Pydantic model validates all fields and types
 
-**Validation Rules**:
+**Validation Rules** (enforced by Pydantic):
 - All output tensors have consistent batch dimension
 - Polygon shapes normalized (no `(1, N, 2)` shapes allowed)
 - Image and map dimensions match after padding
+- All required fields present with correct types
 
 ---
 
@@ -394,7 +423,7 @@ if pred_maps.shape[-2:] != gt_maps.shape[-2:]:
 
 ---
 
-**Last Updated**: October 11, 2025
-**Version**: 1.0
+**Last Updated**: October 13, 2025
+**Version**: 1.1
 **Maintainer**: Data Pipeline Team</content>
 <parameter name="filePath">/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/docs/pipeline/data_contracts.md

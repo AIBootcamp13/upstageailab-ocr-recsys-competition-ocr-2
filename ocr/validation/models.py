@@ -15,6 +15,8 @@ import torch
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, ValidationInfo, field_validator
 from pydantic_core import InitErrorDetails, PydanticCustomError
 
+from ocr.datasets.schemas import ImageMetadata
+
 # Orientations align with EXIF specification; 0 represents "unknown" while
 # 1-8 map to the standard rotation/mirroring states. Align this contract with
 # `ocr.utils.orientation` helpers to avoid mismatches during evaluation.
@@ -214,6 +216,7 @@ class CollateOutput(_ModelBase):
     orientation: Sequence[int] | None = None
     raw_size: Sequence[tuple[int, int]] | None = None
     canonical_size: Sequence[tuple[int, int] | None] | None = None
+    metadata: list[dict[str, Any] | ImageMetadata | None] | None = None
 
     @field_validator("image_filename", "image_path", "shape", "inverse_matrix", mode="before")
     @classmethod
@@ -317,6 +320,26 @@ class CollateOutput(_ModelBase):
             raise ValueError("canonical_size length must match batch size.")
         return [_ensure_tuple_pair(item, "canonical_size") for item in value]
 
+    @field_validator("metadata")
+    @classmethod
+    def _check_metadata(
+        cls, value: list[dict[str, Any] | ImageMetadata | None] | None, info: ValidationInfo
+    ) -> list[dict[str, Any] | ImageMetadata | None] | None:
+        if value is None:
+            return None
+        batch = len(_info_data(info).get("image_filename", []))
+        if len(value) != batch:
+            raise ValueError("metadata length must match batch size.")
+        normalized: list[dict[str, Any] | ImageMetadata | None] = []
+        for entry in value:
+            if entry is None:
+                normalized.append(None)
+            elif isinstance(entry, dict | ImageMetadata):
+                normalized.append(entry)
+            else:
+                raise TypeError("metadata entries must be dicts, ImageMetadata, or None.")
+        return normalized
+
 
 class ModelOutput(_ModelBase):
     """Model forward output used during training and evaluation."""
@@ -344,6 +367,7 @@ class LightningStepPrediction(_ModelBase):
     raw_size: tuple[int, int] | None = None
     canonical_size: tuple[int, int] | None = None
     image_path: str | None = None
+    metadata: dict[str, Any] | ImageMetadata | None = None
 
     @field_validator("boxes")
     @classmethod
@@ -377,6 +401,13 @@ class LightningStepPrediction(_ModelBase):
         if not value:
             raise ValueError("Image path, when provided, must be a non-empty string.")
         return value
+
+    @field_validator("metadata")
+    @classmethod
+    def _validate_metadata(cls, value: dict[str, Any] | ImageMetadata | None) -> dict[str, Any] | ImageMetadata | None:
+        if value is None or isinstance(value, dict | ImageMetadata):
+            return value
+        raise TypeError("metadata must be a dict, ImageMetadata, or None.")
 
 
 class MetricConfig(_ModelBase):

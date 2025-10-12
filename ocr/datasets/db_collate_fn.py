@@ -51,8 +51,9 @@ class DBCollateFN:
         Args:
             batch: List of sample dictionaries with keys:
                 - "image": torch.Tensor (C, H, W)
-                - "image_filename": str
-                - "image_path": str
+                - "metadata": Optional metadata payload (dict or Pydantic model)
+                - "image_filename": str (legacy fallback)
+                - "image_path": str (legacy fallback)
                 - "inverse_matrix": np.ndarray (3, 3)
                 - "polygons": List[np.ndarray] - polygon coordinates
                 - "prob_map": np.ndarray (H, W) - optional pre-computed
@@ -67,22 +68,56 @@ class DBCollateFN:
                 - Additional metadata fields
         """
         images = [item["image"] for item in batch]
-        filenames = [item["image_filename"] for item in batch]
-        image_paths = [item["image_path"] for item in batch]
+        metadata_entries = [self._extract_metadata(item) for item in batch]
+
+        filenames = []
+        image_paths = []
+        raw_sizes = []
+        orientations = []
+        canonical_sizes = []
+
+        for idx, (item, metadata) in enumerate(zip(batch, metadata_entries, strict=True)):
+            # Filename/path primarily come from metadata, fall back to legacy keys
+            filename = metadata.get("filename") or item.get("image_filename") or f"sample_{idx}"
+            filenames.append(str(filename))
+
+            raw_path = metadata.get("path")
+            if raw_path is None:
+                raw_path = item.get("image_path", "")
+            image_paths.append(str(raw_path))
+
+            raw_sizes.append(metadata.get("raw_size", item.get("raw_size")))
+            orientation_value = metadata.get("orientation", item.get("orientation"))
+            if orientation_value is None:
+                orientation_value = 1
+            orientations.append(int(orientation_value))
+
+            # Canonical size: prefer metadata canonical size, otherwise derive from tensor
+            canonical_size = metadata.get("canonical_size")
+            if canonical_size is None:
+                canonical_size = item.get("shape")
+            if canonical_size is None:
+                tensor = item["image"]
+                if isinstance(tensor, torch.Tensor):
+                    canonical_size = (int(tensor.shape[-2]), int(tensor.shape[-1]))
+                else:
+                    canonical_size = None
+            canonical_sizes.append(canonical_size)
+
         inverse_matrix = [item["inverse_matrix"] for item in batch]
-        raw_sizes = [item.get("raw_size", None) for item in batch]
-        orientations = [item.get("orientation", 1) for item in batch]
-        canonical_sizes = [item.get("shape") for item in batch]
 
         collated_batch = OrderedDict(
             images=torch.stack(images, dim=0),
             image_filename=filenames,
             image_path=image_paths,
             inverse_matrix=inverse_matrix,
+            shape=canonical_sizes,
             raw_size=raw_sizes,
             orientation=orientations,
             canonical_size=canonical_sizes,
         )
+
+        collated_batch["metadata"] = metadata_entries
 
         if self.inference_mode:
             return collated_batch
@@ -102,7 +137,7 @@ class DBCollateFN:
 
         for i, item in enumerate(batch):
             # Check if pre-processed maps exist in the item
-            if "prob_map" in item and "thresh_map" in item:
+            if item.get("prob_map") is not None and item.get("thresh_map") is not None:
                 # Use pre-loaded maps
                 prob_map = torch.from_numpy(item["prob_map"]) if isinstance(item["prob_map"], np.ndarray) else item["prob_map"]
                 thresh_map = torch.from_numpy(item["thresh_map"]) if isinstance(item["thresh_map"], np.ndarray) else item["thresh_map"]
@@ -143,6 +178,20 @@ class DBCollateFN:
         )
 
         return collated_batch
+
+    @staticmethod
+    def _extract_metadata(sample):
+        metadata = sample.get("metadata")
+        if metadata is None:
+            return {}
+        if hasattr(metadata, "model_dump"):
+            try:
+                return metadata.model_dump()
+            except Exception:
+                return dict(metadata)
+        if isinstance(metadata, dict):
+            return metadata
+        return {}
 
     @staticmethod
     def _stack_maps_with_channel_dim(maps_list):

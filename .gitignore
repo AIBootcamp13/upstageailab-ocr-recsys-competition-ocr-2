@@ -154,10 +154,12 @@ offline-*/
 # Lightning logs (should be in outputs/)
 
 # Common clutter
-.claude/
-.qwen/
-.qwenignore
-QWEN.md
-prompts/
-notepad.md
-notepad-train-cli.md
+# .claude/
+# .qwen/
+# .qwenignore
+# QWEN.md
+# prompts/
+# notepad.md
+# notepad-train-cli.md
+debug_empty_predictions/
+submission_*.csv

@@ -69,6 +69,11 @@ def mock_batch():
         "raw_size": [(224, 224), (224, 224)],
         "orientation": [1, 1],
         "image_path": ["/path/img1.jpg", "/path/img2.jpg"],
+        "inverse_matrix": [np.eye(3, dtype=np.float32), np.eye(3, dtype=np.float32)],  # Identity matrices
+        "shape": [(224, 224), (224, 224)],  # Image shapes
+        "polygons": [[], []],  # Empty polygons for predict
+        "prob_maps": torch.randn(2, 1, 224, 224),  # Probability maps
+        "thresh_maps": torch.randn(2, 1, 224, 224),  # Threshold maps
     }
     return batch
 

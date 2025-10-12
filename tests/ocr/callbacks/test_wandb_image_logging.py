@@ -29,7 +29,7 @@ def test_normalise_polygons_converts_sequences_to_arrays():
     assert len(normalised) == 2
     for polygon in normalised:
         assert isinstance(polygon, np.ndarray)
-        assert polygon.shape == (1, 4, 2)
+        assert polygon.shape == (4, 2)
 
 
 def test_postprocess_polygons_filters_degenerate_regions():

@@ -46,11 +46,13 @@ model:
     gamma: 0.1
 datasets:
   test:
-    _target_: ocr.datasets.OCRDataset
-    image_path: data/datasets/images_val_canonical
-    annotation_path: data/datasets/jsons/val.json
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: data/datasets/images_val_canonical
+      annotation_path: data/datasets/jsons/val.json
     transform:
-      _target_: ocr.datasets.DBTransforms
+      _target_: ${dataset_path}.DBTransforms
       transforms:
         - _target_: albumentations.LongestMaxSize
           max_size: 640

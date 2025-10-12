@@ -7,7 +7,9 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
+from ocr.datasets import ValidatedOCRDataset
+from ocr.datasets.base import EXIF_ORIENTATION
+from ocr.datasets.schemas import DatasetConfig
 from ocr.utils.orientation import normalize_pil_image, remap_polygons
 from ui.utils.inference.engine import InferenceEngine
 from ui.visualization.helpers import parse_polygon_string
@@ -21,9 +23,20 @@ RAW_POLYGON_POINTS = [
 
 
 class IdentityTransform:
-    def __call__(self, **kwargs):
-        image = kwargs["image"]
-        polygons = kwargs["polygons"]
+    def __call__(self, data):
+        # Handle both dict and TransformInput
+        if hasattr(data, "image"):
+            # TransformInput object
+            image = data.image
+            polygons = data.polygons or []
+            # Convert PolygonData objects back to numpy arrays
+            if polygons:
+                polygons = [poly.points for poly in polygons]
+        else:
+            # Dict
+            image = data["image"]
+            polygons = data["polygons"]
+
         return {
             "image": image,
             "polygons": polygons,
@@ -57,7 +70,16 @@ def test_dataset_to_inference_to_viewer_alignment(tmp_path: Path, orientation: i
     _write_image_with_orientation(image_path, (100, 200), orientation)
     _write_annotations(json_path, filename)
 
-    dataset = OCRDataset(image_path=image_dir, annotation_path=json_path, transform=IdentityTransform())
+    config = DatasetConfig(
+        image_path=image_dir,
+        annotation_path=json_path,
+        preload_maps=False,
+        load_maps=False,
+        preload_images=False,
+        prenormalize_images=False,
+    )
+
+    dataset = ValidatedOCRDataset(config=config, transform=IdentityTransform())
     sample = dataset[0]
 
     canonical_polygon = np.asarray(sample["polygons"][0], dtype=np.float32).reshape(-1, 2)

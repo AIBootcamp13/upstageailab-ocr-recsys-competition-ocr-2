@@ -33,7 +33,7 @@ import torch
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets import ValidatedOCRDataset
 
 logging.basicConfig(level=logging.INFO)
 
@@ -52,7 +52,7 @@ def preprocess(cfg: DictConfig, dataset_key: str):
 
         # Use Hydra to instantiate the dataset and collate_fn from configs
         # This ensures all transforms are consistent with training.
-        dataset: OCRDataset = hydra.utils.instantiate(cfg.datasets[dataset_key])
+        dataset: ValidatedOCRDataset = hydra.utils.instantiate(cfg.datasets[dataset_key])
         collate_fn = hydra.utils.instantiate(cfg.collate_fn)
 
         # Determine the number of samples to process
@@ -65,17 +65,30 @@ def preprocess(cfg: DictConfig, dataset_key: str):
         raise
 
     # Define the output directory for the pre-processed maps
-    output_dir = Path(dataset.image_path).parent / f"{Path(dataset.image_path).name}_maps"
+    try:
+        image_path = Path(dataset.config.image_path)
+    except (AttributeError, TypeError):
+        image_path = Path(dataset.image_path)  # OCRDataset has image_path as str
+    output_dir = image_path.parent / f"{image_path.name}_maps"
     output_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"Output directory for maps: {output_dir}")
 
     # Main processing loop
     generated_count = 0
 
-    for i in tqdm(range(num_samples), desc=f"Processing {Path(dataset.image_path).name}"):
+    for i in tqdm(range(num_samples), desc=f"Processing {image_path.name}"):
         try:
             sample = dataset[i]
-            image_filename = sample.get("image_filename", f"sample_{i}")
+            metadata_obj = sample.get("metadata")
+            if metadata_obj is None:
+                metadata = {}
+            elif hasattr(metadata_obj, "model_dump"):
+                metadata = metadata_obj.model_dump()
+            elif isinstance(metadata_obj, dict):
+                metadata = metadata_obj
+            else:
+                metadata = {}
+            image_filename = metadata.get("filename") or f"sample_{i}"
             image_filename_str = str(image_filename)
 
             image_data = sample["image"]
