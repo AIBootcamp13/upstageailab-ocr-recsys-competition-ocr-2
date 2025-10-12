@@ -379,6 +379,40 @@ class LightningStepPrediction(_ModelBase):
         return value
 
 
+class MetricConfig(_ModelBase):
+    """Configuration validation for CLEvalMetric parameters."""
+
+    dist_sync_on_step: bool = False
+    case_sensitive: bool = True
+    recall_gran_penalty: float = Field(default=1.0, ge=0.0, description="Recall granularity penalty")
+    precision_gran_penalty: float = Field(default=1.0, ge=0.0, description="Precision granularity penalty")
+    vertical_aspect_ratio_thresh: float = Field(default=0.5, ge=0.0, le=1.0, description="Vertical aspect ratio threshold")
+    ap_constraint: float = Field(default=0.3, ge=0.0, le=1.0, description="AP constraint value")
+    scale_wise: bool = False
+    scale_bins: tuple[float, ...] = (0.0, 0.005, 0.01, 0.015, 0.02, 0.025, 0.1, 0.5, 1.0)
+    scale_range: tuple[float, float] = Field(default=(0.0, 1.0), description="Scale range as (min, max)")
+    max_polygons: int = Field(default=500, gt=0, description="Maximum number of polygons to evaluate")
+
+    @field_validator("scale_range")
+    @classmethod
+    def _validate_scale_range(cls, value: tuple[float, float]) -> tuple[float, float]:
+        if len(value) != 2:
+            raise ValueError("scale_range must contain exactly two values (min, max).")
+        min_val, max_val = value
+        if min_val >= max_val:
+            raise ValueError("scale_range min must be less than max.")
+        return value
+
+    @field_validator("scale_bins")
+    @classmethod
+    def _validate_scale_bins(cls, value: tuple[float, ...]) -> tuple[float, ...]:
+        if len(value) < 2:
+            raise ValueError("scale_bins must contain at least two values.")
+        if not all(value[i] <= value[i + 1] for i in range(len(value) - 1)):
+            raise ValueError("scale_bins must be monotonically increasing.")
+        return value
+
+
 def validate_predictions(filenames: Sequence[str], predictions: Sequence[dict[str, Any]]) -> list[LightningStepPrediction]:
     """Validate a collection of predictions against the expected schema."""
 

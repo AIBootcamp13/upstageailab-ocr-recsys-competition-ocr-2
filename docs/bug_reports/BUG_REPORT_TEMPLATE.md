@@ -1,6 +1,3 @@
-
----
-
 ## 🐛 Bug Report Template
 
 **Bug ID:** BUG-2025-001
@@ -64,7 +61,6 @@ else:
 - Document data type contracts between pipeline phases
 
 ---
-*Keep this template in your project for future reference!*
 
 
  ### IGNORE BELOW ###

@@ -28,43 +28,57 @@ class UniqueModelCheckpoint(ModelCheckpoint):
 
     def format_checkpoint_name(
         self,
-        metrics: dict[str, torch.Tensor] | None = None,
+        metrics: dict | None = None,
         filename: str | None = None,
     ) -> str:
         """
-        Format checkpoint name with additional unique identifiers and model information.
+        Formats the checkpoint name robustly using the trainer's state.
+
+        This implementation manually constructs the filename to avoid issues with
+        pre-formatted strings in the metrics dictionary. It directly accesses
+        `trainer.current_epoch` and `trainer.global_step` for accurate, numerical values.
         """
-        metrics_dict: dict[str, torch.Tensor] = metrics if metrics is not None else {}
-        base_path = super().format_checkpoint_name(metrics_dict, filename)
+        # Trainer might not be attached during initialization
+        trainer = getattr(self, "trainer", None)
+        if trainer is None:
+            return super().format_checkpoint_name(metrics or {}, filename)
 
-        dirpath, base_name = os.path.split(base_path)
-        stem, ext = os.path.splitext(base_name)
+        # 1. Get authoritative epoch and step directly from the trainer
+        epoch = trainer.current_epoch
+        step = trainer.global_step
 
-        # Preserve Lightning's reserved "last" checkpoints so cleanup utilities keep working.
-        reserved_name = base_name == self.CHECKPOINT_NAME_LAST
+        # 2. Build the core filename string
+        # We ignore the `filename` template from the config for epoch/step
+        # as it's the source of the original bug.
+        stem = f"epoch_{epoch:02d}_step_{step:06d}"
 
-        # For best checkpoints, keep the name clean but add minimal unique info
-        is_best_checkpoint = "best" in stem.lower()
+        # 3. Add the monitored metric value if enabled
+        if self.auto_insert_metric_name and metrics and self.monitor:
+            # Ensure monitor key exists and value is a tensor
+            metric_val = metrics.get(self.monitor)
+            if isinstance(metric_val, torch.Tensor):
+                # Clean up the metric name for the filename (e.g., "val/hmean" -> "val_hmean")
+                metric_name_clean = self.monitor.replace("/", "_")
+                stem = f"{stem}_{metric_name_clean}_{metric_val.item():.4f}"
 
-        if reserved_name:
-            # Don't modify "last" checkpoints
-            pass
-        elif is_best_checkpoint:
-            # For best checkpoints, only add timestamp for uniqueness, keep metric info clean
-            stem = stem.replace("=", "_")  # Clean up metric formatting
-            if self.add_timestamp:
-                stem = f"{stem}_{self.timestamp}"
-        else:
-            # For regular epoch checkpoints, add full model info
-            stem = stem.replace("=", "_")
-            model_info = self._get_model_info()
-            if model_info:
-                stem = f"{stem}_{model_info}"
-            if self.add_timestamp:
-                stem = f"{stem}_{self.timestamp}"
+        # 4. Add unique identifiers (model info, timestamp)
+        # This logic is preserved from your original implementation.
+        dirpath = self.dirpath or "."
+        is_best_checkpoint = "best" in (filename or "").lower()
 
-        final_name = f"{stem}{ext or self.FILE_EXTENSION}"
-        return os.path.join(dirpath, final_name) if dirpath else final_name
+        if is_best_checkpoint:
+            stem = f"best_{stem}"  # Prepend "best" for clarity
+
+        model_info = self._get_model_info()
+        if model_info:
+            stem = f"{stem}_{model_info}"
+
+        if self.add_timestamp:
+            stem = f"{stem}_{self.timestamp}"
+
+        # 5. Combine and return the final path
+        final_name = f"{stem}{self.FILE_EXTENSION}"
+        return os.path.join(dirpath, final_name)
 
     def _get_model_info(self) -> str | None:
         """

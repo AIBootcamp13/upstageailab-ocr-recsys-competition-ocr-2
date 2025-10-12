@@ -3,13 +3,15 @@
 model_checkpoint:
   _target_: ocr.lightning_modules.callbacks.unique_checkpoint.UniqueModelCheckpoint
   dirpath: ${paths.checkpoint_dir} # directory to save the model file
-  filename: "epoch_{epoch:02d}_step_{step:06d}" # checkpoint filename
+  # The `filename` template is now primarily used to identify "best" checkpoints.
+  # Our custom code handles the actual naming structure.
+  filename: "{val/hmean:.4f}-best"
   monitor: "val/hmean" # name of the logged metric which determines when model is improving
   verbose: True # verbosity mode - set to True to see when checkpoints are saved
   save_last: true # additionally always save an exact copy of the last checkpoint to a file last.ckpt
   save_top_k: 3 # save k best models (determined by above metric) - increased to keep more best models
   mode: "max" # "max" means higher metric value is better, can be also "min"
-  auto_insert_metric_name: True # when True, the checkpoints filenames will contain the metric name
+  auto_insert_metric_name: True # Our new code uses this flag to add the metric
   save_weights_only: False # if True, then only the model's weights will be saved
   every_n_train_steps: null # number of training steps between checkpoints
   train_time_interval: null # checkpoints are monitored at the specified time interval

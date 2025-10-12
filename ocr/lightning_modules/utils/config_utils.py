@@ -5,9 +5,21 @@ from __future__ import annotations
 import numpy as np
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
+from ocr.validation.models import MetricConfig
+
 
 def extract_metric_kwargs(metric_cfg: DictConfig | None) -> dict:
-    """Return kwargs for CLEval metrics from an OmegaConf node."""
+    """Return validated kwargs for CLEval metrics from an OmegaConf node.
+
+    Args:
+        metric_cfg: OmegaConf configuration node for metric parameters
+
+    Returns:
+        Validated dictionary of metric parameters
+
+    Raises:
+        ValidationError: If metric configuration contains invalid parameters
+    """
     if metric_cfg is None:
         return {}
 
@@ -16,6 +28,18 @@ def extract_metric_kwargs(metric_cfg: DictConfig | None) -> dict:
         return {}
 
     cfg_dict.pop("_target_", None)
+
+    # If no actual metric parameters provided, return empty dict
+    if not cfg_dict:
+        return {}
+
+    # Validate configuration using Pydantic model (this will raise ValidationError for invalid values)
+    try:
+        MetricConfig(**cfg_dict)  # type: ignore[arg-type]
+    except Exception as e:
+        raise ValueError(f"Invalid metric configuration: {e}") from e
+
+    # Return the original config dict (without validation defaults)
     return cfg_dict
 
 

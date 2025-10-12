@@ -15,9 +15,28 @@ from ocr.lightning_modules.utils.model_utils import load_state_dict_with_fallbac
 from ocr.metrics import CLEvalMetric
 from ocr.utils.orientation import remap_polygons
 from ocr.utils.submission import SubmissionWriter
+from ocr.validation.models import CollateOutput
 
 
 class OCRPLModule(pl.LightningModule):
+    """OCR PyTorch Lightning Module for text detection and recognition.
+
+    This module implements the training, validation, testing, and prediction loops
+    for OCR tasks. It integrates with CLEvalEvaluator for metric computation and
+    follows the data contracts defined in #file:data_contracts.md.
+
+    The module expects input batches to follow the collate function output contract
+    and produces predictions compatible with the CLEvalMetric evaluation pipeline.
+
+    Attributes:
+        model: The OCR model instance
+        dataset: Dataset dictionary with 'train', 'val', 'test' keys
+        config: Hydra configuration object
+        valid_evaluator: CLEvalEvaluator for validation metrics
+        test_evaluator: CLEvalEvaluator for test metrics
+        predict_step_outputs: OrderedDict for prediction outputs
+    """
+
     def __init__(self, model, dataset, config, metric_cfg: DictConfig | None = None):
         super().__init__()
         self.model = model
@@ -60,6 +79,26 @@ class OCRPLModule(pl.LightningModule):
         return pred["loss"]
 
     def validation_step(self, batch, batch_idx):
+        """Perform validation step for OCR model.
+
+        Args:
+            batch: Input batch following the collate function output contract
+                   from #file:data_contracts.md (CollateOutput format)
+            batch_idx: Batch index
+
+        Returns:
+            Loss value for the batch
+
+        Side Effects:
+            Updates self.valid_evaluator with predictions for epoch-end metrics
+            Logs validation loss and loss components
+            Stores predictions for W&B logging
+        """
+        # Validate input batch against data contract
+        try:
+            CollateOutput(**batch)
+        except Exception as e:
+            raise ValueError(f"Batch validation failed: {e}") from e
         pred = self.model(**batch)
         self.log("val_loss", pred["loss"], batch_size=batch["images"].shape[0])
         for key, value in pred["loss_dict"].items():
@@ -215,6 +254,25 @@ class OCRPLModule(pl.LightningModule):
         CheckpointHandler.on_load_checkpoint(self, checkpoint)
 
     def test_step(self, batch):
+        """Perform test step for OCR model.
+
+        Args:
+            batch: Input batch following the collate function output contract
+                   from #file:data_contracts.md (CollateOutput format)
+
+        Returns:
+            Loss value for the batch
+
+        Side Effects:
+            Updates self.test_evaluator with predictions for epoch-end metrics
+            Logs test loss and loss components
+        """
+        # Validate input batch against data contract
+        try:
+            CollateOutput(**batch)
+        except Exception as e:
+            raise ValueError(f"Batch validation failed: {e}") from e
+
         pred = self.model(return_loss=False, **batch)
 
         boxes_batch, _ = self.model.get_polygons_from_maps(batch, pred)
@@ -246,6 +304,22 @@ class OCRPLModule(pl.LightningModule):
         self.test_evaluator.reset()
 
     def predict_step(self, batch):
+        """Perform prediction step for OCR model inference.
+
+        Args:
+            batch: Input batch following the collate function output contract
+                   from #file:data_contracts.md (CollateOutput format)
+
+        Returns:
+            List of predictions with polygon coordinates for each image in batch,
+            following the model output format from #file:data_contracts.md
+        """
+        # Validate input batch against data contract
+        try:
+            CollateOutput(**batch)
+        except Exception as e:
+            raise ValueError(f"Batch validation failed: {e}") from e
+
         pred = self.model(return_loss=False, **batch)
         boxes_batch, scores_batch = self.model.get_polygons_from_maps(batch, pred)
 
