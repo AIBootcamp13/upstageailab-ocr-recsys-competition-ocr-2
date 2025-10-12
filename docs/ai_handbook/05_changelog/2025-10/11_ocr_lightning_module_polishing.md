@@ -21,8 +21,14 @@ No new data contracts were introduced in this refactoring. All existing data str
 ## Usage Examples
 ```python
 # WandbProblemLogger usage (handled internally by OCRPLModule)
-wandb_logger = WandbProblemLogger(config, normalize_mean, normalize_std)
-wandb_logger.log_if_needed(batch, predictions, batch_metrics, batch_idx)
+wandb_logger = WandbProblemLogger(
+  config,
+  normalize_mean,
+  normalize_std,
+  val_dataset,
+  metric_kwargs,
+)
+batch_metrics = wandb_logger.log_if_needed(batch, predictions, batch_idx)
 
 # SubmissionWriter usage (handled internally by OCRPLModule)
 submission_writer = SubmissionWriter(config)

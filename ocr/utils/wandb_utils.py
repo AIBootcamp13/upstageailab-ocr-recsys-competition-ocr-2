@@ -193,10 +193,10 @@ def _extract_component_token(
             return _sanitize_token(str(value).split(".")[-1])
         return ""
 
-    candidate = _pick_token(overrides)
+    component_cfg = _select(model_cfg, (component,))
+    candidate = _pick_token(component_cfg)
     if not candidate:
-        component_cfg = _select(model_cfg, (component,))
-        candidate = _pick_token(component_cfg)
+        candidate = _pick_token(overrides)
     if not candidate:
         candidate = _architecture_default_component(architecture_name, component)
     return candidate

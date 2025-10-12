@@ -250,6 +250,30 @@ default_interpolation: 1  # cv2.INTER_LINEAR
 - Configuration: `configs/data/base.yaml`, `configs/transforms/base.yaml`
 - Tests: `tests/test_data_loading_optimizations.py`
 
+### Fixed - 2025-10-12
+
+#### Wandb Run Name Generation Logic Bug
+
+**Description**
+
+Fixed a bug in Wandb run name generation where component token extraction incorrectly prioritized `component_overrides` over direct component configurations, causing run names to display outdated model names instead of the actual models being used.
+
+**Root Cause:**
+- The `_extract_component_token` function checked `component_overrides` before direct component config
+- This caused run names to show preset values instead of user-specified overrides
+
+**Changes:**
+- Modified component token extraction to prioritize direct component configuration over `component_overrides`
+- Ensures user-specified parameters (e.g., `model.encoder.model_name=resnet50`) are reflected in run names
+
+**Impact:**
+- Wandb run names now accurately reflect actual model configurations
+- No breaking changes - maintains backward compatibility
+
+**Related Files:**
+- `ocr/utils/wandb_utils.py`
+- Summary: `docs/ai_handbook/05_changelog/2025-10/12_wandb_run_name_generation_bug.md`
+
 ### Changed - 2025-10-09
 
 - **`ocr/datasets/base.py`**: Added map loading logic to `__getitem__` method
