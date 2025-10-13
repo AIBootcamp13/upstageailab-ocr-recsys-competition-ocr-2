@@ -39,7 +39,7 @@ This is the architectural solution for large-scale projects.
 
   * **What it is:** Instead of thousands of small files, you pack your images (in any format—JPEG, PNG, or even `.npy`) and their labels into a few large archive files (e.g., `.tar`).
   * **Why it's fast:** This approach solves the **I/O bottleneck** of opening and closing thousands of individual files. It allows the data loader to perform fast, sequential reads from a single large file, which is highly efficient.
-  * **Downside:** It requires a more significant change to your data loading pipeline, as you'd replace your `OCRDataset` with a `webdataset.WebDataset`.
+  * **Downside:** It requires a more significant change to your data loading pipeline, as you'd replace your `ValidatedOCRDataset` with a `webdataset.WebDataset`.
 
 -----
 
@@ -74,4 +74,4 @@ np.savez_compressed(
 )
 ```
 
-Then, update your `OCRDataset`'s `__getitem__` method to load the image directly from the `.npz` file instead of from the original JPEG file. This completely bypasses PIL/OpenCV for image loading during training, giving you a significant speed boost.
+Then, update your `ValidatedOCRDataset`'s `__getitem__` method to load the image directly from the `.npz` file instead of from the original JPEG file. This completely bypasses PIL/OpenCV for image loading during training, giving you a significant speed boost.

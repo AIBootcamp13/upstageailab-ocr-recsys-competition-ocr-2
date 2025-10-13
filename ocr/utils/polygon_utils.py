@@ -1,10 +1,73 @@
-"""Polygon utilities for OCR dataset processing."""
+"""
+AI_DOCS: Polygon Utils - Polygon Processing & Validation Utilities
+
+This module provides specialized polygon processing utilities for OCR:
+- Polygon coordinate validation and normalization
+- Degenerate polygon detection and filtering
+- Shape validation for probability/threshold maps
+- Coordinate system transformations
+
+ARCHITECTURE OVERVIEW:
+- Utilities extracted from dataset transformation logic
+- Focus on geometric validation and processing
+- NumPy-based coordinate manipulation
+- Integration with Albumentations transforms
+
+DATA CONTRACTS:
+- Input: numpy arrays with shape (N, 2) or (1, N, 2)
+- Output: validated numpy arrays or None (filtered)
+- Coordinate System: (x, y) pixel coordinates
+- Data Types: float32 for consistency
+
+CORE CONSTRAINTS:
+- ALWAYS validate polygon shapes before processing
+- FILTER degenerate polygons (< 3 points)
+- PRESERVE coordinate precision (float32)
+- USE consistent coordinate ordering (x, y)
+- VALIDATE map shapes against image dimensions
+
+PERFORMANCE FEATURES:
+- Vectorized NumPy operations for speed
+- Early filtering prevents downstream errors
+- Memory-efficient coordinate processing
+- Batch processing support
+
+VALIDATION REQUIREMENTS:
+- Check polygon dimensionality (2D/3D arrays)
+- Validate coordinate ranges (non-negative)
+- Ensure minimum point counts (≥ 3)
+- Verify map-image shape compatibility
+
+RELATED DOCUMENTATION:
+- Base Dataset: ocr/datasets/base.py
+- Transforms: ocr/datasets/transforms.py
+- Data Schemas: ocr/datasets/schemas.py
+- Geometric Utils: ocr/utils/geometry_utils.py
+
+MIGRATION NOTES:
+- Utilities extracted from ValidatedOCRDataset.__getitem__
+- Pydantic integration for data validation
+- Improved error handling and filtering
+"""
 
 import numpy as np
 
 
 def ensure_polygon_array(polygon: np.ndarray) -> np.ndarray | None:
-    """Normalize polygon arrays to have shape ``(N, 2)``."""
+    """
+    AI_DOCS: Polygon Array Normalization
+
+    Normalizes polygon input to standard numpy array format.
+
+    CRITICAL CONSTRAINTS:
+    - ACCEPT both lists and numpy arrays
+    - CONVERT to float32 dtype
+    - RESHAPE to (N, 2) format if needed
+    - VALIDATE coordinate dimensions
+    - RETURN None for invalid inputs
+
+    Output: float32 array with shape (N, 2) or None
+    """
     if polygon is None:
         return None
 
@@ -36,14 +99,17 @@ def filter_degenerate_polygons(
     min_side: float = 1.0,
 ) -> list[np.ndarray]:
     """
-    Filter out degenerate polygons that don't meet minimum requirements.
+    AI_DOCS: Degenerate Polygon Filtering
 
-    Args:
-        polygons: List of polygon arrays
-        min_side: Minimum side length for valid polygons
+    Removes polygons with insufficient points for geometric operations.
 
-    Returns:
-        List of valid polygons
+    CRITICAL CONSTRAINTS:
+    - REQUIRE minimum 3 points per polygon
+    - PRESERVE valid polygons unchanged
+    - LOG filtering decisions for debugging
+    - RETURN filtered list (may be shorter)
+
+    Geometric Requirement: Polygons need ≥ 3 points for area calculation
     """
     from collections import Counter
 
@@ -114,17 +180,17 @@ def validate_map_shapes(
     filename: str,
 ) -> bool:
     """
-    Validate that map shapes are correct and compatible.
+    AI_DOCS: Map Shape Validation
 
-    Args:
-        prob_map: Probability map array
-        thresh_map: Threshold map array
-        image_height: Expected image height
-        image_width: Expected image width
-        filename: Filename for logging
+    Validates probability/threshold map dimensions against image.
 
-    Returns:
-        True if validation passes, False otherwise
+    CRITICAL CONSTRAINTS:
+    - CHECK both maps have identical shapes
+    - VALIDATE against image dimensions if provided
+    - LOG validation failures with context
+    - RETURN boolean validation result
+
+    Map Requirements: (H, W) float arrays matching image dimensions
     """
     import logging
 

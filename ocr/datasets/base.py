@@ -1,3 +1,52 @@
+"""
+AI_DOCS: OCR Dataset Base - Core Data Loading Pipeline
+
+This module implements the ValidatedOCRDataset class, the primary dataset implementation
+for OCR text detection tasks. This class serves as the single source of truth for data
+loading, validation, and preprocessing in the OCR pipeline.
+
+ARCHITECTURE OVERVIEW:
+- Uses Pydantic v2 for comprehensive data validation and type safety
+- Implements modular design with extracted utilities (cache_manager, image_utils, polygon_utils)
+- Maintains backward compatibility with existing training pipelines
+- Supports multiple caching strategies for performance optimization
+
+DATA CONTRACTS:
+- Input: DatasetConfig (validated configuration)
+- Transform: Callable[TransformInput, dict[str, Any]] (data transformation pipeline)
+- Output: DataItem (fully validated sample dictionary)
+
+CORE CONSTRAINTS:
+- NEVER modify the __getitem__ method signature or return type without updating all consumers
+- ALWAYS validate data using Pydantic models before processing
+- PRESERVE backward compatibility for existing training scripts
+- USE extracted utilities instead of inline implementations
+
+PERFORMANCE FEATURES:
+- Tensor caching: Cache fully transformed samples to avoid recomputation
+- Image preloading: Load all images into memory for fast access
+- Map preloading: Cache probability/threshold maps in memory
+- EXIF orientation handling: Automatic image rotation correction
+
+VALIDATION REQUIREMENTS:
+- All polygons must be numpy arrays with shape (N, 2) and dtype float32
+- Images must be normalized to RGB format before transformation
+- Metadata must include orientation, dimensions, and processing flags
+- Cache keys must be deterministic and collision-resistant
+
+RELATED DOCUMENTATION:
+- Data contracts: ocr/validation/models.py
+- Configuration schemas: ocr/datasets/schemas.py
+- Utility functions: ocr/utils/{cache_manager,image_utils,polygon_utils}/
+- Architecture guide: docs/ai_handbook/03_references/architecture/01_architecture.md
+- Data loading guide: docs/ai_handbook/03_references/data_loading/data_format_comparison.md
+
+MIGRATION NOTES:
+- Legacy OCRDataset removed in favor of ValidatedOCRDataset
+- All utilities extracted to dedicated modules for better testability
+- Pydantic validation added throughout the pipeline for data integrity
+"""
+
 import json
 import logging
 from collections import OrderedDict
@@ -20,7 +69,23 @@ Image.MAX_IMAGE_PIXELS = 108000000
 EXIF_ORIENTATION = EXIF_ORIENTATION_TAG  # Orientation Information: 274
 
 
-# Refactored OCR dataset with Pydantic validation and separated concerns
+# AI_DOCS: ValidatedOCRDataset - Primary Dataset Class
+#
+# This is the CORE dataset class for OCR tasks. It implements:
+# - Pydantic-validated data loading and processing
+# - Multi-level caching (images, tensors, maps)
+# - EXIF orientation correction
+# - Polygon validation and filtering
+# - Transform pipeline integration
+#
+# CONSTRAINTS FOR AI ASSISTANTS:
+# - DO NOT modify __getitem__ return type (must be dict[str, Any])
+# - DO NOT change constructor signature without updating all config files
+# - ALWAYS use Pydantic models for data validation
+# - PRESERVE all property accessors for backward compatibility
+# - USE extracted utilities from ocr.utils.* modules
+#
+# DATA FLOW: __getitem__ -> _load_image_data -> transform -> DataItem -> cache -> dict
 class ValidatedOCRDataset(Dataset):
     """
     Refactored OCR dataset with Pydantic validation and separated concerns.
@@ -30,10 +95,24 @@ class ValidatedOCRDataset(Dataset):
         """
         Initialize the validated OCR dataset.
 
+        AI_DOCS: Constructor Constraints
+        - config: DatasetConfig (Pydantic model) - NEVER pass raw dicts
+        - transform: Callable that MUST accept TransformInput and return dict[str, Any]
+        - DO NOT modify parameter types without updating all Hydra configs
+        - DO NOT add required parameters without migration plan
+
         Args:
             config: DatasetConfig object containing all dataset configuration
             transform: Callable that takes TransformInput and returns transformed data dict
         """
+        # AI_DOCS: Initialization Data Flow
+        # 1. Store validated config (DO NOT modify config structure)
+        # 2. Store transform callable (MUST be compatible with TransformInput)
+        # 3. Initialize logging (use self.logger for all messages)
+        # 4. Load annotations (populates self.anns OrderedDict)
+        # 5. Initialize CacheManager (uses config.cache_config)
+        # 6. Preload data if configured (images/maps based on config flags)
+
         # Implementation details in pseudocode section
         self.config = config
         self.transform = transform
@@ -64,6 +143,17 @@ class ValidatedOCRDataset(Dataset):
 
     # ------------------------------------------------------------------
     # Compatibility accessors for legacy consumers
+    # ------------------------------------------------------------------
+    # AI_DOCS: Backward Compatibility Properties
+    #
+    # These properties provide backward compatibility with legacy code that
+    # accessed dataset attributes directly. AI assistants MUST:
+    # - NEVER remove these properties (breaks existing code)
+    # - NEVER change return types (breaks existing code)
+    # - Update to use config.* instead of direct attributes
+    # - Add new properties here if needed for compatibility
+    #
+    # Legacy code expects these properties to exist and return expected types.
     # ------------------------------------------------------------------
     @property
     def image_path(self) -> Path:
@@ -175,13 +265,36 @@ class ValidatedOCRDataset(Dataset):
         """
         Get a sample from the dataset by index.
 
+        AI_DOCS: CRITICAL METHOD - Data Pipeline Core
+        This is the PRIMARY data loading method. AI assistants MUST:
+        - NEVER change return type (dict[str, Any])
+        - ALWAYS validate data with Pydantic models
+        - USE extracted utilities from ocr.utils.* modules
+        - PRESERVE caching logic and error handling
+        - MAINTAIN EXIF orientation correction
+        - RETURN DataItem.model_dump() format
+
+        Data Flow (DO NOT MODIFY):
+        1. Check tensor cache (CacheManager.get_cached_tensor)
+        2. Load image data (_load_image_data -> ImageData)
+        3. Process polygons (polygon_utils.ensure_polygon_array)
+        4. Create TransformInput (Pydantic model)
+        5. Apply transform (returns dict with image, polygons, metadata)
+        6. Filter polygons (polygon_utils.filter_degenerate_polygons)
+        7. Load maps if enabled (cache or disk)
+        8. Create DataItem (Pydantic model)
+        9. Cache DataItem if enabled
+        10. Return DataItem.model_dump()
+
         Args:
             idx: Sample index
 
         Returns:
-            Dictionary containing the processed sample data
+            Dictionary containing the processed sample data (DataItem.model_dump())
         """
-        # 1. Tensor Cache Check: Start by checking CacheManager for a fully processed DataItem
+        # AI_DOCS: Step 1 - Tensor Cache Check
+        # ALWAYS check cache first for performance
+        # Cache contains fully processed DataItem objects
         from ocr.datasets.schemas import DataItem
 
         cached_data_item = self.cache_manager.get_cached_tensor(idx)
@@ -191,7 +304,9 @@ class ValidatedOCRDataset(Dataset):
                 self.logger.info(f"[CACHE HIT] Returning cached tensor for index {idx}")
             return cached_data_item.model_dump()
 
-        # 2. Image Loading: If no tensor cached, get filename and load image data
+        # AI_DOCS: Step 2 - Image Loading
+        # Use _load_image_data helper (returns ImageData Pydantic model)
+        # Handles EXIF orientation, normalization, RGB conversion
         image_filename = list(self.anns.keys())[idx]
 
         # Use the _load_image_data method which can be mocked for testing
@@ -343,8 +458,41 @@ class ValidatedOCRDataset(Dataset):
         return data_item.model_dump()
 
     def _load_image_data(self, filename: str) -> "ImageData":
-        """Load image data and return as ImageData object."""
-        # This is a helper method for testing
+        """
+        Load image data and return as ImageData object.
+
+        AI_DOCS: Image Loading Requirements
+        This method MUST:
+        - Return ImageData Pydantic model (NOT raw dict)
+        - Handle EXIF orientation correction
+        - Convert to RGB format
+        - Apply prenormalization if configured
+        - Close PIL images to prevent memory leaks
+        - Use utilities from ocr.utils.image_utils
+
+        Expected Data Types:
+        - filename: str (image filename)
+        - Returns: ImageData (Pydantic model with validation)
+
+        DO NOT:
+        - Return raw dictionaries
+        - Skip EXIF orientation handling
+        - Leave PIL images open
+        - Implement image processing inline (use utilities)
+
+        Related: ocr/utils/image_utils.py, ocr/utils/orientation.py
+        """
+        # AI_DOCS: Image Loading Pipeline
+        # 1. Construct full image path
+        # 2. Load PIL image with EXIF handling (load_pil_image)
+        # 3. Get raw dimensions (safe_get_image_size)
+        # 4. Normalize orientation (normalize_pil_image)
+        # 5. Convert to RGB (ensure_rgb)
+        # 6. Convert to numpy array (pil_to_numpy)
+        # 7. Apply prenormalization if configured (prenormalize_imagenet)
+        # 8. Close all PIL images to prevent memory leaks
+        # 9. Return validated ImageData model
+
         image_path = self.config.image_path / filename
         from ocr.datasets.schemas import ImageData
         from ocr.utils.image_utils import ensure_rgb, load_pil_image, pil_to_numpy, safe_get_image_size
@@ -396,3 +544,81 @@ class ValidatedOCRDataset(Dataset):
         """Preload all maps into cache."""
         # Implementation for preloading maps
         pass
+
+
+# AI_DOCS: END OF FILE - Critical Reminders for AI Assistants
+#
+# =======================================================================
+# VALIDATEDOCRDATASET - AI ASSISTANT CONSTRAINTS & REQUIREMENTS
+# =======================================================================
+#
+# BEFORE MAKING ANY CHANGES TO THIS FILE:
+#
+# 1. DATA CONTRACTS (MANDATORY):
+#    - Input: DatasetConfig (Pydantic model, not dict)
+#    - Transform: Callable[TransformInput, dict[str, Any]]
+#    - Output: DataItem.model_dump() -> dict[str, Any]
+#    - Internal: ImageData, PolygonData, ImageMetadata models
+#
+# 2. METHOD SIGNATURES (DO NOT CHANGE):
+#    - __init__(config: DatasetConfig, transform: Callable)
+#    - __getitem__(idx: int) -> dict[str, Any]
+#    - __len__() -> int
+#    - _load_image_data(filename: str) -> ImageData
+#
+# 3. BACKWARD COMPATIBILITY (PRESERVE):
+#    - All property accessors (@property methods)
+#    - Return types and data structures
+#    - Error messages and logging patterns
+#    - Configuration parameter access
+#
+# 4. UTILITIES (ALWAYS USE):
+#    - ocr.utils.cache_manager.CacheManager
+#    - ocr.utils.image_utils.* functions
+#    - ocr.utils.polygon_utils.* functions
+#    - ocr.utils.orientation.* functions
+#
+# 5. VALIDATION (MANDATORY):
+#    - Use Pydantic models for all data structures
+#    - Validate inputs and outputs
+#    - Handle ValidationError exceptions
+#    - Log validation failures appropriately
+#
+# 6. PERFORMANCE FEATURES (PRESERVE):
+#    - Tensor caching logic
+#    - Image preloading capabilities
+#    - Map caching and loading
+#    - EXIF orientation correction
+#
+# 7. TESTING (CONSIDER):
+#    - Methods can be mocked for unit tests
+#    - Use fixtures for common test data
+#    - Test edge cases and error conditions
+#    - Validate Pydantic model constraints
+#
+# =======================================================================
+# RELATED DOCUMENTATION (MUST CONSULT):
+# =======================================================================
+#
+# - Data Contracts: ocr/validation/models.py
+# - Schemas: ocr/datasets/schemas.py
+# - Configuration: configs/**/*.yaml
+# - Utilities: ocr/utils/*/
+# - Tests: tests/unit/test_dataset.py, tests/integration/test_ocr_*.py
+# - Architecture: docs/ai_handbook/03_references/architecture/
+# - Changelog: docs/CHANGELOG.md (search for "OCR Dataset")
+#
+# =======================================================================
+# COMMON AI MISTAKES TO AVOID:
+# =======================================================================
+#
+# ❌ Changing __getitem__ return type from dict[str, Any]
+# ❌ Removing backward compatibility properties
+# ❌ Using raw dicts instead of Pydantic models
+# ❌ Implementing image processing inline (use utilities)
+# ❌ Breaking EXIF orientation handling
+# ❌ Modifying constructor signature without config updates
+# ❌ Skipping data validation steps
+# ❌ Not using extracted utility functions
+#
+# =======================================================================

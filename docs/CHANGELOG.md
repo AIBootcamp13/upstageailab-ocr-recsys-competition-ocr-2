@@ -118,6 +118,41 @@ Completed the systematic migration of the OCR dataset base from the legacy OCRDa
 - `scripts/data_processing/preprocess_maps.py`
 - `docs/ai_handbook/05_changelog/2025-10/13_ocr_dataset_refactor.md`
 
+### Added - 2025-10-14
+
+#### OCR Dataset Base Modular Refactor
+
+**Description**
+
+Completed a comprehensive modular refactor of the OCR dataset base, extracting monolithic utility functions into dedicated, focused modules while maintaining full backward compatibility and performance. The refactor reduced the main dataset file from 1,031 lines to 408 lines (60% reduction) by extracting utilities into specialized modules with comprehensive testing.
+
+**Modular Architecture:**
+- `ocr/utils/cache_manager.py`: Centralized caching logic for images, tensors, and maps with 20/20 tests passing
+- `ocr/utils/image_utils.py`: Consolidated image processing utilities for loading, conversion, and normalization
+- `ocr/utils/polygon_utils.py`: Dedicated polygon processing and validation functions
+- `ocr/datasets/base.py`: Streamlined ValidatedOCRDataset class with clean imports from utility modules
+
+**New Features:**
+- Modular architecture with single-responsibility utilities
+- Comprehensive test coverage (49/49 tests passing) including unit, integration, and end-to-end validation
+- Maintained performance with training validation confirming no regressions (hmean scores 0.590-0.831)
+- Enhanced maintainability through focused, testable utility modules
+
+**API Changes:**
+- ValidatedOCRDataset now imports utilities from dedicated modules
+- Legacy OCRDataset class completely removed from codebase
+- All utility functions extracted with preserved interfaces for backward compatibility
+
+**Related Files:**
+- `ocr/datasets/base.py` (refactored from 1,031 to 408 lines)
+- `ocr/utils/cache_manager.py` (new utility module)
+- `ocr/utils/image_utils.py` (new utility module)
+- `ocr/utils/polygon_utils.py` (new utility module)
+- `tests/unit/test_cache_manager.py` (comprehensive test suite)
+- `tests/unit/test_image_utils.py` (comprehensive test suite)
+- `tests/unit/test_polygon_utils.py` (comprehensive test suite)
+- `docs/ai_handbook/05_changelog/2025-10/14_ocr_dataset_modular_refactor.md`
+
 ### Added - 2025-10-12
 
 #### Data Contract for OCRPLModule Completion

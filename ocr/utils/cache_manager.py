@@ -1,4 +1,54 @@
-"""Centralized cache manager used by the validated OCR dataset."""
+"""
+AI_DOCS: Cache Manager - Centralized Dataset Caching System
+
+This module implements the CacheManager class, responsible for:
+- Multi-level caching (images, tensors, maps) for dataset performance
+- Cache statistics tracking and logging
+- Memory-efficient storage with configurable limits
+- Thread-safe cache operations for DataLoader compatibility
+
+ARCHITECTURE OVERVIEW:
+- Three cache types: image_cache, tensor_cache, maps_cache
+- Configurable caching via CacheConfig (Pydantic model)
+- Statistics tracking with periodic logging
+- Lazy evaluation with conditional caching
+
+DATA CONTRACTS:
+- Input: CacheConfig (Pydantic model)
+- Cache Keys: str (filenames) or int (dataset indices)
+- Cache Values: ImageData, DataItem, MapData (Pydantic models)
+- Statistics: hit/miss counts with configurable logging
+
+CORE CONSTRAINTS:
+- NEVER modify cache key formats (breaks cache invalidation)
+- ALWAYS check cache config before operations
+- PRESERVE statistics tracking for performance monitoring
+- USE Pydantic models for all cached data
+- MAINTAIN thread-safety for DataLoader compatibility
+
+PERFORMANCE FEATURES:
+- Lazy caching prevents memory bloat
+- Configurable cache sizes and eviction policies
+- Statistics logging for performance debugging
+- Memory-efficient storage of large tensors
+
+VALIDATION REQUIREMENTS:
+- All cache values must be Pydantic models
+- Cache keys must be hashable and deterministic
+- Cache operations must handle missing keys gracefully
+- Statistics must be accurate for performance analysis
+
+RELATED DOCUMENTATION:
+- Data Contracts: ocr/validation/models.py
+- Configuration: ocr/datasets/schemas.py
+- Base Dataset: ocr/datasets/base.py
+- Performance Guide: docs/ai_handbook/04_performance/
+
+MIGRATION NOTES:
+- CacheManager replaces inline caching logic
+- Pydantic models ensure data integrity
+- Configurable caching improves memory management
+"""
 
 from __future__ import annotations
 
@@ -9,9 +59,35 @@ from ocr.datasets.schemas import CacheConfig, DataItem, ImageData, MapData
 
 
 class CacheManager:
-    """Manage reusable dataset assets and track cache statistics."""
+    """
+    AI_DOCS: CacheManager - Multi-Level Dataset Caching
+
+    This class provides centralized caching for the OCR dataset system:
+    - Image caching: Raw ImageData objects to avoid reloading
+    - Tensor caching: Fully processed DataItem objects for speed
+    - Maps caching: Probability/threshold maps for evaluation
+
+    CONSTRAINTS FOR AI ASSISTANTS:
+    - DO NOT modify cache data structures (dict types)
+    - ALWAYS use config flags to enable/disable caching
+    - PRESERVE statistics tracking methods
+    - USE Pydantic models for cache values
+    - MAINTAIN lazy evaluation pattern
+
+    Cache Types:
+    - image_cache: dict[str, ImageData] - keyed by filename
+    - tensor_cache: dict[int, DataItem] - keyed by dataset index
+    - maps_cache: dict[str, MapData] - keyed by filename
+    """
 
     def __init__(self, config: CacheConfig) -> None:
+        """
+        AI_DOCS: Constructor Constraints
+        - config: CacheConfig (Pydantic model) - NEVER pass raw dict
+        - Initialize all cache dicts as empty
+        - Setup statistics counters
+        - DO NOT modify cache structure without updating all consumers
+        """
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.image_cache: dict[str, ImageData] = {}
@@ -56,6 +132,18 @@ class CacheManager:
     # Tensor cache
     # ------------------------------------------------------------------
     def get_cached_tensor(self, idx: int) -> DataItem | None:
+        """
+        AI_DOCS: Tensor Cache Retrieval
+        Retrieves fully processed DataItem from cache by dataset index.
+
+        CRITICAL CONSTRAINTS:
+        - Return None if caching disabled (config.cache_transformed_tensors)
+        - Record access statistics (hit/miss) for performance monitoring
+        - Return DataItem Pydantic model (NOT dict)
+        - Handle missing keys gracefully
+
+        Performance Impact: Cache hits avoid expensive __getitem__ processing
+        """
         if not self.config.cache_transformed_tensors:
             return None
 
@@ -64,6 +152,18 @@ class CacheManager:
         return cached
 
     def set_cached_tensor(self, idx: int, data_item: DataItem) -> None:
+        """
+        AI_DOCS: Tensor Cache Storage
+        Stores fully processed DataItem in cache by dataset index.
+
+        CRITICAL CONSTRAINTS:
+        - Only cache if config.cache_transformed_tensors is True
+        - data_item MUST be DataItem Pydantic model
+        - idx MUST be int (dataset index)
+        - Overwrite existing entries without warning
+
+        Memory Impact: Large tensors stored in memory for performance
+        """
         self._maybe_cache(self.config.cache_transformed_tensors, lambda: self.tensor_cache.__setitem__(idx, data_item))
 
     # ------------------------------------------------------------------
@@ -108,3 +208,51 @@ class CacheManager:
 
     def get_miss_count(self) -> int:
         return self._cache_miss_count
+
+
+# AI_DOCS: END OF FILE - CacheManager Constraints & Requirements
+#
+# =======================================================================
+# CACHEMANAGER - AI ASSISTANT CONSTRAINTS & REQUIREMENTS
+# =======================================================================
+#
+# 1. CACHE DATA STRUCTURES (DO NOT MODIFY):
+#    - image_cache: dict[str, ImageData]
+#    - tensor_cache: dict[int, DataItem]
+#    - maps_cache: dict[str, MapData]
+#
+# 2. METHOD SIGNATURES (PRESERVE):
+#    - get_cached_*() -> PydanticModel | None
+#    - set_cached_*() -> None (takes Pydantic model)
+#    - log_statistics() -> None
+#    - reset_statistics() -> None
+#
+# 3. CONFIGURATION INTEGRATION:
+#    - ALWAYS check config flags before caching
+#    - RESPECT CacheConfig settings
+#    - USE config.log_statistics_every_n for logging
+#
+# 4. STATISTICS TRACKING (MANDATORY):
+#    - Record all cache accesses (hits/misses)
+#    - Log statistics periodically
+#    - Reset counters after logging
+#    - Provide hit/miss count accessors
+#
+# 5. Pydantic MODEL REQUIREMENTS:
+#    - All cache values MUST be Pydantic models
+#    - ImageData for image cache
+#    - DataItem for tensor cache
+#    - MapData for maps cache
+#
+# =======================================================================
+# COMMON AI MISTAKES TO AVOID:
+# =======================================================================
+#
+# ❌ Changing cache dict structures or key types
+# ❌ Skipping config flag checks
+# ❌ Not recording cache statistics
+# ❌ Using raw dicts instead of Pydantic models
+# ❌ Modifying method signatures
+# ❌ Breaking lazy evaluation pattern
+#
+# =======================================================================

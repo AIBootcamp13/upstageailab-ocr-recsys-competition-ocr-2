@@ -86,7 +86,7 @@ config:
 ---
 graph TD
     A[Input Image] --> B[OCRTransforms]
-    B --> C[OCRDataset]
+    B --> C[ValidatedOCRDataset]
     C --> D[DataLoader]
     D --> E[OCRLightningModule]
     E --> F[OCRModel]
