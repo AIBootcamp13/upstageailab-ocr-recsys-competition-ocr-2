@@ -188,7 +188,7 @@ class CacheManager:
         hit_rate = (self._cache_hit_count / total * 100.0) if total else 0.0
 
         self.logger.info(
-            "Cache Statistics - Hits: %d, Misses: %d, Hit Rate: %.1f%%, Image Cache Size: %d, Tensor Cache Size: %d, Maps Cache Size: %d",
+            "\nCache Statistics - Hits: %d, Misses: %d, Hit Rate: %.1f%%, Image Cache Size: %d, Tensor Cache Size: %d, Maps Cache Size: %d",
             self._cache_hit_count,
             self._cache_miss_count,
             hit_rate,
@@ -209,8 +209,29 @@ class CacheManager:
     def get_miss_count(self) -> int:
         return self._cache_miss_count
 
+    def clear_tensor_cache(self) -> None:
+        """Clear the tensor cache to prevent data corruption."""
+        self.tensor_cache.clear()
+        self.logger.info(f"Tensor cache cleared ({len(self.tensor_cache)} items remaining)")
 
-# AI_DOCS: END OF FILE - CacheManager Constraints & Requirements
+    def clear_image_cache(self) -> None:
+        """Clear the image cache."""
+        self.image_cache.clear()
+        self.logger.info(f"Image cache cleared ({len(self.image_cache)} items remaining)")
+
+    def clear_maps_cache(self) -> None:
+        """Clear the maps cache."""
+        self.maps_cache.clear()
+        self.logger.info(f"Maps cache cleared ({len(self.maps_cache)} items remaining)")
+
+    def clear_all_caches(self) -> None:
+        """Clear all caches to prevent data corruption."""
+        self.clear_tensor_cache()
+        self.clear_image_cache()
+        self.clear_maps_cache()
+        self.logger.info("All caches cleared")
+
+
 #
 # =======================================================================
 # CACHEMANAGER - AI ASSISTANT CONSTRAINTS & REQUIREMENTS

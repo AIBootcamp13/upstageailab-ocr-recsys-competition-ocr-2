@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize
 
 # Default target
 help:
@@ -16,7 +16,9 @@ help:
 	@echo "  quality-check       - Run comprehensive code quality checks"
 	@echo "  quality-fix         - Auto-fix code quality issues"
 	@echo "  clean               - Clean up cache files and build artifacts"
-	@echo "  docs                - Generate documentation"
+	@echo "  docs-build          - Build MkDocs documentation"
+	@echo "  docs-serve          - Serve MkDocs documentation locally"
+	@echo "  docs-deploy         - Deploy MkDocs documentation to GitHub Pages"
 	@echo "  serve-ui            - Start Command Builder UI"
 	@echo "  serve-evaluation-ui - Start Evaluation Results Viewer"
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
@@ -72,21 +74,27 @@ clean:
 	find . -type f -name "*.pyd" -delete
 	rm -rf build/ dist/ .coverage htmlcov/
 
-# Documentation (placeholder)
-docs:
-	@echo "Documentation generation not yet implemented"
+# Documentation
+docs-build:
+	uv run mkdocs build
+
+docs-serve:
+	uv run mkdocs serve --dev-addr=127.0.0.1:8000
+
+docs-deploy:
+	uv run mkdocs gh-deploy
 
 # UI
 serve-ui:
 	uv run streamlit run ui/command_builder.py --server.port=$(PORT)
 
-serve-evaluation-ui:
+serve-eval:
 	uv run streamlit run ui/evaluation_viewer.py --server.port=$(PORT)
 
-serve-inference-ui:
+serve-infer:
 	uv run streamlit run ui/inference_ui.py --server.port=$(PORT)
 
-serve-resource-monitor:
+serve-moni:
 	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)
 
 context-log-start:

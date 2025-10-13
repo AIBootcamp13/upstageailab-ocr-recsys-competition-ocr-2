@@ -30,6 +30,8 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         self,
         metrics: dict | None = None,
         filename: str | None = None,
+        ver: int | None = None,
+        prefix: str | None = None,
     ) -> str:
         """
         Formats the checkpoint name robustly using the trainer's state.
@@ -41,7 +43,7 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         # Trainer might not be attached during initialization
         trainer = getattr(self, "trainer", None)
         if trainer is None:
-            return super().format_checkpoint_name(metrics or {}, filename)
+            return super().format_checkpoint_name(metrics or {}, filename, ver, prefix)
 
         # 1. Get authoritative epoch and step directly from the trainer
         epoch = trainer.current_epoch
@@ -76,7 +78,13 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         if self.add_timestamp:
             stem = f"{stem}_{self.timestamp}"
 
-        # 5. Combine and return the final path
+        # 6. Add prefix and version if provided
+        if prefix:
+            stem = f"{prefix}_{stem}"
+        if ver is not None:
+            stem = f"{stem}_v{ver}"
+
+        # 7. Combine and return the final path
         final_name = f"{stem}{self.FILE_EXTENSION}"
         return os.path.join(dirpath, final_name)
 

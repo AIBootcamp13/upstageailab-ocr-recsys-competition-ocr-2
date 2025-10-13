@@ -268,6 +268,8 @@ loss_dict: dict = {
 
 **Purpose**: Defines the contract for document preprocessing pipeline inputs and outputs, validated using Pydantic v2 models.
 
+**Note**: For comprehensive documentation of preprocessing data contracts including validation decorators, contract enforcement utilities, testing details, and implementation benefits, see [Preprocessing Data Contracts](preprocessing-data-contracts.md).
+
 **Input Contract - ImageInputContract**:
 ```python
 ImageInputContract(

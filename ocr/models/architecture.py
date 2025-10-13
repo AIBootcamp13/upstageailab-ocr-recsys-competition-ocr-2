@@ -33,10 +33,15 @@ class OCRModel(nn.Module):
             gt_binary = kwargs.get("prob_maps")
             gt_thresh = kwargs.get("thresh_maps")
             if gt_binary is not None and gt_thresh is not None:
-                loss, loss_dict = self.loss(pred, gt_binary, gt_thresh, **kwargs)
+                # Filter kwargs to only pass computation-relevant parameters to avoid torch.compile recompilation
+                # due to changing metadata like image_filename
+                loss_kwargs = {k: v for k, v in kwargs.items() if k in {"prob_mask", "thresh_mask"}}
+                loss, loss_dict = self.loss(pred, gt_binary, gt_thresh, **loss_kwargs)
             else:
                 # Fallback for cases where ground truth is not available
-                loss, loss_dict = self.loss(pred, **kwargs)
+                # Filter kwargs for loss function to avoid torch.compile issues
+                loss_kwargs = {k: v for k, v in kwargs.items() if k in {"prob_mask", "thresh_mask"}}
+                loss, loss_dict = self.loss(pred, **loss_kwargs)
             pred.update(loss=loss, loss_dict=loss_dict)
 
         return pred

@@ -40,6 +40,6 @@ result = preprocessor(invalid_image)  # Returns {"image": fallback_image, "metad
 
 ## Related Changes
 - **Files Modified**: `metadata.py`, `config.py`, `contracts.py`, `pipeline.py`, `detector.py`, `advanced_preprocessor.py`, `tests/unit/test_preprocessing_contracts.py`
-- **Documentation Updated**: `docs/preprocessing-data-contracts.md`, `docs/CHANGELOG.md`, `docs/pipeline/data_contracts.md`
+- **Documentation Updated**: `docs/pipeline/preprocessing-data-contracts.md`, `docs/CHANGELOG.md`, `docs/pipeline/data_contracts.md`
 - **Breaking Changes**: None - full backward compatibility maintained
 - **Performance Impact**: Minimal - validation overhead offset by reduced runtime errors and debugging time

@@ -2,12 +2,18 @@ import math
 import os
 import signal
 import sys
+import warnings
 
 # Setup project paths automatically
 import hydra
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor
 from omegaconf import DictConfig
+
+# Suppress known wandb Pydantic compatibility warnings
+# This is a known issue where wandb uses incorrect Field() syntax in Annotated types
+# The warnings come from Pydantic when processing wandb's type annotations
+warnings.filterwarnings("ignore", message=r"The '(repr|frozen)' attribute.*Field.*function.*no effect", category=UserWarning)
 
 import wandb
 

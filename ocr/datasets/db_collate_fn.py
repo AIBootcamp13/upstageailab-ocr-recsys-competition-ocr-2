@@ -154,19 +154,20 @@ class DBCollateFN:
 
         # Log map loading statistics (only once per epoch to avoid spam)
         if not hasattr(self, "_logged_stats"):
-            from rich.console import Console
+            import logging
 
-            console = Console()
+            logger = logging.getLogger(__name__)
             total_samples = len(batch)
             preloaded_pct = (preloaded_count / total_samples) * 100
 
+            # Force newline before logging to separate from progress bar
+            print("", flush=True)
+
             if preloaded_count > 0:
-                console.print(
-                    f"[green]✓ Using .npz maps (from cache or disk): {preloaded_count}/{total_samples} samples ({preloaded_pct:.1f}%)[/green]"
-                )
+                logger.info("✓ Using .npz maps (from cache or disk): %d/%d samples (%.1f%%)", preloaded_count, total_samples, preloaded_pct)
             if fallback_count > 0:
-                console.print(
-                    f"[yellow]⚠ Fallback to on-the-fly generation: {fallback_count}/{total_samples} samples ({100 - preloaded_pct:.1f}%)[/yellow]"
+                logger.warning(
+                    "⚠ Fallback to on-the-fly generation: %d/%d samples (%.1f%%)", fallback_count, total_samples, 100 - preloaded_pct
                 )
 
             self._logged_stats = True
