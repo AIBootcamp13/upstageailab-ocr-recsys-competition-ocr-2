@@ -34,6 +34,7 @@ This directory contains standardized protocols, procedures, and guidelines for d
     ├── 18_documentation_governance_protocol.md
     ├── 19_streamlit_maintenance_protocol.md
     ├── 20_bug_fix_protocol.md
+    ├── ai-collaboration-documentation-assessment.md
     └── documentation-update-protocol.md
 ```
 
@@ -49,7 +50,7 @@ Protocols specific to particular system components or technologies, such as Stre
 Protocols for managing configuration systems, particularly Hydra configuration, command builder functionality, and configuration testing procedures.
 
 ### governance/
-Protocols for maintaining documentation, managing the handbook structure, ensuring consistency in documentation practices, and handling bug fixes across the project.
+Protocols for maintaining documentation, managing the handbook structure, ensuring consistency in documentation practices, handling bug fixes across the project, and evaluating AI collaboration frameworks.
 
 ## Guidelines
 

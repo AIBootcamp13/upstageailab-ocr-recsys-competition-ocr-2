@@ -15,10 +15,11 @@
 3. [Collate Function Contract](#collate-function-contract)
 4. [Model Input/Output Contract](#model-inputoutput-contract)
 5. [Loss Function Contract](#loss-function-contract)
-6. [Common Data Types](#common-data-types)
-7. [Validation Rules](#validation-rules)
-8. [Pydantic v2 Data Validation](#pydantic-v2-data-validation)
-9. [Debugging Guide](#debugging-guide)
+6. [Preprocessing Pipeline Contract](#preprocessing-pipeline-contract)
+7. [Common Data Types](#common-data-types)
+8. [Validation Rules](#validation-rules)
+9. [Pydantic v2 Data Validation](#pydantic-v2-data-validation)
+10. [Debugging Guide](#debugging-guide)
 
 ---
 
@@ -31,6 +32,9 @@
 - **CollateOutput**: Validates batched data from collate functions
 - **TransformOutput**: Validates transform pipeline outputs
 - **BatchSample**: Validates pre-collation batch items
+- **ImageInputContract**: Validates preprocessing input images (numpy arrays, dimensions, channels)
+- **PreprocessingResultContract**: Validates preprocessing pipeline results (image + metadata)
+- **DetectionResultContract**: Validates document detection results (corners, confidence, method)
 
 **Validation Strategy**:
 - **Strict Mode**: All contracts use strict validation with no automatic coercion
@@ -255,6 +259,58 @@ loss_dict: dict = {
 - All tensors must have identical spatial dimensions `(H, W)`
 - Batch sizes must match across all inputs
 - Ground truth tensors required for training
+
+---
+
+## Preprocessing Pipeline Contract
+
+### DocumentPreprocessor.__call__() → PreprocessingResultContract (Pydantic v2 Model)
+
+**Purpose**: Defines the contract for document preprocessing pipeline inputs and outputs, validated using Pydantic v2 models.
+
+**Input Contract - ImageInputContract**:
+```python
+ImageInputContract(
+    image: np.ndarray,           # Shape: (H, W, C), dtype: uint8, C ∈ [1,2,3,4]
+                                # Must be numpy array, 2-3 dimensions, non-empty
+)
+```
+
+**Output Contract - PreprocessingResultContract**:
+```python
+PreprocessingResultContract(
+    image: np.ndarray,           # Processed image array (same shape constraints as input)
+    metadata: dict[str, Any],    # Processing metadata (steps, timing, errors, etc.)
+)
+```
+
+**Detection Contract - DetectionResultContract**:
+```python
+DetectionResultContract(
+    corners: np.ndarray | None,   # Shape: (4, 2), detected document corners
+    confidence: float | None,     # Detection confidence score ∈ [0.0, 1.0]
+    method: str | None,           # Detection method name
+)
+```
+
+**Validation Rules** (enforced by Pydantic):
+- Input images must be numpy arrays with 2-3 dimensions
+- Channel count must be 1-4 for multi-channel images
+- Empty arrays are rejected with descriptive error messages
+- Output metadata must be dictionary format
+- Detection corners must be valid numpy arrays when provided
+- Confidence scores must be between 0.0 and 1.0 when provided
+
+**Error Handling**:
+- Invalid inputs trigger fallback processing with standardized error responses
+- Contract violations provide clear, actionable error messages
+- Fallback responses include error details and processing step tracking
+
+**Common Violations**:
+- `ValidationError: Image must be numpy array` - Wrong input type
+- `ValidationError: Image must have at least 2 dimensions` - 1D array passed
+- `ValidationError: Image channels must be 1-4` - Invalid channel count
+- Fallback responses for invalid inputs instead of crashes
 
 ---
 

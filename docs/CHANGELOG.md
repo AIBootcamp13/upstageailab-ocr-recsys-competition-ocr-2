@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - 2025-10-13
+
+#### Preprocessing Module Pydantic Validation Refactor
+
+**Description**
+
+Completed a comprehensive systematic refactor of the preprocessing module to address data type uncertainties, improve type safety, and reduce development friction using Pydantic v2 validation. The refactor replaced loose typing with strict data contracts, implemented comprehensive input validation, and added graceful error handling with fallback mechanisms while maintaining full backward compatibility.
+
+**Data Contracts:**
+- New Pydantic models for ImageInputContract, PreprocessingResultContract, and DetectionResultContract
+- Validation rules for numpy arrays, image dimensions, and data consistency
+- Runtime validation at preprocessing pipeline boundaries to catch issues early
+
+**New Features:**
+- Strongly typed preprocessing pipeline with automatic validation
+- Improved error messages for data contract violations
+- Graceful fallback mechanisms for invalid inputs instead of crashes
+- Contract-based architecture for future development
+
+**API Changes:**
+- DocumentPreprocessor now uses validated interfaces
+- All preprocessing components include input validation
+- Backward compatibility maintained for existing scripts
+
+**Related Files:**
+- `ocr/datasets/preprocessing/metadata.py`
+- `ocr/datasets/preprocessing/config.py`
+- `ocr/datasets/preprocessing/contracts.py`
+- `ocr/datasets/preprocessing/pipeline.py`
+- `ocr/datasets/preprocessing/detector.py`
+- `ocr/datasets/preprocessing/advanced_preprocessor.py`
+- `tests/unit/test_preprocessing_contracts.py`
+- `docs/preprocessing-data-contracts.md`
+- Summary: `docs/ai_handbook/05_changelog/2025-10/13_preprocessing_module_pydantic_validation_refactor.md`
+
 ### Added - 2025-10-11
 
 #### Data Contracts Implementation for Inference Pipeline

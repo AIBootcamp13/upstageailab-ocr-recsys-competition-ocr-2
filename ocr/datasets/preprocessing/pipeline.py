@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from .config import DocumentPreprocessorConfig
+from .contracts import validate_image_input_with_fallback, validate_preprocessing_result_with_fallback
 from .detector import DocumentDetector
 from .enhancement import ImageEnhancer
 from .external import ALBUMENTATIONS_AVAILABLE, DOCTR_AVAILABLE, A, ImageOnlyTransform
@@ -48,7 +49,7 @@ class DocumentPreprocessor:
             enable_document_detection=enable_document_detection,
             enable_perspective_correction=enable_perspective_correction,
             enable_enhancement=enable_enhancement,
-            enhancement_method=enhancement_method,
+            enhancement_method=enhancement_method,  # type: ignore
             target_size=target_size,
             enable_final_resize=enable_final_resize,
             enable_orientation_correction=enable_orientation_correction,
@@ -118,12 +119,14 @@ class DocumentPreprocessor:
         self.image_enhancer = ImageEnhancer()
         self.final_resizer = FinalResizer()
 
+    @validate_image_input_with_fallback
+    @validate_preprocessing_result_with_fallback
     def __call__(self, image: np.ndarray) -> dict[str, np.ndarray | dict]:
         if not isinstance(image, np.ndarray) or image.size == 0 or len(image.shape) < 2:
             self.logger.warning("Invalid input image, using fallback processing")
             width, height = self.config.target_size if self.config.target_size is not None else (256, 256)
             fallback_image = np.full((height, width, 3), 128, dtype=np.uint8)
-            metadata = DocumentMetadata(original_shape=getattr(image, "shape", "invalid"))
+            metadata = DocumentMetadata(original_shape=getattr(image, "shape", ()))
             metadata.processing_steps.append("fallback")
             metadata.error = "Invalid input image"
             metadata.final_shape = tuple(int(dim) for dim in fallback_image.shape)

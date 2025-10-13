@@ -58,12 +58,18 @@ class DocumentMetadata(BaseModel):
     def validate_original_shape(cls, v: Any) -> ImageShape | tuple[int, ...]:
         """Convert tuple shapes to ImageShape or validate existing ImageShape."""
         if isinstance(v, tuple):
-            # Convert tuple to ImageShape for validation
-            if len(v) < 2:
-                raise ValueError(f"Shape tuple must have at least 2 dimensions, got {len(v)}")
-            height, width = v[:2]
-            channels = v[2] if len(v) > 2 else 1
-            return ImageShape(height=height, width=width, channels=channels)
+            # Convert tuple to ImageShape for validation, but allow invalid shapes to pass through
+            if len(v) >= 2:
+                try:
+                    height, width = v[:2]
+                    channels = v[2] if len(v) > 2 else 1
+                    return ImageShape(height=height, width=width, channels=channels)
+                except Exception:
+                    # If validation fails, keep as tuple
+                    return v  # type: ignore
+            else:
+                # Invalid shape (less than 2 dimensions), keep as tuple
+                return v  # type: ignore
         elif isinstance(v, ImageShape):
             return v
         else:

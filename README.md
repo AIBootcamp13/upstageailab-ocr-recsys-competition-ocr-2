@@ -325,7 +325,7 @@ uv run python scripts/preprocess_maps.py data.train_num_samples=100 data.val_num
 
 전처리된 맵이 없어도 훈련은 정상적으로 작동합니다. 시스템이 자동으로 실시간 맵 생성으로 전환되지만, 속도가 느려집니다.
 
-더 자세한 내용은 [데이터 전처리 가이드](docs/preprocessing_guide.md)를 참조하세요.
+더 자세한 내용은 [데이터 전처리 데이터 컨트랙트](docs/preprocessing-data-contracts.md)와 [파이프라인 데이터 컨트랙트](docs/pipeline/data_contracts.md)를 참조하세요.
 
 ## 4. 모델링
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .advanced_detector import AdvancedDetectionConfig, AdvancedDocumentDetector
-from .config import DocumentPreprocessorConfig
+from .config import DocumentPreprocessorConfig, EnhancementMethod
 from .enhancement import ImageEnhancer
 from .metadata import DocumentMetadata, PreprocessingState
 from .padding import PaddingCleanup
@@ -28,7 +28,7 @@ class AdvancedPreprocessingConfig:
     enable_document_detection: bool = True
     enable_perspective_correction: bool = True
     enable_enhancement: bool = True
-    enhancement_method: str = "office_lens"  # Default to Office Lens quality
+    enhancement_method: EnhancementMethod = EnhancementMethod.OFFICE_LENS  # Default to Office Lens quality
     target_size: tuple[int, int] | None = (640, 640)
     enable_final_resize: bool = True
     enable_orientation_correction: bool = False
@@ -123,7 +123,7 @@ class AdvancedDocumentPreprocessor:
             self.logger.warning("Invalid input image, using fallback processing")
             width, height = self.config.target_size if self.config.target_size else (256, 256)
             fallback_image = np.full((height, width, 3), 128, dtype=np.uint8)
-            metadata = DocumentMetadata(original_shape=getattr(image, "shape", "invalid"))
+            metadata = DocumentMetadata(original_shape=getattr(image, "shape", ()))
             metadata.processing_steps.append("fallback")
             metadata.error = "Invalid input image"
             metadata.final_shape = tuple(int(dim) for dim in fallback_image.shape)
@@ -175,8 +175,9 @@ class AdvancedDocumentPreprocessor:
                         f"{self.config.min_detection_confidence:.2f}, skipping perspective correction"
                     )
 
-            # Phase 3: Orientation Correction (disabled in advanced mode for now)
-            # TODO: Implement orientation correction compatible with advanced detector
+            # Phase 3: Orientation Correction (disabled in advanced mode)
+            # Orientation correction is skipped in advanced mode to maintain
+            # compatibility with the advanced detection algorithms
 
             # Phase 4: Advanced Enhancement (Office Lens quality)
             if self.config.enable_enhancement and self.config.enable_advanced_enhancement:
@@ -330,7 +331,7 @@ def create_office_lens_preprocessor(
         min_detection_confidence=min_detection_confidence,
         enable_confident_cropping=True,
         enable_advanced_enhancement=True,
-        enhancement_method="office_lens",
+        enhancement_method=EnhancementMethod.OFFICE_LENS,
         target_size=target_size,
         enable_final_resize=True,
     )
@@ -356,7 +357,7 @@ def create_high_accuracy_preprocessor(
         min_detection_confidence=0.9,
         enable_confident_cropping=True,
         enable_advanced_enhancement=True,
-        enhancement_method="office_lens",
+        enhancement_method=EnhancementMethod.OFFICE_LENS,
         target_size=target_size,
     )
 

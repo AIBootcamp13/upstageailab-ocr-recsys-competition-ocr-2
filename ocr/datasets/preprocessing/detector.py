@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 from pylsd.lsd import lsd
 
+from .contracts import ContractEnforcer
 from .external import DOCTR_AVAILABLE
 
 
@@ -44,6 +45,9 @@ class DocumentDetector:
         self.use_doctr_text = use_doctr_text
 
     def detect(self, image: np.ndarray) -> tuple[np.ndarray | None, str | None]:
+        # Validate input contract
+        ContractEnforcer.validate_image_input_contract(image, "detector_input")
+
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         height, width = gray.shape[:2]
         min_area = self.min_area_ratio * float(height * width)
