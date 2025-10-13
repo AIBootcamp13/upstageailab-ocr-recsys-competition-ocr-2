@@ -1,161 +1,101 @@
-# 02_command_registry.md
+# **filename: docs/ai_handbook/02_protocols/development/02_command_registry.md**
 <!-- ai_cue:priority=high -->
-<!-- ai_cue:use_when=automation,commands -->
+<!-- ai_cue:use_when=automation,commands,scripts -->
 
-# **Command Registry for AI Agents**
+# **Protocol: Command Registry for AI Agents**
 
-This document lists approved, safe-to-run scripts for autonomous execution. All commands use uv run to ensure the correct project environment is used.
+This protocol provides the standardized approach for managing and executing approved scripts and commands for AI agent automation within the project.
 
-## **1. Validation & Smoke Tests**
+## **Overview**
 
-### **Validate a Hydra Configuration**
+This protocol establishes the authoritative registry of approved, safe-to-run scripts and commands for autonomous AI agent execution. All commands are designed to use `uv run` to ensure proper environment isolation and dependency management. The registry is organized by functional categories and includes safety guidelines, resource requirements, and expected outputs for each command.
 
-* **Purpose:** Checks a configuration file for syntax errors and ensures it can be resolved by Hydra without launching a full run.
-* **Command:** `uv run python scripts/agent_tools/validate_config.py --config-name <name>`
-* **Example:** `uv run python scripts/agent_tools/validate_config.py --config-name train`
-* **Expected Output:** A success message or a detailed error trace.
-* **Resources:** Low (CPU, < 5s)
+## **Prerequisites**
 
-### **Run a Model Smoke Test**
+- Access to development environment with uv package manager installed
+- Understanding of project structure and configuration system
+- Knowledge of Hydra configuration patterns
+- Familiarity with the project's data formats and model architectures
 
-* **Purpose:** Runs a single training and validation step to quickly verify that the model, data, and pipeline are wired correctly.
-* **Command:** `uv run python runners/train.py --config-name train trainer.fast_dev_run=true`
-* **Expected Output:** PyTorch Lightning summary of a successful single-batch run.
-* **Resources:** Medium (Requires GPU, < 60s)
+## **Procedure**
 
-## **2. Data & Preprocessing**
+### **Step 1: Command Selection & Safety Assessment**
+Before executing any command, verify:
+- Command is listed in this approved registry
+- Required parameters are available and valid
+- Resource requirements match available environment
+- Command aligns with current task objectives
 
-### **Generate Offline Preprocessing Samples**
+### **Step 2: Environment Preparation**
+Ensure proper setup before execution:
+- Activate project environment: `uv sync`
+- Verify configuration files exist and are valid
+- Check required data directories and checkpoints are accessible
+- Confirm output directories exist or will be created
 
-* **Purpose:** Creates visual examples of the Microsoft Lens-style preprocessing pipeline on a few sample images.
-* **Command:** `uv run python scripts/agent_tools/generate_samples.py --num-samples 5`
-* **Expected Output:** A new directory outputs/samples with original, processed, and comparison images.
-* **Resources:** Low (CPU, < 15s)
+### **Step 3: Command Execution**
+Execute commands following these patterns:
 
-## **3. Querying Information**
+**Validation & Smoke Tests:**
+- `uv run python scripts/agent_tools/validate_config.py --config-name <name>`
+- `uv run python runners/train.py --config-name train trainer.fast_dev_run=true`
 
-### **List Available Checkpoints**
+**Data & Preprocessing:**
+- `uv run python scripts/agent_tools/generate_samples.py --num-samples 5`
 
-* **Purpose:** Lists all trained model checkpoints available in the `outputs/` directory.
-* **Command:** `uv run python scripts/agent_tools/list_checkpoints.py`
-* **Expected Output:** A formatted list of checkpoint paths and their creation dates.
-* **Resources:** Low (CPU, < 2s)
+**Querying Information:**
+- `uv run python scripts/agent_tools/list_checkpoints.py`
 
-## **4. Data Diagnostics**
+**Data Diagnostics:**
+- `uv run python tests/debug/data_analyzer.py --mode orientation|polygons|both [--limit N]`
+- `uv run python ui/visualize_predictions.py --image_dir <path> --checkpoint <path> [--max_images N] [--save_dir <path>] [--score_threshold T]`
 
-### **EXIF Orientation & Polygon Audit**
+### **Step 4: Result Validation & Documentation**
+After execution:
+- Verify expected outputs were generated
+- Check for error messages or warnings
+- Document results in context logs if applicable
+- Update any relevant documentation with findings
 
-* **Purpose:** Counts EXIF orientations across the dataset and reports polygon retention after transforms via selectable modes.
-* **Command:** `uv run python tests/debug/data_analyzer.py --mode orientation|polygons|both [--limit N]`
-* **Recommended Usage:**
-	* `--mode orientation` for a quick EXIF histogram sanity check.
-	* `--mode polygons --limit 50` to sample a few batches while iterating quickly.
-	* `--mode both` before major data refactors to capture a complete baseline.
-* **Expected Output:** Orientation histogram, polygon audit summary (including drop counts and example file ids).
-* **Resources:** Low (CPU, < 15s)
+## **Validation**
 
-### **Prediction Visualization**
+Run the following validation checks:
 
-* **Purpose:** Visualizes model predictions overlaid on images to debug OCR performance and understand detection failures.
-* **Command:** `uv run python ui/visualize_predictions.py --image_dir <path> --checkpoint <path> [--max_images N] [--save_dir <path>] [--score_threshold T]`
-* **Recommended Usage:**
-	* `--image_dir LOW_PERFORMANCE_IMGS --checkpoint outputs/checkpoints/last.ckpt --max_images 5 --save_dir outputs/debug` for analyzing problematic validation images.
-	* `--image_dir data/datasets/images/val --checkpoint outputs/checkpoints/model.ckpt --max_images 3` for interactive visualization.
-* **Expected Output:** PNG file with overlaid predictions (when --save_dir provided) or interactive matplotlib plot showing predicted bounding boxes with confidence scores.
-* **Resources:** Medium (GPU recommended for faster inference, < 30s for 5 images)
+```bash
+# Registry integrity validation
+uv run python scripts/agent_tools/validate_manifest.py
 
-## **5. Streamlit UI Launchers**
+# Command availability check
+uv run python scripts/agent_tools/validate_config.py --config-name train
 
-All Streamlit entrypoints are consolidated behind `run_ui.py`. Pass one of the commands below to launch the corresponding app without relying on deprecated monolithic scripts.
+# Environment readiness
+uv run python -c "import torch; print('PyTorch available')"
+```
 
-### **Evaluation Viewer**
+## **Troubleshooting**
 
-* **Purpose:** Launch the modular evaluation results dashboard.
-* **Command:** `uv run python run_ui.py evaluation_viewer`
-* **Expected Output:** Streamlit UI served on the configured port (default 8501) showing comparison dashboards.
-* **Resources:** Medium (CPU/GPU as needed, keep < 1m startup).
+### **Common Issues**
+- **Command Not Found**: Ensure `uv sync` has been run to install dependencies
+- **Configuration Errors**: Validate config files with `validate_config.py` before use
+- **Permission Errors**: Check file/directory permissions for input/output paths
+- **Resource Exhaustion**: Monitor GPU/CPU usage, especially for inference commands
+- **Path Not Found**: Verify relative paths are correct from project root
 
-### **Inference Sandbox**
+### **Debugging Steps**
+1. Test basic environment: `uv run python -c "print('Environment ready')"`
+2. Validate configuration: `uv run python scripts/agent_tools/validate_config.py --config-name train`
+3. Check file paths: `ls -la <path/to/check>`
+4. Monitor resources: `nvidia-smi` (for GPU) or `top` (for CPU)
+5. Review command logs for specific error messages
 
-* **Purpose:** Run the interactive inference UI with modular engine back-end.
-* **Command:** `uv run python run_ui.py inference`
-* **Expected Output:** Streamlit UI for uploading images, running inference, and visualizing predictions.
-* **Resources:** Medium (GPU optional; CPU inference available with lighter checkpoints).
+## **Related Documents**
 
-### **Command Builder**
+- `docs/ai_handbook/02_protocols/development/01_coding_standards.md` - Coding standards and environment setup
+- `docs/ai_handbook/02_protocols/development/03_debugging_workflow.md` - Debugging procedures for command issues
+- `docs/ai_handbook/02_protocols/governance/20_bug_fix_protocol.md` - Issue reporting for command failures
+- `docs/ai_handbook/03_references/architecture/01_architecture.md` - Project architecture overview
+- `docs/ai_handbook/_templates/development.md` - Development template
 
-* **Purpose:** Generate hydra command strings using the modular workflow forms.
-* **Command:** `uv run python run_ui.py command_builder`
-* **Expected Output:** Streamlit UI with command presets and copy-to-clipboard helpers.
-* **Resources:** Low (CPU, < 10s startup).
+---
 
-### **Resource Monitor**
-
-* **Purpose:** Monitor training/inference processes in real time.
-* **Command:** `uv run python run_ui.py resource_monitor`
-* **Expected Output:** Streamlit UI with system metrics, experiment status, and queue overview.
-* **Resources:** Low (CPU, < 10s startup).
-
-> **Note:** The legacy `ui/test_viewer.py` entrypoint has been removed. Use the commands above for all future UI access.
-
-## **6. Documentation & Context Utilities**
-
-### **Doc Context Bundle Loader**
-
-* **Purpose:** Prints the recommended documentation bundle for a given task (as defined in `docs/ai_handbook/index.json`).
-* **Command:** `uv run python scripts/agent_tools/get_context.py --bundle <bundle-id>`
-* **Example:** `uv run python scripts/agent_tools/get_context.py --bundle streamlit-maintenance`
-* **Expected Output:** Titles, paths, priorities, and tag summaries for each doc in the bundle.
-* **Resources:** Negligible.
-
-### **Start Context Log**
-
-* **Purpose:** Creates a timestamped JSONL log under `logs/agent_runs/` and prints its path for the current session.
-* **Command:** `uv run python scripts/agent_tools/context_log.py start --label <short-label>`
-* **Make Shortcut:** `make context-log-start LABEL="streamlit-maintenance"`
-* **Expected Output:** Absolute path to the log file that subsequent logging calls should append to.
-* **Resources:** Negligible.
-
-### **Summarize Context Log**
-
-* **Purpose:** Generates a Markdown summary from a structured context log using the LLM helper.
-* **Command:** `uv run python scripts/agent_tools/context_log.py summarize --log-file <path>`
-* **Make Shortcut:** `make context-log-summarize LOG=logs/agent_runs/<file>.jsonl`
-* **Expected Output:** Markdown file stored in `docs/ai_handbook/04_experiments/` and a success message containing the path.
-* **Resources:** Negligible beyond LLM call latency.
-
-### **Validate Handbook Manifest**
-
-* **Purpose:** Ensures the handbook manifest stays consistent (unique IDs, valid paths, and bundle/command integrity).
-* **Command:** `uv run python scripts/agent_tools/validate_manifest.py`
-* **Options:** `--allow-unbundled` downgrades warnings when intentionally leaving entries outside bundles.
-* **Expected Output:** `Manifest check: PASS` with optional warnings, or a detailed list of errors before exiting with status 1.
-* **Resources:** Negligible.
-
-### **Strip AI Documentation Markers**
-
-* **Purpose:** Removes `AI_DOCS` annotations from source files before sharing publicly (with an option to restore from snapshot).
-* **Command:**
-	* Dry run: `uv run python scripts/agent_tools/strip_doc_markers.py --dry-run`
-	* Apply: `uv run python scripts/agent_tools/strip_doc_markers.py --apply`
-	* Restore: `uv run python scripts/agent_tools/strip_doc_markers.py --restore`
-* **Expected Output:** Lists files containing markers, and when `--apply` is used, stores a snapshot to `tmp/ai_docs_markers.json` for later restoration.
-* **Resources:** Negligible.
-
-## **7. Maintenance & Cleanup**
-
-### **Remove Low-Step Checkpoints**
-
-* **Purpose:** Identifies and optionally removes checkpoint files with fewer than 100 training steps to reclaim disk space.
-* **Command:** `uv run python remove_low_step_checkpoints.py --dry-run` (dry run) or `uv run python remove_low_step_checkpoints.py` (actual deletion with confirmation)
-* **Expected Output:** List of checkpoints that would be removed with file sizes, or confirmation prompt for actual deletion.
-* **Resources:** Low (CPU, < 30s for scanning, longer for deletion)
-* **Safety Note:** Requires explicit confirmation before deleting files. Use `--dry-run` first to review what would be removed.
-
-### **Checkpoint Cleanup & Renaming**
-
-* **Purpose:** Renames checkpoint files with problematic characters (like '=') to filesystem-safe names and moves epoch 0 checkpoints for review.
-* **Command:** `uv run python scripts/agent_tools/cleanup_remaining_checkpoints.py`
-* **Expected Output:** Summary of renamed files and moved epoch 0 checkpoints, with instructions for cleanup.
-* **Resources:** Low (CPU, < 30s)
-* **Safety Note:** Creates backup of epoch 0 checkpoints in `outputs/epoch0_checkpoints/` for review before deletion.
+*This document follows the development protocol template. Last updated: October 13, 2025*

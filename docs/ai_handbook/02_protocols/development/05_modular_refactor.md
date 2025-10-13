@@ -1,77 +1,104 @@
-# **filename: docs/ai_handbook/02_protocols/05_modular_refactor.md**
+# **filename: docs/ai_handbook/02_protocols/development/05_modular_refactor.md**
 <!-- ai_cue:priority=medium -->
-<!-- ai_cue:use_when=refactor,architecture -->
+<!-- ai_cue:use_when=refactor,architecture,modularity -->
 
 # **Protocol: Modular Refactoring**
 
-This protocol provides the authoritative workflow for modular refactors. It now absorbs all guidance that previously lived in `10_refactoring_guide.md`.
+## **Overview**
+This protocol provides the authoritative workflow for modular refactors to increase project health and development velocity. The focus is on creating clean interfaces, independent components, and maintainable architecture through systematic refactoring.
 
-## **1. The Goal: Clean Interfaces, Independent Components**
+## **Prerequisites**
+- Understanding of project architecture and component relationships
+- Familiarity with Hydra configuration system and registry patterns
+- Knowledge of base classes in `ocr/models/core/base_classes.py`
+- Access to testing framework and validation scripts
+- Clear identification of refactoring motivation and scope
 
-The primary objective of a modular refactor is to increase the long-term health and velocity of the project by:
+## **Procedure**
 
-* **Increasing Cohesion:** Grouping related logic into self-contained modules.
-* **Reducing Coupling:** Minimizing dependencies between different parts of the system.
-* **Improving Testability:** Making components small enough to be tested in isolation.
-* **Enhancing Reusability:** Creating modules that can be reused in different contexts.
-* **Improving Readability:** Making the system's architecture easier to understand.
+### **Step 1: Analyze & Plan the Refactor**
+Establish clear objectives and target architecture before making changes:
 
-## **2. When to Use This Protocol**
+**Clarify Motivation:**
+- Capture the "why" (tech debt, new feature, performance regression)
+- Identify code smells: large files, mixed responsibilities, tight coupling, duplicated logic
 
-Trigger this protocol whenever you notice "code smells" that indicate low modularity, such as:
+**Review Architecture:**
+- Consult [Architecture](../../references/architecture/01_architecture.md)
+- Understand component relationships and dependencies
+- Define scope and target module boundaries
 
-* A file or class that has grown too large or mixes unrelated responsibilities.
-* Tightly coupled components that must be edited together.
-* Duplicated logic across modules.
-* Components that are difficult to unit test because dependencies are tangled.
+**Baseline Current Behavior:**
+- Run verification tests: unit tests, smoke tests (`trainer.fast_dev_run=true`)
+- Document current functionality for regression testing
+- Establish success criteria for the refactor
 
-## **3. Core Refactoring Principles**
+### **Step 2: Execute Incrementally**
+Implement changes in small, testable steps while preserving functionality:
 
-Align with these guardrails before you touch any code—they keep the project configuration-driven and compatible with our plug-and-play architecture.
+**Work on Dedicated Branch:**
+- Create feature branch to isolate changes
+- Keep commit history clean and focused
 
-1. **Configuration First:** Expose new behaviour through Hydra configs under `configs/` rather than hard-coding paths or parameters.
-2. **Respect Base Classes:** Encoders, decoders, heads, and losses must inherit from the abstract base classes in `ocr/models/core/base_classes.py`.
-3. **Registry Compliance:** Register new components via `ocr/models/core/registry.py` so the model factory can discover them.
-4. **Maintain Testability:** Every extracted unit should be covered by existing tests or new targeted tests. If you cannot test it, reconsider the design.
+**Extract, Don't Rewrite:**
+- Move working code into new module structure
+- Delay cleanup or optimization until behavior is preserved
+- Maintain backward compatibility during transition
 
-## **4. The Modular Refactor Workflow**
+**Commit & Test Frequently:**
+- Run focused tests after each extraction
+- Commit only when each step is stable
+- Use temporary adapters if needed for gradual migration
 
-All modular refactors follow the same four-phase loop. Each phase maps to the checklists that used to live in the separate Refactoring Guide—those steps are now consolidated here.
+### **Step 3: Validate Continuously**
+Ensure changes maintain system integrity throughout the process:
 
-### **Phase 1: Analyze & Plan**
+**Run Targeted Tests:**
+- Execute unit tests for touched modules
+- Run integration tests for affected components
+- Validate configuration loading and model instantiation
 
-1. **Clarify the Why:** Capture the motivation (tech debt, new feature, performance regression).
-2. **Review Architecture Docs:** Refresh your mental model via [Architecture](../03_references/01_architecture.md) and any relevant component references.
-3. **Define Scope & Target Design:** Sketch the desired module boundaries, file layout, and registry/config updates.
-4. **Baseline Behaviour:** Run the smallest meaningful verification (unit tests, `uv run python scripts/decoder_benchmark.py --help`, etc.) so you can confirm parity later.
+**Monitor Baseline Parity:**
+- Re-run baseline verification from Step 1
+- Catch regressions early with frequent validation
+- Compare performance metrics if applicable
 
-### **Phase 2: Execute Incrementally**
+### **Step 4: Finalize & Document**
+Complete the refactor and update all references:
 
-1. **Branch Off:** Work on a dedicated Git branch to keep history clean.
-2. **Extract, Don't Rewrite:** Move working code into new homes. Delay clean-up or rewrites until after behaviour is preserved.
-3. **Commit & Test Frequently:** After each extraction, run focused tests (or lint) and commit once the step is stable.
+**Update References & Configs:**
+- Point Hydra configs to new module locations
+- Update registry registrations in `ocr/models/core/registry.py`
+- Modify imports across the codebase
 
-### **Phase 3: Validate Continuously**
+**Clean Up Legacy Code:**
+- Remove superseded files and functions once new implementation is stable
+- Eliminate temporary compatibility wrappers
+- Update any remaining aliases to point to new locations
 
-1. **Run Targeted Tests:** Execute the suites covering the touched modules.
-2. **Repeat the Baseline:** Re-run the baseline from Phase 1 before and after major milestones to catch regressions early.
+**Document Changes:**
+- Update AI Handbook references and architecture docs
+- Add changelog entry in `docs/ai_handbook/05_changelog/`
+- Update any relevant component documentation
 
-### **Phase 4: Finalise & Document**
+## **Validation**
+- [ ] **Analysis:** Scope, motivation, and target architecture documented
+- [ ] **Planning:** New module layout and registry/config updates drafted
+- [ ] **Implementation:** Components inherit from correct base classes, registries updated, Hydra configs adjusted
+- [ ] **Testing:** Unit tests and smoke tests pass, no regressions detected
+- [ ] **Documentation:** Handbook and changelog updated, obsolete code removed
+- [ ] **Compatibility:** Temporary adapters reviewed, minimal bridging layer remains
 
-1. **Update References & Configs:** Point Hydra configs, registries, and imports at the new modules.
-2. **Remove Dead Code:** Once the new path is stable, delete the superseded files/functions. Treat thin compatibility wrappers (for example, the former `ui/visualization/*` shims) as temporary scaffolding—remove them once call sites consume the modular replacements or rely on a central alias.
-3. **Document the Change:** Update the AI Handbook references and add a `docs/ai_handbook/05_changelog/` entry summarising the refactor.
+## **Troubleshooting**
+- If tests fail after extraction, check import paths and dependencies
+- When components don't inherit properly, verify base class compatibility
+- If registry updates cause instantiation errors, validate configuration syntax
+- For complex refactors, consider smaller incremental changes
+- When performance degrades, profile before and after changes
 
-## **5. Refactoring Checklist**
-
-Use this checklist as a readiness gate before you declare the refactor complete.
-
-- [ ] **Analysis:** Scope, motivation, and target architecture documented.
-- [ ] **Planning:** New module layout + registry/config updates drafted.
-- [ ] **Implementation:**
-  - [ ] Components inherit from the correct base class.
-  - [ ] Registries (`ocr/models/core/registry.py`) updated.
-  - [ ] Hydra configs under `configs/` created or adjusted.
-- [ ] **Validation:** Unit tests / smoke tests (e.g., `trainer.fast_dev_run=true`) pass.
-- [ ] **Documentation:** Handbook + changelog updated, obsolete code removed.
-- [ ] **Compatibility:** Temporary adapters/aliases reviewed; only the minimal bridging layer (if any) remains.
+## **Related Documents**
+- [Architecture Reference](../../references/architecture/01_architecture.md) - System architecture overview
+- [Utility Adoption](04_utility_adoption.md) - Code reuse and DRY principles
+- [Refactoring Guide](10_refactoring_guide.md) - Advanced refactoring techniques
+- [Coding Standards](01_coding_standards.md) - Development best practices
+- [Configuration Management](../../configuration/01_hydra_config_system.md) - Hydra configuration patterns

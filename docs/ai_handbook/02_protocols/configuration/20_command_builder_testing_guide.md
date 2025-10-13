@@ -1,190 +1,114 @@
-# Command Builder Testing Guide
+# **filename: docs/ai_handbook/02_protocols/configuration/20_command_builder_testing_guide.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=command_builder_testing,ui_testing,refactoring_validation -->
 
-This document provides guidance for testing the refactored Command Builder module to ensure stability as new features are added.
+# **Protocol: Command Builder Testing Guide**
 
-## Test Strategy Overview
+## **Overview**
+This protocol establishes comprehensive testing strategies for the Command Builder module to ensure stability during refactoring and feature additions. It provides structured approaches for unit testing, integration testing, and CI/CD integration to maintain code quality and prevent regressions.
 
-### Unit Testing Approach
-Each module in the `ui/utils/command/` package should be tested independently:
+## **Prerequisites**
+- Command Builder module refactored into separate components (models, quoting, builder, validator, executor)
+- pytest testing framework installed and configured
+- Basic understanding of the Command Builder architecture and UI integration points
+- Access to test environment with necessary dependencies
+- Familiarity with mocking frameworks for external dependencies
 
-- **models.py**: Test dataclass instantiation and default values
-- **quoting.py**: Test override quoting logic with various edge cases
-- **builder.py**: Test command construction logic
-- **executor.py**: Test execution methods (using mocks for actual execution)
-- **validator.py**: Test command validation logic
+## **Procedure**
 
-### Integration Testing Approach
-- Test the interaction between components
-- Test UI component integration with the new modules
-- Test end-to-end command workflows
+### **Step 1: Set Up Test Infrastructure**
+Establish the testing environment and basic test structure:
 
-## Recommended Test Implementation
+**Create Test Files:**
+- Set up `tests/test_command_modules.py` for unit tests
+- Create `tests/test_command_builder_ui.py` for UI integration tests
+- Add `tests/test_regression_validation_fix.py` for regression testing
+- Implement `tests/test_command_builder_smoke.py` for smoke tests
 
-### 1. Unit Tests for Each Module
+**Configure Test Environment:**
+- Ensure pytest is properly configured in `pyproject.toml` or `pytest.ini`
+- Set up test fixtures for common test data and mock objects
+- Configure test coverage reporting if needed
 
-Create `tests/test_command_modules.py`:
+### **Step 2: Implement Unit Tests**
+Test individual Command Builder components in isolation:
 
-```python
-import pytest
-from ui.utils.command.models import TrainCommandParams, TestCommandParams, PredictCommandParams
-from ui.utils.command.quoting import quote_override
-from ui.utils.command.builder import CommandBuilder
-from ui.utils.command.validator import CommandValidator
-from ui.utils.command.executor import CommandExecutor
+**Test Models Module:**
+- Validate dataclass instantiation and default values
+- Test parameter validation and type checking
+- Ensure proper handling of optional parameters
 
-class TestCommandModels:
-    def test_train_command_params_defaults(self):
-        params = TrainCommandParams(exp_name='test')
-        assert params.exp_name == 'test'
-        assert params.max_epochs == 10  # default value
+**Test Quoting Module:**
+- Test override quoting logic with special characters
+- Validate edge cases and boundary conditions
+- Ensure proper escaping of shell metacharacters
 
-    def test_predict_command_params_with_minified_json(self):
-        params = PredictCommandParams(minified_json=True)
-        assert params.minified_json is True
+**Test Builder Module:**
+- Validate command construction logic for all command types
+- Test parameter substitution and override handling
+- Ensure proper integration with quoting utilities
 
-class TestQuotingUtils:
-    def test_quote_override_with_special_chars(self):
-        result = quote_override('model.encoder.model_name=test=value')
-        assert '"' in result  # Should be quoted due to special chars
+**Test Validator Module:**
+- Test command validation logic and error messages
+- Validate different command structures and edge cases
+- Ensure proper error reporting for invalid commands
 
-    def test_quote_override_no_special_chars(self):
-        result = quote_override('exp_name=test')
-        assert result == 'exp_name=test'  # Should not be quoted
+### **Step 3: Implement Integration Tests**
+Test component interactions and UI integration:
 
-class TestCommandBuilder:
-    def test_build_train_command(self):
-        builder = CommandBuilder()
-        params = TrainCommandParams(exp_name='test', encoder='resnet18')
-        command = builder.build_train_command(params)
-        assert 'train.py' in command
-        assert 'resnet18' in command
+**Component Integration Testing:**
+- Test interactions between Command Builder components
+- Validate data flow between models, builder, and validator
+- Ensure proper error propagation across modules
 
-    def test_build_command_from_overrides(self):
-        builder = CommandBuilder()
-        command = builder.build_command_from_overrides('train.py', ['exp_name=test'])
-        assert 'uv run python' in command
-        assert 'train.py' in command
+**UI Component Integration:**
+- Test UI components that use Command Builder functionality
+- Validate form data conversion to command parameters
+- Ensure proper error handling in UI context
 
-class TestCommandValidator:
-    def test_validate_command_success(self):
-        validator = CommandValidator()
-        result, message = validator.validate_command('uv run python runners/train.py exp_name=test')
-        assert result is True
+**End-to-End Workflow Testing:**
+- Test complete command generation and validation workflows
+- Validate integration with execution components
+- Test error scenarios and recovery mechanisms
 
-    def test_validate_command_invalid_structure(self):
-        validator = CommandValidator()
-        result, message = validator.validate_command('invalid command')
-        assert result is False
+### **Step 4: Integrate with CI/CD Pipeline**
+Set up automated testing and monitoring:
 
-class TestCommandExecutor:
-    def test_execute_command_streaming_method_exists(self):
-        executor = CommandExecutor()
-        assert hasattr(executor, 'execute_command_streaming')
+**GitHub Actions Configuration:**
+- Create workflow file for automated testing on relevant file changes
+- Configure test execution with proper Python environment
+- Set up test result reporting and notifications
+
+**Add Health Checks:**
+- Implement periodic health checks for Command Builder functionality
+- Add monitoring for test coverage and performance metrics
+- Configure alerting for test failures or regressions
+
+## **Configuration Structure**
+
+### **Test File Organization**
+```
+tests/
+├── test_command_modules.py      # Unit tests for individual modules
+├── test_command_builder_ui.py   # UI integration tests
+├── test_regression_*.py         # Regression tests for fixed issues
+└── test_command_builder_smoke.py # Basic functionality smoke tests
 ```
 
-### 2. UI Component Integration Tests
-
-Create `tests/test_command_builder_ui.py`:
-
+### **Test Configuration**
 ```python
-import pytest
-from ui.utils.command import CommandBuilder, CommandValidator, CommandExecutor
-from ui.utils.command.models import TrainCommandParams
-from ui.apps.command_builder.components.training import render_training_page
-from ui.apps.command_builder.components.test import render_test_page
-from ui.apps.command_builder.components.predict import render_predict_page
-from ui.apps.command_builder.components.execution import render_execution_panel
-
-class TestTrainingComponent:
-    def test_validation_call_uses_validator_instance(self):
-        # Ensure the fix for validate_command location is maintained
-        builder = CommandBuilder()
-        validator = CommandValidator()
-
-        # Test that validation is done via validator, not builder
-        assert hasattr(validator, 'validate_command')
-        assert not hasattr(builder, 'validate_command')  # This was moved
-
-class TestCommandGeneration:
-    def test_all_command_types_generate_properly(self):
-        builder = CommandBuilder()
-
-        # Test train command
-        train_params = TrainCommandParams(exp_name='test_train', encoder='resnet18', max_epochs=5)
-        train_cmd = builder.build_train_command(train_params)
-        assert 'train.py' in train_cmd
-        assert 'resnet18' in train_cmd
-
-        # Test test command
-        test_cmd = builder.build_test_command(TestCommandParams(exp_name='test_test'))
-        assert 'test.py' in test_cmd
-
-        # Test predict command
-        predict_cmd = builder.build_predict_command(PredictCommandParams(exp_name='test_predict'))
-        assert 'predict.py' in predict_cmd
+# pytest.ini or pyproject.toml configuration
+[tool:pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --cov=ui.utils.command"
 ```
 
-### 3. Regression Test for Fixed Issue
-
-Create `tests/test_regression_validation_fix.py`:
-
-```python
-import pytest
-from ui.utils.command import CommandBuilder, CommandValidator
-
-def test_validation_method_location_fix():
-    """
-    Regression test for the issue where validate_command was called on CommandBuilder
-    but had been moved to CommandValidator during refactoring.
-    """
-    builder = CommandBuilder()
-    validator = CommandValidator()
-
-    # The validation method should exist on CommandValidator, not CommandBuilder
-    assert hasattr(validator, 'validate_command')
-    assert not hasattr(builder, 'validate_command')
-
-    # The validation method should work properly
-    is_valid, error_msg = validator.validate_command('uv run python runners/train.py exp_name=test')
-    assert is_valid  # Should be valid
-```
-
-### 4. Smoke Tests
-
-Create `tests/test_command_builder_smoke.py`:
-
-```python
-def test_command_builder_smoke_test():
-    """Basic smoke test to ensure Command Builder modules load and work together"""
-    from ui.utils.command import CommandBuilder, CommandValidator, CommandExecutor
-    from ui.utils.command.models import TrainCommandParams
-
-    # Create instances
-    builder = CommandBuilder()
-    validator = CommandValidator()
-    executor = CommandExecutor()
-
-    # Test basic functionality
-    params = TrainCommandParams(exp_name='smoke_test', encoder='resnet18')
-    command = builder.build_train_command(params)
-
-    # Validate command
-    is_valid, msg = validator.validate_command(command)
-    assert is_valid
-
-    # Check that executor methods exist
-    assert hasattr(executor, 'execute_command_streaming')
-    assert hasattr(executor, 'terminate_process_group')
-
-    print("✓ Smoke test passed - Command Builder modules work together correctly")
-```
-
-## CI/CD Integration Recommendations
-
-### GitHub Actions Workflow
-Add to `.github/workflows/test-command-builder.yml`:
-
+### **CI/CD Workflow Structure**
 ```yaml
+# .github/workflows/test-command-builder.yml
 name: Test Command Builder
 on:
   push:
@@ -192,64 +116,28 @@ on:
       - 'ui/utils/command/**'
       - 'ui/apps/command_builder/**'
       - 'tests/**'
-  pull_request:
-    paths:
-      - 'ui/utils/command/**'
-      - 'ui/apps/command_builder/**'
-      - 'tests/**'
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    - name: Install dependencies
-      run: |
-        pip install uv
-        uv sync --dev
-    - name: Run tests
-      run: |
-        uv run pytest tests/test_command_builder* -v
 ```
 
-## Testing Best Practices
+## **Validation**
+- [ ] Unit tests cover all Command Builder modules (models, quoting, builder, validator, executor)
+- [ ] Integration tests validate component interactions and UI integration
+- [ ] Regression tests prevent reintroduction of fixed issues
+- [ ] CI/CD pipeline runs tests automatically on relevant changes
+- [ ] Test coverage meets project standards (minimum 80%)
+- [ ] All tests pass in isolated environment
+- [ ] Smoke tests confirm basic functionality works
+- [ ] Health checks monitor ongoing stability
 
-1. **Run Tests Before Each Release**: Always run the full test suite before deploying changes
-2. **Add Tests for New Features**: For every new feature, add corresponding unit and integration tests
-3. **Mock External Dependencies**: For command execution tests, use mocks to avoid actually running commands
-4. **Test Edge Cases**: Test with unusual inputs to quoting and validation functions
-5. **Monitor Performance**: Add benchmarks for command generation to catch performance regressions
-6. **Regular Clean-up**: Periodically clean up deprecated tests when removing backward compatibility
+## **Troubleshooting**
+- If unit tests fail due to import errors, check that Command Builder modules are properly installed and accessible
+- When integration tests fail, verify component interfaces and data contracts between modules
+- If CI/CD pipeline fails, check Python environment setup and dependency installation
+- For performance issues in tests, consider using fixtures to avoid repeated setup overhead
+- When adding new features, ensure corresponding tests are added before merging
+- If test coverage is low, identify untested code paths and add appropriate test cases
 
-## Monitoring and Alerting
-
-Consider adding a simple health check that can be run periodically:
-
-```python
-def command_builder_health_check():
-    """Health check for command builder functionality"""
-    try:
-        from ui.utils.command import CommandBuilder, CommandValidator
-        from ui.utils.command.models import TrainCommandParams
-
-        # Test core functionality
-        builder = CommandBuilder()
-        validator = CommandValidator()
-
-        params = TrainCommandParams(exp_name='health_check', encoder='resnet18')
-        command = builder.build_train_command(params)
-        is_valid, msg = validator.validate_command(command)
-
-        if not is_valid:
-            return False, f"Command validation failed: {msg}"
-
-        return True, "Command Builder is healthy"
-    except Exception as e:
-        return False, f"Command Builder health check failed: {str(e)}"
-```
-
-This approach will help you catch regressions early and ensure the Command Builder remains stable as you add new features.
+## **Related Documents**
+- [Coding Standards](../development/01_coding_standards.md) - Development best practices and testing guidelines
+- [Utility Adoption](../development/04_utility_adoption.md) - Guidelines for shared utility usage
+- [Modular Refactor](../development/05_modular_refactor.md) - Architecture and refactoring patterns
+- [Feature Implementation](../development/21_feature_implementation_protocol.md) - Feature development with testing requirements

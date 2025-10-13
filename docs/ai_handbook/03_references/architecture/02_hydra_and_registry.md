@@ -1,17 +1,35 @@
-# **filename: docs/ai_handbook/03_references/02_hydra_and_registry.md**
+# **filename: docs/ai_handbook/03_references/architecture/02_hydra_and_registry.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=configuration,hydra,registry,setup -->
 
 # **Reference: Hydra & Component Registry**
 
-This document provides a technical reference for the project's configuration system (Hydra) and the custom component registry.
+This reference document provides comprehensive information about the OCR system's configuration system using Hydra and the custom component registry for quick lookup and detailed understanding.
 
-## **1. Hydra Configuration System**
+## **Overview**
 
-Hydra is the single source of truth for all experiment parameters. It allows for modular and overridable configurations.
+The OCR system uses Hydra as the authoritative configuration management system combined with a custom component registry to enable plug-and-play architecture experimentation. This setup allows declarative configuration of all experiment parameters and modular component assembly.
 
-### **1.1. Configuration Structure**
+## **Key Concepts**
 
-The configuration is organized into a hierarchy under the configs/ directory.
+### **Hydra Configuration System**
+Hydra serves as the single source of truth for all experiment parameters, enabling modular and overridable configurations through hierarchical YAML files and command-line overrides.
 
+### **Component Registry**
+A custom catalog system that works with Hydra to enable plug-and-play architecture experimentation by registering components with unique names and assembling them into complete models.
+
+### **Instantiation with _target_**
+Hydra's mechanism for directly instantiating Python objects from configuration using the special _target_ key, allowing declarative object construction.
+
+### **Architecture Presets**
+Complete model definitions that reference registered component names, enabling easy switching between different architectures through configuration.
+
+## **Detailed Information**
+
+### **Configuration Structure**
+The configuration is organized into a hierarchical structure under the configs/ directory:
+
+```
 configs/
 ├── data/
 ├── model/
@@ -29,65 +47,84 @@ configs/
 ├── extras/
 │   └── default.yaml
 └── train.yaml  # Main config file
+```
 
-### **1.2. Instantiation with _target_**
-
-Hydra instantiates Python objects directly from the configuration using the special _target_ key. This is the primary mechanism for building models, datasets, and other components.
-
-**Example (configs/model/encoder/timm_backbone.yaml):**
-
-_target_: ocr_framework.architectures.dbnet.encoder.TimmBackbone
-backbone: resnet50
-pretrained: true
-
-When this config is passed to Hydra's instantiate function, it creates an instance of the TimmBackbone class with backbone='resnet50' and pretrained=True.
-
-### **1.3. Overriding Parameters**
-
-You can override any parameter from the command line, which is the standard way to run experiments.
-
-# Override the learning rate and batch size
-uv run python runners/train.py model.optimizer.lr=0.0005 data.batch_size=16
-
-### **1.4. Logging Configuration**
-
+### **Logging Configuration**
 The project supports multiple logging backends for comprehensive experiment tracking:
 
-* **WandB Logger**: Primary logging for experiment visualization and comparison
-* **CSV Logger**: Structured logging for programmatic analysis and backup
-* **Hydra Logging**: Rich-formatted console output with color coding
+- **WandB Logger**: Primary logging for experiment visualization and comparison
+- **CSV Logger**: Structured logging for programmatic analysis and backup
+- **Hydra Logging**: Rich-formatted console output with color coding
 
-Logging configurations are managed through:
-- `configs/logger/default.yaml` - Combines WandB and CSV loggers
-- `configs/hydra/default.yaml` - Console logging with Rich formatting
-- `configs/extras/default.yaml` - Miscellaneous logging settings
+### **Registry Compatibility**
+When adding or modifying components, ensure compatibility:
 
-## **2. Component Registry**
+- **Shape Compatibility**: Output channels of encoders must match input channels of decoders
+- **Data Compatibility**: Some models may require specific data formats (e.g., CRAFT requires character-level annotations)
 
-The Component Registry is a custom system that works with Hydra to enable plug-and-play architecture experimentation. It acts as a catalog of available components.
+## **Examples**
 
-### **2.1. Purpose**
+### **Basic Usage**
+```python
+# Example Hydra instantiation
+from hydra.utils import instantiate
 
-The registry allows you to define entire architectures (like DBNet or CRAFT) and their components (encoders, decoders, etc.) in a central location. This makes it easy to switch between them using a single configuration parameter.
+config = {
+    '_target_': 'ocr_framework.architectures.dbnet.encoder.TimmBackbone',
+    'backbone': 'resnet50',
+    'pretrained': True
+}
 
-### **2.2. How It Works**
+encoder = instantiate(config)
+```
 
-1. **Registration:** Components are "registered" with a unique name (e.g., timm_resnet50, unet_decoder). This happens in ocr_framework/architectures/registry.py.
-2. **Architecture Presets:** A complete model is defined as a "preset" that references the registered component names.
-3. **Factory Instantiation:** The ModelFactory reads the desired architecture from the config, looks up the component names in the registry, and instantiates them.
+### **Advanced Usage**
+```python
+# Command line overrides
+# Override learning rate and batch size
+uv run python runners/train.py model.optimizer.lr=0.0005 data.batch_size=16
 
-### **2.3. Registry Compatibility**
+# Switch architectures
+uv run python runners/train.py model.architecture=east
+```
 
-When adding or modifying components, you must ensure they are compatible.
+## **Configuration Options**
 
-* **Shape Compatibility:** The out_channels of an encoder must match the in_channels of a decoder. The registry system does not automatically validate this; it must be checked manually or via smoke tests.
-* **Data Compatibility:** Some models may require specific data formats (e.g., CRAFT requires character-level annotations). Ensure the chosen dataset is compatible with the selected architecture.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| _target_ | str | - | Python class path for instantiation |
+| backbone | str | resnet50 | Encoder backbone name |
+| pretrained | bool | true | Use pretrained weights |
+| logger | str | default | Logging backend (wandb, csv, default) |
+| architecture | str | dbnet | Model architecture preset |
 
-## **3. Pydantic Policy**
+## **Best Practices**
 
-* **Hydra is Authoritative:** Hydra manages all configuration for model training, validation, and testing.
-* **Pydantic for UI Only:** The use of Pydantic models is strictly limited to validating user inputs within the Streamlit UI. It **must not** be used for managing or composing model configuration files. The UI's role is to generate valid Hydra overrides, not to manage its own configuration state.
+- **Hydra Authoritative**: Use Hydra for all model training, validation, and testing configuration
+- **Pydantic for UI Only**: Limit Pydantic models to Streamlit UI input validation only
+- **Registry Registration**: Register all components with unique names for discoverability
+- **Shape Validation**: Manually validate component compatibility (encoder output → decoder input)
+- **Configuration Overrides**: Use command-line overrides for experiment variations
 
-## **4. Best Practices & Template Adoption**
+## **Troubleshooting**
 
-For guidance on adopting best practices from external templates like the lightning-hydra-template, refer to the [**Template Adoption Protocol**](../02_protocols/16_template_adoption_protocol.md). This protocol provides a systematic approach to analyzing template structures, comparing with our current setup, and proposing incremental improvements to align with community standards.
+### **Common Issues**
+- **Instantiation Errors**: Verify _target_ paths are correct and classes are importable
+- **Configuration Not Found**: Check config file paths and Hydra search paths
+- **Component Not Registered**: Ensure components are registered in the appropriate registry
+- **Shape Mismatches**: Validate tensor dimensions between connected components
+
+### **Debug Information**
+- Enable debug logging: `export HYDRA_LOGGING=DEBUG`
+- List registered components: `python -c "from ocr_framework.architectures.registry import list_components; print(list_components())"`
+- Validate config: `python -c "from omegaconf import OmegaConf; OmegaConf.select(config, 'model')"`
+
+## **Related References**
+
+- `docs/ai_handbook/03_references/architecture/01_architecture.md` - System architecture overview
+- `docs/ai_handbook/02_protocols/configuration/20_hydra_config_resolution_troubleshooting.md` - Hydra troubleshooting guide
+- `docs/ai_handbook/02_protocols/16_template_adoption_protocol.md` - Template adoption best practices
+
+---
+
+*This document follows the references template. Last updated: 2025-01-15*

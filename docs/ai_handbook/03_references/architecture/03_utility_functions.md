@@ -1,57 +1,122 @@
-# **filename: docs/ai_handbook/03_references/03_utility_functions.md**
+# **filename: docs/ai_handbook/03_references/architecture/03_utility_functions.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=utilities,helpers,tools,functions -->
 
 # **Reference: Utility Functions**
 
-This document serves as a quick reference for key reusable utility functions and scripts within the project. The goal is to centralize common operations to avoid code duplication.
+This reference document provides comprehensive information about key reusable utility functions and scripts within the OCR project for quick lookup and detailed understanding.
 
-## **1. Path Management (ocr/utils/path_utils.py)**
+## **Overview**
 
-For consistent and reliable file path resolution across all scripts, use the centralized path utilities. **Never hardcode paths.**
+The OCR project provides a comprehensive set of utility functions and scripts for common operations including path management, W&B integration, visualization, prediction analysis, and system monitoring. These utilities are designed to avoid code duplication and ensure consistent operations across the project.
 
-> **⚠️ DEPRECATION NOTICE**: The convenience functions (`get_project_root()`, `get_data_path()`, etc.) and `PathUtils` class are deprecated. Use the `OCRPathResolver` pattern below for new development.
+## **Key Concepts**
 
-### **Recommended Modern Approach**
+### **Path Management**
+Centralized path resolution utilities for consistent and reliable file path handling across all scripts. Never hardcode paths - use the standardized path resolver pattern.
 
-* `get_path_resolver()` -> OCRPathResolver: Returns the global path resolver instance with all project paths.
-* Access paths via: `resolver.config.project_root`, `resolver.config.data_dir`, `resolver.config.config_dir`, etc.
+### **W&B Integration**
+Helper functions for consistent experiment tracking with Weights & Biases, including run naming, finalization, and validation image logging.
 
-### **Legacy Functions (Deprecated)**
+### **Visualization Tools**
+Utilities for visualizing data and model predictions, including bounding box overlay and prediction visualization scripts.
 
-* get_project_root() -> Path: Returns the absolute path to the project's root directory. (DEPRECATED)
-* get_data_path() -> Path: Returns the path to the main data/ directory. (DEPRECATED)
-* get_outputs_path() -> Path: Returns the path to the outputs/ directory where experiment results are saved. (DEPRECATED)
-* get_logs_path() -> Path: Returns the path for log files. (DEPRECATED)
-* get_checkpoints_path() -> Path: Returns the path for model checkpoints. (DEPRECATED)
+### **System Monitoring**
+AI-powered system monitoring through Qwen agents for comprehensive resource tracking and process management.
 
-### **Usage Examples**
+## **Detailed Information**
 
-**Modern approach:**
+### **Path Management (ocr/utils/path_utils.py)**
+For consistent and reliable file path resolution across all scripts, use the centralized path utilities.
+
+**Modern Approach (Recommended):**
+- `get_path_resolver()` → OCRPathResolver: Returns the global path resolver instance with all project paths
+- Access paths via: `resolver.config.project_root`, `resolver.config.data_dir`, etc.
+
+**Legacy Functions (Deprecated):**
+- `get_project_root()`, `get_data_path()`, `get_outputs_path()`, `get_logs_path()`, `get_checkpoints_path()` - All deprecated in favor of OCRPathResolver
+
+### **W&B Integration (ocr/utils/wandb_utils.py)**
+Helper functions for consistent experiment tracking:
+- `generate_run_name(config: DictConfig) → str`: Generates descriptive run names from Hydra config
+- `finalize_run(final_metric: float)`: Updates finished runs with final metrics
+- `log_validation_images(...)`: Logs validation images with predictions overlaid
+
+### **Visualization (ocr/utils/ocr_utils.py)**
+Visualization helpers:
+- `draw_boxes(image, det_polys, gt_polys) → np.ndarray`: Draws predicted (green) and ground truth (red) polygons on images
+
+## **Examples**
+
+### **Basic Usage**
 ```python
+# Modern path management
 from ocr.utils.path_utils import get_path_resolver
 
-# Get standardized paths through the resolver
 resolver = get_path_resolver()
 project_root = resolver.config.project_root
-config_dir = resolver.config.config_dir
 data_dir = resolver.config.data_dir
-outputs_dir = resolver.config.output_dir
 annotations_path = resolver.config.annotations_dir / "train.json"
-
-if not annotations_path.exists():
-    logger.error(f"Annotations not found at: {annotations_path}")
 ```
 
-**Legacy approach (shows deprecation warnings):**
-```python
-from ocr.utils.path_utils import get_data_path, get_project_root
+### **Advanced Usage**
+```bash
+# Prediction visualization
+python ui/visualize_predictions.py \
+  --image_dir LOW_PERFORMANCE_IMGS \
+  --checkpoint outputs/checkpoints/model.ckpt \
+  --max_images 5 \
+  --save_dir outputs/debug_visualization \
+  --score_threshold 0.5
 
-# Get standardized paths (deprecated - shows warnings)
-project_root = get_project_root()
-annotations_path = get_data_path() / "jsons" / "train.json"
-
-if not annotations_path.exists():
-    logger.error(f"Annotations not found at: {annotations_path}")
+# System monitoring
+./scripts/monitoring/monitor.sh "Show system health status"
 ```
+
+## **Configuration Options**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| image_dir | str | - | Directory containing images to analyze |
+| checkpoint | str | - | Path to PyTorch Lightning checkpoint |
+| max_images | int | 5 | Maximum number of images to process |
+| save_dir | str | - | Directory to save visualizations |
+| score_threshold | float | 0.5 | Minimum confidence for predictions |
+| detailed | bool | false | Include advanced diagnostics |
+| check_orphans | bool | false | Detect orphaned processes |
+| sort_by | str | cpu | Sort processes by cpu/memory/pid/time |
+| limit | int | 10 | Maximum processes to display |
+
+## **Best Practices**
+
+- **Use Modern Path Resolver**: Always use `get_path_resolver()` instead of deprecated convenience functions
+- **Consistent W&B Naming**: Use `generate_run_name()` for all experiment runs
+- **Visualization for Debugging**: Regularly visualize predictions on validation sets
+- **System Monitoring**: Use monitoring scripts for performance troubleshooting
+- **Process Safety**: Always verify process ownership before termination
+
+## **Troubleshooting**
+
+### **Common Issues**
+- **Path Resolution Errors**: Ensure OCRPathResolver is properly initialized
+- **W&B Connection Issues**: Check API keys and network connectivity
+- **Visualization Failures**: Verify checkpoint file exists and is compatible
+- **Process Termination**: Only terminate processes you own
+
+### **Debug Information**
+- Enable debug logging: `export LOG_LEVEL=DEBUG`
+- Check path resolver: `python -c "from ocr.utils.path_utils import get_path_resolver; print(get_path_resolver().config)"`
+- Validate checkpoint: `python -c "import torch; torch.load('path/to/checkpoint.ckpt')"`
+
+## **Related References**
+
+- `docs/ai_handbook/03_references/architecture/01_architecture.md` - System architecture overview
+- `docs/ai_handbook/03_references/architecture/06_wandb_integration.md` - W&B integration details
+- `docs/ai_handbook/03_references/guides/performance_monitoring_callbacks_usage.md` - Performance monitoring
+
+---
+
+*This document follows the references template. Last updated: 2025-01-15*
 
 ## **2. W&B Integration (ocr/utils/wandb_utils.py)**
 

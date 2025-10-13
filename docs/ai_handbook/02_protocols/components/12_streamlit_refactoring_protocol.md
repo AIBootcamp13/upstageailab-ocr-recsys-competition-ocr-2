@@ -1,136 +1,233 @@
-# **filename: docs/ai_handbook/02_protocols/12_streamlit_refactoring_protocol.md**
+# **filename: docs/ai_handbook/02_protocols/components/12_streamlit_refactoring_protocol.md**
+
 <!-- ai_cue:priority=high -->
-<!-- ai_cue:use_when=streamlit,refactor -->
+<!-- ai_cue:use_when=streamlit,refactor,ui-development -->
 
 # **Protocol: Streamlit Refactoring**
 
-Use this protocol when executing structural changes to any Streamlit UI module in this repository (new features, component rewrites, state management overhauls). It complements the global Modular Refactor protocol with Streamlit-specific guidance; examples call out the OCR inference app because it is the current reference implementation.
+## **Overview**
 
----
+This protocol provides systematic guidance for executing structural changes to Streamlit UI modules, including new features, component rewrites, and state management overhauls. It ensures disciplined, reproducible refactoring while maintaining compatibility with existing configurations and schemas.
 
-## **1. Architectural Snapshot**
+## **Prerequisites**
 
-Before touching code, align on the current layout:
+- Baseline behavior captured (screenshots, logs, or video documentation)
+- Streamlit app confirmed working: `uv run streamlit run ui/<app_entry>.py --server.port=8504`
+- Compatibility schemas in `configs/schemas/` are clean and validated
+- Tests and linting pass: `uv run ruff check ui/apps/<app_name> ui/utils`
+- Pydantic models in `ui/apps/<app_name>/models/` updated for any schema changes
+
+## **Component Architecture**
+
+### **Core Components**
+- **App Entry Point**: Thin entrypoint in `ui/<app_entry>.py`
+- **App Module**: Page lifecycle orchestrator in `ui/apps/<app_name>/app.py`
+- **Components**: UI fragments in `ui/apps/<app_name>/components/`
+- **Models**: Pydantic/dataclass state validation in `ui/apps/<app_name>/models/`
+- **Services**: Pure-Python business logic in `ui/apps/<app_name>/services/`
+- **State Management**: Session helpers in `ui/apps/<app_name>/state.py`
+
+### **Integration Points**
+- `configs/ui/<app_name>.yaml`: UI configuration
+- `configs/schemas/`: Domain schema definitions
+- `ui_meta/<app_name>/`: UI copy and demo payloads
+- `ui/inference_ui.py`: Legacy entrypoint (maintained for compatibility)
+
+## **Procedure**
+
+### **Step 1: Planning and Analysis**
+Define the refactoring scope and document current architecture:
+
+```bash
+# Verify current state
+uv run streamlit run ui/<app_entry>.py --server.port=8504
+
+# Check existing structure
+find ui/apps/<app_name> -type f -name "*.py" | head -20
+```
+
+Document contracts and external touchpoints:
+- Service method signatures and return types
+- Streamlit widget keys for session state
+- Configuration keys in `configs/ui/<app_name>.yaml`
+- Schema dependencies in `configs/schemas/`
+
+### **Step 2: Isolate Changes and Create New Modules**
+Fork new modules within appropriate packages:
+
+```python
+# Create new component
+# ui/apps/<app_name>/components/new_feature.py
+import streamlit as st
+
+def render_new_feature():
+    """New UI component with proper separation of concerns"""
+    # Pure UI logic here
+    pass
+```
+
+```python
+# Create new service
+# ui/apps/<app_name>/services/new_service.py
+
+class NewService:
+    """Pure business logic, no Streamlit imports"""
+
+    def process_data(self, data):
+        # Processing logic here
+        return processed_data
+```
+
+### **Step 3: Update Configuration and Schemas**
+Surface new toggles in configuration:
+
+```yaml
+# configs/ui/<app_name>.yaml
+new_feature:
+  enabled: true
+  option1: "default_value"
+  option2: 42
+```
+
+Update schema families for new capabilities:
+
+```yaml
+# configs/schemas/ui_inference_compat.yaml
+new_model_family:
+  encoder: "resnet50"
+  head: "new_head_type"
+  compatible: true
+```
+
+### **Step 4: Update Entry Points and Integration**
+Modify app orchestration while preserving caching:
+
+```python
+# ui/apps/<app_name>/app.py
+import streamlit as st
+from components.new_feature import render_new_feature
+from services.new_service import NewService
+
+@st.cache_resource
+def get_new_service():
+    return NewService()
+
+def main():
+    service = get_new_service()
+
+    # New feature integration
+    if st.session_state.get('new_feature_enabled', False):
+        render_new_feature()
+```
+
+### **Step 5: Testing and Validation**
+Run comprehensive testing:
+
+```bash
+# Unit testing
+uv run python -c "
+from ui.apps.<app_name>.services.new_service import NewService
+service = NewService()
+result = service.process_data(test_data)
+print('Service test passed')
+"
+
+# Streamlit smoke test
+uv run streamlit run ui/<app_entry>.py --server.port=8504
+```
+
+## **API Reference**
+
+### **Key Classes and Methods**
+- `InferenceService.run()`: Main inference execution
+- `InferenceState`: Session state management
+- `build_catalog()`: Model checkpoint discovery
+- `InferenceEngine.load_model()`: Model loading and initialization
+
+### **Configuration Parameters**
+- `enabled`: Feature toggle flags
+- `ttl`: Cache time-to-live settings
+- `batch_size`: Processing batch sizes
+- `model_families`: Compatible model configurations
+
+### **Session State Keys**
+- `selected_checkpoint`: Current model selection
+- `inference_results`: Cached results
+- `ui_config`: UI-specific settings
+
+## **Configuration Structure**
 
 ```
-ui/
-├─ <app_entry>.py            # Thin entrypoint (do not regress to monolith)
-└─ apps/<app_name>/
-   ├─ app.py                 # Page lifecycle orchestrator
-   ├─ components/            # Streamlit UI fragments (sidebar, results, etc.)
-   ├─ models/                # Pydantic/dataclass state + UI payload validation
-   ├─ services/              # Pure-Python services (catalog, schema, inference)
-   ├─ state.py               # Session management helpers
-   └─ ...
+ui/apps/<app_name>/
+├── app.py                 # Main orchestrator
+├── components/            # UI fragments
+│   ├── sidebar.py
+│   ├── results.py
+│   └── ...
+├── models/                # State validation
+│   ├── inference.py
+│   └── ui_state.py
+├── services/              # Business logic
+│   ├── inference.py
+│   ├── catalog.py
+│   └── ...
+└── state.py               # Session helpers
 ```
 
-Configuration lives in `configs/ui/<app_name>.yaml`, while domain schemas sit in `configs/schemas/` (`default_model.yaml`, `ui_inference_compat.yaml`, or app-specific siblings). UI copy and demo payloads belong in `ui_meta/<app_name>/`. Any refactor must preserve or extend these contracts.
+## **Validation**
 
----
+### **Pre-Refactor Validation**
+- [ ] UI renders without warnings
+- [ ] All existing features work
+- [ ] Session state persists correctly
+- [ ] Caching boundaries respected
 
-## **2. Preconditions**
+### **Post-Refactor Validation**
+- [ ] New features render correctly
+- [ ] Configuration toggles work
+- [ ] Schema validation passes
+- [ ] Performance metrics unchanged
+- [ ] Fallback paths functional
 
-- Baseline behaviour captured (screenshots, logs, or a short Loom video).
-- `uv run streamlit run ui/<app_entry>.py --server.port=8504` confirmed working.
-- Compatibility schemas (`configs/schemas/*.yaml`) clean (no outstanding issues in the sidebar).
-- Tests/lint passing (`uv run ruff check ui/apps/<app_name> ui/utils`).
-- Pydantic models in `ui/apps/<app_name>/models/` updated to reflect any schema changes (Pydantic is for validating UI/session payloads only; Hydra/OmegaConf still own runtime configuration).
+### **Integration Testing**
+```bash
+# Test multiple checkpoints
+# Test batch inference
+# Test configuration overrides
+# Test error handling
+```
 
----
+## **Troubleshooting**
 
-## **3. Refactor Planning Checklist**
+### **Common Issues**
 
-1. **Define the Delta**
-   - What UX or architectural change is desired?
-   - Which module boundaries are impacted (component vs. service vs. config)?
-2. **Document Contracts**
-   - Note inputs/outputs for affected services (e.g., `InferenceService.run`).
-   - Capture Streamlit widget keys that must remain stable for session state.
-3. **Identify External Touchpoints**
-   - Config keys in `configs/ui/<app_name>.yaml`
-   - Schema families in `configs/schemas/ui_inference_compat.yaml` (and related schemas such as `default_model.yaml`)
-   - UI metadata in `ui_meta/<app_name>/`
-   - CLI wrappers (`ui-infer` alias, documentation references)
-4. **Decide Migration Strategy**
-   - Phased (feature flags via config)
-   - Big-bang (rare; only if test coverage is strong)
+**Monolithic Logic Regression**
+- Keep `ui/<app_entry>.py` as thin proxy
+- Move all logic to `ui/apps/<app_name>/` modules
 
----
+**Broken Cache Keys**
+- Include config versions in cache key inputs
+- Set explicit `ttl` values for time-sensitive caches
 
-## **4. Execution Phases**
+**Schema Compatibility Issues**
+- Update `configs/schemas/*.yaml` for new model families
+- Run catalogue validation after schema changes
 
-### **Phase A: Isolate Changes**
+**Hard-coded UI Strings**
+- Use configuration values from `configs/ui/<app_name>.yaml`
+- Keep copy in `ui_meta/<app_name>/`
 
-- Fork new module(s) within the appropriate package (`components/` or `services/`).
-- Keep pure logic in services; UI code should remain declarative and layout focused.
-- Add or update dataclasses in `models/` when introducing fresh state.
+**Pydantic vs Hydra Confusion**
+- Use Pydantic only for UI/session payload validation
+- Keep Hydra/OmegaConf for runtime configuration
 
-### **Phase B: Wire Config & Schema**
+**Mock Fallbacks Hiding Issues**
+- Check logs for actual error conditions
+- Ensure fallbacks only trigger on explicit exceptions
 
-- Surface new toggles in `configs/ui/<app_name>.yaml`. Avoid hard-coded literals and keep help text in sync with `ui_meta/` copy decks.
-- Expand schema families (e.g., `configs/schemas/ui_inference_compat.yaml` for OCR) when introducing new decoder/head combos; run catalogue validation to confirm.
-- Update `configs/schemas/default_model.yaml` if default training/inference assumptions change.
-- Keep Pydantic models limited to UI/session validation; never try to mirror Hydra configs in Pydantic.
+## **Related Documents**
 
-### **Phase C: Update Entry Surfaces**
-
-- Adjust `app.py` orchestration (e.g., new sidebar step) while keeping caching boundaries (`@st.cache_data` / `@st.cache_resource`).
-- Ensure `InferenceState` persists new session data safely across reruns.
-
-### **Phase D: Verify Behaviour**
-
-- Run manual smoke tests:
-  1. Launch UI
-  2. Load multiple checkpoints
-  3. Exercise inference (single + batch)
-- Validate logging output (`INFO` and `ERROR` lines) for clarity.
-- Confirm fallback paths (mock inference, empty catalogue) still work.
-
----
-
-## **5. Testing Strategy**
-
-1. **Unit-ish Checks**
-   - `uv run python - <<'PY' ... build_catalog(...)`
-   - `uv run python - <<'PY' ... InferenceEngine().load_model(...)`
-2. **Streamlit Smoke**
-   - Local manual run (screen-share or screenshot for PR)
-   - Optional: Autogenerated screenshot via `streamlit_static_snapshot` if available.
-3. **Regression Guard**
-   - Capture performance metrics if you touch caching or inference loops (log inference duration before/after).
-
----
-
-## **6. Refactor Completion Gate**
-
-- [ ] UI renders without warnings and respects new config values.
-- [ ] Real data path succeeds (for OCR: at least one checkpoint per encoder family).
-- [ ] Compatibility/schema files updated with any new families or defaults (`ui_inference_compat.yaml`, `default_model.yaml`, etc.).
-- [ ] Documentation: this protocol referenced in PR, changelog entry added.
-- [ ] Legacy entrypoint (`ui/inference_ui.py`) still delegates to `app.main` only.
-- [ ] Agentic AI prompts (e.g., `project-overview.md`) mention major UI capability shifts.
-
----
-
-## **7. Common Pitfalls & Mitigations**
-
-| Pitfall | Mitigation |
-| --- | --- |
-| Re-introducing monolithic logic in `ui/<app_entry>.py` | Keep file as thin proxy; all logic belongs under `ui/apps/<app_name>/`. |
-| Breaking cache keys causing stale state | Explicitly set `ttl` or include config versions in cache key inputs. |
-| Forgetting schema updates for new checkpoints or assets | Add a family entry in `configs/schemas/*.yaml` and rerun catalogue validation. |
-| Hard-coded UI strings without config sync | Update `configs/ui/<app_name>.yaml` and matching `ui_meta/<app_name>/` copy. |
-| Using Pydantic to replace Hydra/OmegaConf configs | Restrict Pydantic models to validating submission/session payloads; keep Hydra configs canonical. |
-| Mock fallback hiding real failures | Inspect logs; ensure service layers only fall back on explicit exceptions. |
-| Insufficient testing after modular refactoring | Create unit tests for each module, integration tests for UI components, and regression tests for fixed issues. See `command_builder_testing_guide.md` for examples. |
-
----
-
-## **8. Deliverables for Every Refactor**
-
-1. Code changes + config/schema updates.
-2. Updated docs: maintenance protocol (if process changed) and changelog.
-3. Verification evidence (logs, screenshots, benchmark numbers).
-4. PR checklist referencing this document and the global modular refactor protocol.
-
-Use this protocol to keep Streamlit refactors disciplined, reproducible, and pleasant for future Agentic AI collaborators.
+- `16_template_adoption_protocol.md`: Template adoption workflows
+- `11_docTR_preprocessing_workflow.md`: UI preprocessing integration
+- `17_advanced_training_techniques.md`: Training workflow integration
+- `22_command_builder_hydra_configuration_fixes.md`: Configuration management

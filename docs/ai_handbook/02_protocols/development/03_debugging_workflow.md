@@ -1,68 +1,97 @@
-# **filename: docs/ai_handbook/02_protocols/03_debugging_workflow.md**
+# **filename: docs/ai_handbook/02_protocols/development/03_debugging_workflow.md**
 <!-- ai_cue:priority=high -->
-<!-- ai_cue:use_when=debugging,triage -->
+<!-- ai_cue:use_when=debugging,triage,issue_resolution -->
 
 # **Protocol: Debugging Workflow**
 
-This protocol outlines a systematic approach to debugging common issues within the project, from data pipeline problems to model training errors.
+## **Overview**
+This protocol establishes a systematic approach to debugging common issues within the OCR project, from data pipeline problems to model training errors. The workflow emphasizes quick triage, lightweight inspection tools, and targeted fixes to minimize development downtime.
 
-## **1. Initial Triage: Isolate the Problem**
+## **Prerequisites**
+- Access to project repository and development environment
+- Basic understanding of PyTorch, Hydra configuration, and the project's architecture
+- Familiarity with the Command Registry for available debugging tools
+- Active development environment with uv package manager configured
 
-Before diving deep, quickly determine the nature of the issue.
+## **Procedure**
 
-* **Is it a configuration error?** Errors often occur at startup and mention Hydra or instantiate. Check your config files first.
-* **Is it a data error?** Problems happening during the first few training steps, like shape mismatches or TypeError, often point to the data pipeline.
-* **Is it a model error?** CUDA out of memory, NaN loss, or errors deep within a model's forward pass suggest a problem with the model architecture or hyperparameters.
+### **Step 1: Initial Triage - Isolate the Problem**
+Before diving deep, quickly determine the nature of the issue:
 
-## **2. Lightweight Tooling for Safe Inspection**
+- **Configuration Error:** Errors at startup mentioning Hydra or instantiate - check config files first
+- **Data Error:** Problems during first training steps like shape mismatches or TypeError - inspect data pipeline
+- **Model Error:** CUDA out of memory, NaN loss, or errors in model's forward pass - examine model architecture/hyperparameters
 
-Use the project's built-in tools to inspect behavior without running a full training session. Refer to the **Command Registry** for a full list of commands.
+### **Step 2: Lightweight Inspection - Use Built-in Tools**
+Employ the project's safe inspection tools without running full training sessions:
 
-### **Key Inspection Commands**
-
-* **Validate Configuration:** Check for syntax errors or missing values in your experiment's configuration.
-  `uv run python scripts/agent_tools/validate_config.py --config-name your_config_name`
-
-* **Run a Smoke Test:** Run one or two batches of training and validation to quickly surface errors in the data or model pipeline. Most scripts support a fast_dev_run flag.
-  `uv run python runners/train.py --config-name your_config_name trainer.fast_dev_run=True`
-
-* **Visualize a Data Batch:** If you suspect a data issue, generate and inspect a sample batch to check augmentations and shapes.
-  `uv run python scripts/agent_tools/visualize_batch.py`
-
-* **Profile Dataset Health:** Use the diagnostics CLI to check EXIF orientation distribution or polygon retention before refactors.
-  `uv run python tests/debug/data_analyzer.py --mode both`
-
-## **3. Recommended Debugging Tools**
-
-* **icecream for "Print" Debugging:** Use ic() instead of print() for more informative output that includes the variable name and location. It is configured project-wide.
-```python
-  from icecream import ic
-
-  def forward(self, x):
-      features = self.encoder(x)
-      ic(features.shape) # Example: features.shape: torch.Size([8, 256, 64, 64])
-      return features
+**Validate Configuration:**
+```bash
+uv run python scripts/agent_tools/validate_config.py --config-name your_config_name
 ```
-* **Rich for Logging:** The project uses the rich library for clear, color-coded logging. Pay close attention to WARNING and ERROR messages in the console.
 
-## **4. Common Scenarios & Solutions**
+**Run Smoke Test:**
+```bash
+uv run python runners/train.py --config-name your_config_name trainer.fast_dev_run=True
+```
 
-### **Scenario: CUDA out of memory**
+**Visualize Data Batch:**
+```bash
+uv run python scripts/agent_tools/visualize_batch.py
+```
 
-1. **Action:** Reduce the data.batch_size in your configuration.
-2. **Action:** Enable mixed-precision training by setting trainer.precision=16-mixed.
-3. **Action:** If available, enable gradient accumulation (trainer.accumulate_grad_batches=2).
+**Profile Dataset Health:**
+```bash
+uv run python tests/debug/data_analyzer.py --mode both
+```
 
-### **Scenario: NaN Loss**
+### **Step 3: Apply Debugging Techniques**
+Use recommended tools for effective debugging:
 
-1. **Cause:** Often caused by an exploding gradient.
-2. **Action:** Lower the model.optimizer.lr (learning rate) significantly (e.g., from 1e-3 to 1e-5).
-3. **Action:** Enable gradient clipping in the trainer config (trainer.gradient_clip_val=1.0).
-4. **Action:** Inspect the data batch for corrupted images or annotations.
+**Icecream for Print Debugging:**
+```python
+from icecream import ic
 
-### **Scenario: Shape Mismatch Error**
+def forward(self, x):
+    features = self.encoder(x)
+    ic(features.shape)  # Example: features.shape: torch.Size([8, 256, 64, 64])
+    return features
+```
 
-1. **Cause:** The output channels of one layer (e.g., encoder) do not match the input channels of the next (e.g., decoder).
-2. **Action:** Check the out_channels and in_channels parameters for the connected components in your model's configuration file.
-3. **Action:** Use ic(tensor.shape) at each step of the model's forward pass to trace where the shape becomes incorrect.
-4. **Action:** Run `uv run python tests/debug/data_analyzer.py --mode polygons` to confirm that annotations and transforms still emit valid polygons.
+**Rich Logging:** Monitor WARNING and ERROR messages in console output for diagnostic information.
+
+### **Step 4: Address Common Scenarios**
+Apply targeted fixes for frequent issues:
+
+**CUDA Out of Memory:**
+- Reduce `data.batch_size` in configuration
+- Enable mixed-precision: `trainer.precision=16-mixed`
+- Enable gradient accumulation: `trainer.accumulate_grad_batches=2`
+
+**NaN Loss (Exploding Gradients):**
+- Lower learning rate: `model.optimizer.lr` (e.g., 1e-3 → 1e-5)
+- Enable gradient clipping: `trainer.gradient_clip_val=1.0`
+- Inspect data batch for corruption
+
+**Shape Mismatch Error:**
+- Verify `out_channels`/`in_channels` parameters in model config
+- Use `ic(tensor.shape)` throughout forward pass
+- Run polygon validation: `uv run python tests/debug/data_analyzer.py --mode polygons`
+
+## **Validation**
+- Issue is resolved without introducing new errors
+- Training/validation loops complete successfully
+- Model outputs are within expected ranges (no NaN/inf values)
+- Resource usage remains within system limits
+
+## **Troubleshooting**
+- If smoke tests fail, isolate to specific component (data vs model vs config)
+- For persistent CUDA OOM, consider model architecture changes or smaller batch sizes
+- When NaN loss persists, check data preprocessing and augmentation pipelines
+- Shape mismatches often indicate config/model architecture misalignment
+
+## **Related Documents**
+- [Command Registry](02_command_registry.md) - Available debugging and inspection tools
+- [Coding Standards](01_coding_standards.md) - Development best practices
+- [Configuration Management](../../configuration/01_hydra_config_system.md) - Config validation and debugging
+- [Data Pipeline](../../data/01_data_processing_pipeline.md) - Data-related debugging guidance

@@ -1,51 +1,210 @@
-<!-- ai_cue:priority=high -->
+# **filename: docs/ai_handbook/02_protocols/components/16_template_adoption_protocol.md**
 
+<!-- ai_cue:priority=high -->
 <!-- ai_cue:use_when=refactor,architecture,onboarding -->
 
 # **Protocol: Template Adoption & Best Practices**
 
-This protocol governs how to reference and adopt patterns from external template repositories, specifically the lightning-hydra-template. The goal is to systematically align our project with community best practices for structure, configuration, and scripting.
+## **Overview**
 
-## **1. The Reference Template**
+This protocol governs systematic adoption of patterns from external template repositories, specifically the lightning-hydra-template. It provides a controlled workflow for aligning project structure with community best practices while maintaining incremental, safe refactoring.
 
-* **Primary Source:** lightning-hydra-template by @ashleve
-* **GitHub URL:** https://github.com/ashleve/lightning-hydra-template
-* **Local Documentation Path:** docs/external/lightning-hydra-template/ (template project) and docs/external/lightning-hydra-template/configs (configuration examples)
+## **Prerequisites**
 
-This local directory contains an offline copy of the template's official documentation, added by following the **External Documentation Protocol**.
+- Access to external template documentation in `docs/external/lightning-hydra-template/`
+- Understanding of current project structure in `ocr/` and `configs/` directories
+- Familiarity with the Modular Refactoring Protocol
+- Knowledge of PyTorch Lightning and Hydra configuration patterns
 
-## **2. Agent Workflow for Proposing Refactors**
+## **Component Architecture**
 
-When tasked with improving the project structure or aligning with best practices, an agent must follow this workflow.
+### **Core Components**
+- **Template Analysis Engine**: Systematic comparison between external templates and current structure
+- **Incremental Refactor Framework**: Safe, step-by-step adoption of template patterns
+- **Validation Pipeline**: Ensures adopted patterns maintain functionality
+- **Documentation Sync**: Keeps local template documentation current
 
-### **Step 1: Analyze the Template's Structure**
+### **Integration Points**
+- `docs/external/lightning-hydra-template/`: Local copy of template documentation
+- `ocr/`: Current project source code structure
+- `configs/`: Current configuration organization
+- Modular Refactoring Protocol: Governs implementation approach
 
-1. **Load Key Documentation:** The agent must first read the core documentation files from the local copy of the template.
-   * docs/external/lightning-hydra-template/README.md (Project Structure, Main Configs, Experiment Configs sections)
-   * docs/external/lightning-hydra-template/configs/ (for configuration examples)
-   * docs/external/lightning-hydra-template/src/ (for code structure examples)
-2. **Identify Key Patterns:** The agent should identify the major structural patterns from the template, such as:
-   * The src/ layout for all Python code.
-   * The organization of configs into callbacks/, datamodule/, model/, etc.
-   * The use of a centralized train.py and eval.py in the project root.
-   * The structure of the PyTorch Lightning LitModule (the model).
+## **Procedure**
 
-### **Step 2: Compare with Our Current Project**
+### **Step 1: Template Analysis and Documentation Review**
+Load and analyze template documentation:
 
-1. **Analyze Local Structure:** The agent must list the current directory structure of our project's ocr/ and configs/ directories.
-2. **Identify Deltas (Differences):** The agent will perform a "diff" between the template's structure and our own, noting key differences.
-   * *Example Delta:* "The template places all callbacks in configs/callbacks, whereas our project defines them inside configs/train.yaml. Adopting the template's pattern would improve modularity."
+```bash
+# Review template structure
+cat docs/external/lightning-hydra-template/README.md
 
-### **Step 3: Propose an Incremental Change**
+# Examine configuration examples
+ls docs/external/lightning-hydra-template/configs/
 
-The agent should **not** propose a full, "big bang" refactor. It must propose a single, incremental, and safe change based on its analysis.
+# Study code organization patterns
+ls docs/external/lightning-hydra-template/src/
+```
 
-1. **Formulate a Hypothesis:** State the proposed change and its expected benefit.
-   * *Example Hypothesis:* "By refactoring our callback configurations to match the lightning-hydra-template pattern, we can make them more reusable and simplify the main train.yaml file."
-2. **Create a Refactor Plan:** The proposal must include a concrete plan, referencing the **Modular Refactoring Protocol**.
-   * **Files to Create:** configs/callbacks/default.yaml, configs/callbacks/early_stopping.yaml
-   * **Files to Modify:** configs/train.yaml (to update the defaults list).
-   * **Files to Delete:** None.
-3. **Request Approval:** The agent presents this incremental plan to the user for approval before taking any action.
+Identify key structural patterns:
+- `src/` layout for Python code organization
+- `configs/` directory structure (callbacks/, datamodule/, model/, etc.)
+- Root-level entry points (train.py, eval.py)
+- PyTorch Lightning module structure
 
-This systematic approach ensures that we can leverage the wisdom of popular templates to improve our project in a controlled and deliberate manner.
+### **Step 2: Current Project Structure Assessment**
+Analyze existing project organization:
+
+```bash
+# Examine current source structure
+find ocr/ -type f -name "*.py" | head -20
+
+# Review configuration organization
+find configs/ -name "*.yaml" | sort
+
+# Document current patterns
+ls configs/train.yaml  # Check current callback definitions
+```
+
+### **Step 3: Comparative Analysis and Delta Identification**
+Perform systematic comparison:
+
+```bash
+# Compare directory structures
+diff -r docs/external/lightning-hydra-template/src/ ocr/
+
+# Analyze configuration differences
+# Template: configs/callbacks/default.yaml
+# Current: configs/train.yaml (inline definitions)
+```
+
+Document key differences and improvement opportunities.
+
+### **Step 4: Incremental Change Proposal and Implementation**
+Formulate single, safe improvement:
+
+**Example Hypothesis**: "Refactoring callback configurations to match lightning-hydra-template pattern will improve modularity and reusability."
+
+**Implementation Plan**:
+```yaml
+# Create: configs/callbacks/default.yaml
+defaults:
+  - _self_
+  - model: ???
+  - datamodule: ???
+  - callbacks: default
+
+# Create: configs/callbacks/early_stopping.yaml
+early_stopping:
+  patience: 10
+  monitor: val_loss
+
+# Modify: configs/train.yaml
+# Remove inline callback definitions
+# Add to defaults list: - callbacks: early_stopping
+```
+
+## **API Reference**
+
+### **Key Template Patterns**
+- **src/ Layout**: Centralized Python package structure
+- **Config Organization**: Modular configuration files by component type
+- **Entry Points**: Root-level scripts for training/evaluation
+- **LitModule Structure**: Standardized PyTorch Lightning module organization
+
+### **Configuration Structure**
+```
+configs/
+├── callbacks/          # Callback configurations
+├── datamodule/         # Data module settings
+├── model/             # Model architecture configs
+├── trainer/           # Training configurations
+└── train.yaml         # Main training config with defaults
+```
+
+### **Source Structure**
+```
+src/
+├── models/            # Model implementations
+├── datamodules/        # Data loading modules
+├── callbacks/          # Training callbacks
+├── utils/             # Utility functions
+└── __init__.py
+```
+
+## **Configuration Structure**
+
+```
+docs/external/lightning-hydra-template/
+├── README.md              # Template documentation
+├── configs/               # Configuration examples
+│   ├── callbacks/
+│   ├── datamodule/
+│   └── model/
+└── src/                   # Code structure examples
+    ├── models/
+    ├── datamodules/
+    └── utils/
+```
+
+## **Validation**
+
+### **Pre-Adoption Validation**
+- [ ] Template documentation is current and accessible
+- [ ] Current project structure is well understood
+- [ ] Modular Refactoring Protocol is available
+- [ ] Backup/snapshot of current state exists
+
+### **Post-Adoption Validation**
+- [ ] Adopted pattern maintains existing functionality
+- [ ] Configuration files load without errors
+- [ ] Training/evaluation scripts still work
+- [ ] No breaking changes to existing workflows
+
+### **Incremental Safety Checks**
+```bash
+# Test configuration loading
+python -c "from omegaconf import OmegaConf; OmegaConf.load('configs/train.yaml')"
+
+# Verify training still works
+python runners/train.py --config-name=train ++dry_run=true
+
+# Check for import errors
+python -c "import ocr; print('Import successful')"
+```
+
+## **Troubleshooting**
+
+### **Common Issues**
+
+**Template Documentation Outdated**
+- Update local copy from external repository
+- Verify version compatibility
+- Document version differences
+
+**Structural Conflicts**
+- Identify incompatible existing patterns
+- Plan transitional approach
+- Consider hybrid solutions
+
+**Configuration Loading Failures**
+- Check YAML syntax
+- Verify path references
+- Test individual config files
+
+**Import Path Issues**
+- Update Python path configurations
+- Modify `__init__.py` files
+- Check package structure
+
+**Breaking Changes**
+- Implement feature flags for gradual rollout
+- Maintain backward compatibility
+- Provide migration scripts
+
+## **Related Documents**
+
+- `12_streamlit_refactoring_protocol.md`: UI refactoring patterns
+- `17_advanced_training_techniques.md`: Training workflow improvements
+- `22_command_builder_hydra_configuration_fixes.md`: Configuration management
+- `23_hydra_configuration_testing_implementation_plan.md`: Testing frameworks

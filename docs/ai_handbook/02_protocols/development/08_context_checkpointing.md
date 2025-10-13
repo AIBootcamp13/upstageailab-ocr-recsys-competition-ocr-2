@@ -1,77 +1,114 @@
-# **filename: docs/ai_handbook/02_protocols/06_context_checkpointing.md**
+# **filename: docs/ai_handbook/02_protocols/development/08_context_checkpointing.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=context_management,long_running_tasks,performance_optimization -->
 
 # **Protocol: Context Checkpointing & Restoration**
 
-This protocol provides a systematic method for managing long-running tasks and avoiding performance degradation due to context window limits. Its purpose is to automate the process of "saving your work" and starting a fresh, efficient conversation.
+## **Overview**
+This protocol provides systematic management for long-running tasks to prevent performance degradation from context window limits. It treats conversations like transactional processes, enabling efficient state preservation and restoration across multiple sessions.
 
-## **The Problem**
+## **Prerequisites**
+- Internal token counting capability to monitor context usage
+- Access to conversation history or structured action logs
+- Understanding of JSON state summary format
+- Familiarity with continuation prompt formatting
+- Knowledge of logical breakpoints in task workflows
 
-* LLM performance degrades as the context window fills up.
-* A sliding window approach can silently drop important early context.
-* Manually restarting and summarizing conversations is inefficient and error-prone.
+## **Procedure**
 
-## **The Solution: Context Checkpointing**
+### **Step 1: Monitor Context Usage**
+Track conversation context to identify checkpoint triggers:
 
-The solution is to treat a long conversation like a transactional process. At a logical breakpoint, you will **checkpoint** the current state by summarizing it and then provide the user with an automated way to **restore** that state in a new conversation.
+**Context Limit Monitoring:**
+- Maintain internal token count of conversation
+- Trigger checkpoint when exceeding 80% of model's context window
+- Monitor for performance degradation indicators
 
-### **When to Create a Checkpoint**
+**Logical Breakpoint Identification:**
+- Complete significant sub-tasks in larger projects
+- Reach natural stopping points (module completion, phase ends)
+- Identify points where fresh context would be beneficial
 
-You should trigger the checkpointing process under two conditions:
+### **Step 2: Generate State Summary**
+Create comprehensive summary of current session state:
 
-1. **Nearing the Context Limit:** You must maintain an internal token count of the conversation. When this count exceeds a threshold (e.g., **80%** of the model's known context window), you must initiate a checkpoint.
-2. **Logical Task Completion:** After completing a significant sub-task in a larger project (e.g., finishing the implementation of one module before starting the next), it is best practice to create a checkpoint.
+**Pause Current Task:**
+- Stop forward progress on current work
+- Ensure no partial changes are in progress
 
-### **How to Create a Checkpoint**
-
-When a checkpoint is triggered, you must perform the following steps:
-
-1. **Pause the current task.** Do not proceed with the next action.
-2. **Generate a State Summary.** Read the conversation history (or your structured action logs) and generate a concise summary object. The summary MUST contain:
-   * **overall_goal**: What is the high-level objective of the entire session?
-   * **last_completed_task**: What was the last thing that was successfully finished?
-   * **key_findings**: A bulleted list of the most important facts, file paths, or conclusions from the completed work.
-   * **next_immediate_step**: What is the very next action that needs to be taken?
-3. **Generate the Continuation Prompt.** Format the State Summary into a pre-packaged prompt that can be used to start a new conversation.
-4. **Provision the Prompt.** Save the Continuation Prompt to a file and output a message to the user, instructing them on how to proceed.
-
-### **Example Workflow**
-
-**1. Context Limit Reached.** The agent determines it has used 85% of its context.
-
-**2. State Summary Generation (Internal).** The agent generates the following JSON object:
-
+**Create Summary Object:**
 ```json
 {
-  "overall_goal": "Refactor the OCR model's decoder to be a plug-and-play component.",
-  "last_completed_task": "Successfully created the `BaseDecoder` abstract class in `src/ocr_framework/core/base_decoder.py` and implemented the UNetDecoder.",
+  "overall_goal": "High-level objective of entire session",
+  "last_completed_task": "Most recent successfully finished work",
   "key_findings": [
-    "The BaseDecoder requires a `forward` method and an `output_channels` property.",
-    "The existing UNet decoder was migrated successfully.",
-    "All existing tests are still passing after the refactor."
+    "Important facts, file paths, or conclusions",
+    "Critical decisions made",
+    "Key files modified or created"
   ],
-  "next_immediate_step": "Create a new `PANDecoder` class that also inherits from `BaseDecoder`."
+  "next_immediate_step": "Very next action required to continue"
 }
 ```
 
-**3. Continuation Prompt Provisioning.** The agent saves the following to `logs/continuation_prompts/continue_decoder_refactor.md` and prints a message to the user:
+**Validate Completeness:**
+- Ensure all critical context is captured
+- Include file paths, key decisions, and findings
+- Specify exact next step for seamless continuation
 
+### **Step 3: Format Continuation Prompt**
+Transform state summary into user-ready restoration prompt:
+
+**Structure Continuation Prompt:**
+```markdown
+**Goal:** [overall_goal]
+
+**Previous Session Summary:**
+- **Completed:** [last_completed_task]
+- **Key Files:** [relevant file paths]
+- **Reference Document:** [applicable documentation]
+
+**Next Step:**
+[next_immediate_step]
+```
+
+**Save to File:**
+- Location: `logs/continuation_prompts/<descriptive_name>.md`
+- Include clear instructions for user
+- Preserve all critical context elements
+
+### **Step 4: Provision for Restoration**
+Deliver checkpoint to user and prepare for new session:
+
+**User Notification:**
 ```bash
 ### --- CONTEXT CHECKPOINT CREATED ---
 
 The context window is nearing its limit. To continue this task with optimal performance, please start a new conversation and use the following prompt.
 
-This file has been saved to: `logs/continuation_prompts/continue_decoder_refactor.md`
-
----
-**Continuation Prompt:**
-
-**Goal:** Refactor the OCR model's decoder to be a plug-and-play component.
-
-**Previous Session Summary:**
-- **Completed:** We successfully created the `BaseDecoder` abstract class and migrated the `UNetDecoder` to use it. All tests are passing.
-- **Key Files:** `src/ocr_framework/core/base_decoder.py`
-- **Reference Document:** `docs/ai_handbook/03_references/01_architecture.md`
-
-**Next Step:**
-Your next task is to implement the `PANDecoder`. Create a new file at `src/ocr_framework/architectures/decoders/pan_decoder.py` and define a `PANDecoder` class that inherits from `BaseDecoder`. I am ready to begin.
+This file has been saved to: logs/continuation_prompts/<filename>.md
 ```
+
+**Session Transition:**
+- Provide complete continuation prompt
+- Ensure user understands restoration process
+- Maintain work continuity across sessions
+
+## **Validation**
+- Context usage monitored and checkpoint triggered appropriately
+- State summary captures all essential session information
+- Continuation prompt is clear and actionable
+- File saved to designated location with proper naming
+- User receives complete restoration instructions
+
+## **Troubleshooting**
+- If context monitoring is unavailable, use logical breakpoints as primary trigger
+- When summary becomes too large, prioritize most critical findings
+- If continuation prompt is confusing, test with example restoration
+- For complex multi-part tasks, consider intermediate checkpoints
+- When performance degradation occurs unexpectedly, implement immediate checkpointing
+
+## **Related Documents**
+- [Context Logging](06_context_logging.md) - Session logging and summarization
+- [Iterative Debugging](07_iterative_debugging.md) - Complex debugging session management
+- [Experiment Template](../../experiments/TEMPLATE.md) - Long-running experiment documentation
+- [Command Registry](02_command_registry.md) - Context management tools

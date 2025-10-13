@@ -1,57 +1,32 @@
 # Data Pre-processing Guide
 
+> **AI Cues**
+> - **priority**: high
+> - **use_when**: users need to understand preprocessing workflow, optimize training performance, troubleshoot preprocessing issues
+
 ## Overview
 
-To accelerate training and validation, the project uses an offline pre-processing step to generate the probability and threshold maps required by the DBNet model. This avoids calculating these maps on-the-fly for every batch, which was a major performance bottleneck.
+This guide covers the preprocessing pipeline for DBNet text detection training, specifically the generation of probability and threshold maps that accelerate training by 5-8x. The preprocessing script converts polygon annotations into compressed NumPy arrays that are loaded directly during training, eliminating expensive on-the-fly computation.
 
-This process must be run once after the dataset is prepared.
+## Key Concepts
 
-## Why Pre-processing?
+### Probability and Threshold Maps
 
-The original pipeline computed probability and threshold maps during training using the collate function. This approach had several issues:
+- **Probability Map**: Binary mask indicating text regions (values 0.0 or 1.0)
+- **Threshold Map**: Distance-based map for text boundary detection (values 0.3-0.7)
+- **Shrink Ratio**: Controls polygon shrinking for probability map generation (default: 0.4)
+- **Map Preprocessing**: One-time generation of maps from polygon annotations for training speedup
 
-- **Performance Bottleneck**: Map generation is computationally expensive (pyclipper operations, distance calculations)
-- **Redundant Computation**: Same maps were computed repeatedly across epochs
-- **Caching Challenges**: On-the-fly caching proved ineffective due to key collision issues and memory overhead
+### Preprocessing Workflow
 
-The offline pre-processing approach provides:
+1. Load dataset with polygon annotations
+2. Filter degenerate polygons (<3 points, <1px dimensions)
+3. Generate probability and threshold maps using DB algorithm
+4. Save compressed `.npz` files alongside images
+5. Training loads pre-computed maps instead of generating on-the-fly
+## Detailed Information
 
-- **5-8x faster validation times**: Maps are pre-computed once and loaded from disk
-- **Consistent quality**: All maps are generated with identical parameters
-- **Simplified pipeline**: Collate function becomes a simple tensor stacker
-- **Debugging ease**: Pre-computed maps can be inspected independently
-
-## How to Run Pre-processing
-
-The pre-processing logic is handled by the `scripts/preprocess_maps.py` script. It uses the project's Hydra configuration to ensure that all data transformations are consistent with the training and validation pipelines.
-
-### Full Dataset Pre-processing
-
-To run the script for the full dataset, execute the following command from the root of the project:
-
-```bash
-uv run python scripts/preprocess_maps.py
-```
-
-This will process both training and validation datasets using the limits specified in `configs/data/base.yaml`:
-- Training: 2000 samples (configurable via `data.train_num_samples`)
-- Validation: 200 samples (configurable via `data.val_num_samples`)
-
-### Custom Dataset Limits
-
-To process a specific number of samples (useful for testing):
-
-```bash
-uv run python scripts/preprocess_maps.py data.train_num_samples=100 data.val_num_samples=20
-```
-
-### Processing Specific Datasets
-
-The script automatically processes both train and validation datasets. The datasets are configured in `configs/data/base.yaml`:
-- Train: `data/datasets/images/train`
-- Validation: `data/datasets/images_val_canonical`
-
-## How It Works
+### How It Works
 
 The script performs the following steps for both the training and validation datasets:
 
@@ -65,7 +40,45 @@ The script performs the following steps for both the training and validation dat
 
 During training and validation, the modified `OCRDataset` class now loads these `.npz` files directly in `__getitem__`, bypassing the expensive on-the-fly computation.
 
-## Output Structure
+### Map Generation Algorithm
+
+The probability and threshold maps are generated using the Differentiable Binarization (DB) algorithm from the paper "Real-time Scene Text Detection with Differentiable Binarization" (https://arxiv.org/pdf/1911.08947.pdf).
+
+For each polygon:
+
+1. **Probability Map**:
+   - Shrink polygon by distance D = area × (1 - r²) / perimeter
+   - Fill shrunken polygon with value 1.0
+   - Default shrink ratio r = 0.4
+
+2. **Threshold Map**:
+   - Dilate polygon by distance D
+   - Compute distance from each pixel to polygon edges
+   - Normalize and clip to [thresh_min, thresh_max]
+   - Default: thresh_min = 0.3, thresh_max = 0.7
+
+### Polygon Filtering
+
+Polygons are filtered out if they are degenerate:
+- Fewer than 3 points (not a valid polygon)
+- Width or height < 1.0 pixels (too small to be meaningful)
+- Zero area (collapsed to a line or point)
+- Integer span is zero (rounds to a single pixel)
+
+These filters prevent PyClipper crashes and ensure stable training.
+
+### Fallback Behavior
+
+If a `.npz` file is missing or corrupted during training:
+- `OCRDataset` silently skips loading (logs warning)
+- `DBCollateFN` detects missing maps and generates on-the-fly
+- Training continues without interruption (at reduced speed for that sample)
+
+This ensures robustness during development and experimentation.
+
+## Examples
+
+### Output Structure
 
 After running the pre-processing script, your directory structure will look like this:
 
@@ -88,11 +101,7 @@ data/datasets/
     └── ...
 ```
 
-Each `.npz` file contains:
-- `prob_map`: Probability map of shape `(1, H, W)` where H, W match the transformed image dimensions
-- `thresh_map`: Threshold map of shape `(1, H, W)`
-
-## Map File Format
+### Map File Format
 
 The `.npz` files are compressed NumPy archives containing two arrays:
 
@@ -106,7 +115,7 @@ thresh_map = data['thresh_map']  # Shape: (1, 640, 640)
 
 The channel dimension (first axis) is included to match the expected tensor format during training.
 
-## Integration with Training Pipeline
+### Integration with Training Pipeline
 
 The training pipeline automatically uses pre-processed maps when available:
 
@@ -123,6 +132,57 @@ The training pipeline automatically uses pre-processed maps when available:
    - Returns collated batch with maps of shape `[batch_size, 1, H, W]`
 
 This design ensures backward compatibility: training works even without pre-processing, though at reduced speed.
+
+## Configuration Options
+
+### Dataset Paths
+- Train: `data/datasets/images/train`
+- Validation: `data/datasets/images_val_canonical`
+
+### Key Parameters
+- `shrink_ratio`: Controls polygon shrinking (default: 0.4)
+- `thresh_min`: Minimum threshold value (default: 0.3)
+- `thresh_max`: Maximum threshold value (default: 0.7)
+- `num_samples`: Limits processing to subset of dataset for testing
+
+## Best Practices
+
+### Performance Expectations
+
+After pre-processing, you should observe:
+
+- **Pre-processing time**: ~1-3 minutes for 2000 training samples (depends on CPU)
+- **Disk usage**: ~50-100 MB per 1000 samples (compressed .npz format)
+- **Training speedup**: 5-8x faster validation epochs compared to on-the-fly generation
+- **Memory usage**: Minimal increase (maps loaded individually, not cached in RAM)
+
+### Maintenance
+
+#### Re-running Pre-processing
+
+You need to re-run preprocessing if:
+- Dataset images or annotations change
+- Transform pipeline is modified (resize, augmentation parameters)
+- DBCollateFN parameters change (`shrink_ratio`, `thresh_min`, `thresh_max`)
+
+Simply re-run the script to regenerate all maps:
+
+```bash
+uv run python scripts/preprocess_maps.py
+```
+
+Existing `.npz` files will be overwritten.
+
+#### Cleaning Up
+
+To remove all pre-processed maps:
+
+```bash
+rm -rf data/datasets/images/train_maps
+rm -rf data/datasets/images_val_canonical_maps
+```
+
+Training will automatically fall back to on-the-fly generation.
 
 ## Troubleshooting
 
@@ -169,91 +229,13 @@ If validation preprocessing shows 0 samples:
 - Verify `val.json` annotation file exists and has entries
 - Ensure `data.val_num_samples` is not set to 0
 
-## Performance Expectations
-
-After pre-processing, you should observe:
-
-- **Pre-processing time**: ~1-3 minutes for 2000 training samples (depends on CPU)
-- **Disk usage**: ~50-100 MB per 1000 samples (compressed .npz format)
-- **Training speedup**: 5-8x faster validation epochs compared to on-the-fly generation
-- **Memory usage**: Minimal increase (maps loaded individually, not cached in RAM)
-
-## Maintenance
-
-### Re-running Pre-processing
-
-You need to re-run preprocessing if:
-- Dataset images or annotations change
-- Transform pipeline is modified (resize, augmentation parameters)
-- DBCollateFN parameters change (`shrink_ratio`, `thresh_min`, `thresh_max`)
-
-Simply re-run the script to regenerate all maps:
-
-```bash
-uv run python scripts/preprocess_maps.py
-```
-
-Existing `.npz` files will be overwritten.
-
-### Cleaning Up
-
-To remove all pre-processed maps:
-
-```bash
-rm -rf data/datasets/images/train_maps
-rm -rf data/datasets/images_val_canonical_maps
-```
-
-Training will automatically fall back to on-the-fly generation.
-
-## Technical Details
-
-### Map Generation Algorithm
-
-The probability and threshold maps are generated using the Differentiable Binarization (DB) algorithm from the paper "Real-time Scene Text Detection with Differentiable Binarization" (https://arxiv.org/pdf/1911.08947.pdf).
-
-For each polygon:
-
-1. **Probability Map**:
-   - Shrink polygon by distance D = area × (1 - r²) / perimeter
-   - Fill shrunken polygon with value 1.0
-   - Default shrink ratio r = 0.4
-
-2. **Threshold Map**:
-   - Dilate polygon by distance D
-   - Compute distance from each pixel to polygon edges
-   - Normalize and clip to [thresh_min, thresh_max]
-   - Default: thresh_min = 0.3, thresh_max = 0.7
-
-### Polygon Filtering
-
-Polygons are filtered out if they are degenerate:
-- Fewer than 3 points (not a valid polygon)
-- Width or height < 1.0 pixels (too small to be meaningful)
-- Zero area (collapsed to a line or point)
-- Integer span is zero (rounds to a single pixel)
-
-These filters prevent PyClipper crashes and ensure stable training.
-
-### Fallback Behavior
-
-If a `.npz` file is missing or corrupted during training:
-- `OCRDataset` silently skips loading (logs warning)
-- `DBCollateFN` detects missing maps and generates on-the-fly
-- Training continues without interruption (at reduced speed for that sample)
-
-This ensures robustness during development and experimentation.
-
-## Related Files
+## Related References
 
 - **Pre-processing Script**: `scripts/preprocess_maps.py`
 - **Dataset Class**: `ocr/datasets/base.py` (OCRDataset)
 - **Collate Function**: `ocr/datasets/db_collate_fn.py` (DBCollateFN)
 - **Configuration**: `configs/data/base.yaml`
 - **Unit Tests**: `tests/test_preprocess_maps.py`
-
-## See Also
-
 - [DBNet Paper](https://arxiv.org/pdf/1911.08947.pdf) - Original algorithm
 - [PyClipper Documentation](https://github.com/fonttools/pyclipper) - Polygon operations
 - Polygon Pre-Processing Implementation Plan - Detailed refactoring guide

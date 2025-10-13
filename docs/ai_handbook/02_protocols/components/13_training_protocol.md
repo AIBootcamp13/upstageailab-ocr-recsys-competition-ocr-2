@@ -1,78 +1,208 @@
-# **filename: docs/ai_handbook/02_protocols/13_training_protocol.md**
+# **filename: docs/ai_handbook/02_protocols/components/13_training_protocol.md**
 
 <!-- ai_cue:priority=high -->
-
 <!-- ai_cue:use_when=training,experimentation -->
 
 # **Protocol: Training & Experimentation**
 
-This protocol provides the single source of truth for planning, executing, analyzing, and iterating on model training experiments. Following this workflow ensures that all runs are reproducible, learnings are captured, and context is efficiently passed between human and AI collaborators.
+## **Overview**
 
-## **The Principle: Plan, Run, Analyze, Iterate**
+This protocol provides systematic guidance for planning, executing, analyzing, and iterating on model training experiments. It ensures all runs are reproducible, learnings are captured, and context is efficiently passed between collaborators through a structured hypothesis-testing cycle.
 
-Every experiment is treated as a cycle. We form a hypothesis, test it with a training run, analyze the results to draw conclusions, and use those conclusions to form the hypothesis for the next cycle. This creates a clear, traceable chain of reasoning.
+## **Prerequisites**
 
-## **The Workflow**
+- Access to experiment logging templates in `docs/ai_handbook/04_experiments/`
+- Weights & Biases (W&B) account and project setup
+- Understanding of Hydra configuration system
+- Familiarity with ablation study tools in `ablation_study/`
 
-### **Step 1: Plan the Experiment in a Log File**
+## **Component Architecture**
 
-Before running any code, you must define what you are trying to achieve.
+### **Core Components**
+- **Experiment Planning Framework**: Template-based hypothesis formulation
+- **Execution Engine**: Structured training run orchestration
+- **Analysis Pipeline**: Automated result collection and visualization
+- **Iteration System**: Hypothesis refinement and next-step planning
 
-1. **Copy the Template**: Duplicate docs/ai_handbook/04_experiments/TEMPLATE.md to a new file. Use the naming convention YYYY-MM-DD_objective.md (e.g., 2025-10-01_learning-rate-analysis.md).
-2. **State the Objective**: In the "Objective" section, write a clear, testable hypothesis.
-   * *Good Example:* "Hypothesis: The current box_thresh of 0.4 is too high, causing low recall. This experiment will test a lower threshold of 0.3 to increase recall without significantly harming precision."
-3. **Define the Configuration**: In the "Configuration" section, paste the full, runnable command-line invocation, including all key overrides. This ensures perfect reproducibility.
+### **Integration Points**
+- `docs/ai_handbook/04_experiments/`: Experiment documentation and logs
+- `ablation_study/`: Result analysis and comparison tools
+- `runners/train.py`: Training execution entry point
+- W&B: Experiment tracking and monitoring
 
-### **Step 2: Start a Structured Context Log**
+## **Procedure**
 
-For full auditability, all actions taken during the experiment should be logged.
+### **Step 1: Experiment Planning and Documentation**
+Create structured experiment plan:
 
-1. **Start the Log**: make context-log-start LABEL="<experiment-name>"
-2. **Log the Plan**: The first action logged should be a reference to the experiment plan file created in Step 1.
+```bash
+# Copy experiment template
+cp docs/ai_handbook/04_experiments/TEMPLATE.md docs/ai_handbook/04_experiments/$(date +%Y-%m-%d)_experiment_name.md
+```
 
-### **Step 3: Execute and Monitor**
+Define clear hypothesis and configuration:
+- **Objective**: State testable hypothesis
+- **Configuration**: Full command-line invocation with all overrides
 
-1. **Run Training**: Execute the exact command from your experiment plan.
-2. **Monitor**: Use Weights & Biases (W&B) to monitor the run in real-time.
+### **Step 2: Context Logging Setup**
+Initialize structured logging:
 
-### **Step 4: Analyze and Summarize**
+```bash
+# Start context log
+make context-log-start LABEL="experiment_name"
 
-Once the run is complete, transform the raw results into knowledge.
+# Log experiment plan reference
+# (First logged action should reference the plan file)
+```
 
-1. **Link the W&B Run**: Add the direct URL to the W&B run dashboard in the "Results" section of your experiment log.
-2. **Record Key Metrics**: Populate the results table with the final, most important metrics from the W&B summary (e.g., val/hmean, test/recall, test/precision).
-3. **Write the Analysis**: This is the most critical part. In the "Analysis & Learnings" section, interpret the results in the context of your hypothesis.
-   * Was the hypothesis validated or invalidated?
-   * What was surprising? (e.g., "Recall increased as expected, but precision dropped more than anticipated.")
-   * What do the validation images show?
-4. **Summarize Actions**: Run make context-log-summarize LOG=<path_to_your_log.jsonl> to generate a clean summary of the session's actions.
-5. **Capture the Sweep Output (Optional)**: When you run ablation sweeps, automate the result roll-up so future runs are comparable:
-    * **Collect W&B runs:**
+### **Step 3: Training Execution and Monitoring**
+Execute and monitor training run:
 
-       ```bash
-       uv run python ablation_study/collect_results.py --project "receipt-text-recognition-ocr-project" --tag lr_scan --output outputs/ablation/lr_scan_results.csv
-       ```
+```bash
+# Run the exact command from experiment plan
+python runners/train.py [experiment_config] [overrides]
 
-       *Key flags*: `--entity` if your runs live under a shared team account, `--metrics` to restrict the summary output, and `--group-by` to aggregate by any config column (for example `model.optimizer.lr`).
+# Monitor via W&B dashboard
+# Check real-time metrics and system resources
+```
 
-    * **Generate publishable tables:**
+### **Step 4: Results Analysis and Documentation**
+Transform raw results into knowledge:
 
-       ```bash
-       uv run python ablation_study/generate_ablation_table.py --input outputs/ablation/lr_scan_results.csv --ablation-type learning_rate --metric val/hmean --output-md docs/ablation/lr_scan.md
-       ```
+```bash
+# Link W&B run in experiment log
+# Record key metrics (val/hmean, test/recall, test/precision)
 
-       Add `--output-latex docs/ablation/lr_scan.tex` if you need LaTeX, or `--columns` for custom column selections. The script auto-sorts by your primary metric and formats the sweeping parameter for quick comparison.
+# Analyze results against hypothesis
+# Document surprising findings and visual insights
+```
 
-### **Step 5: Define the Next Iteration**
+Generate automated summaries:
+```bash
+# Summarize session actions
+make context-log-summarize LOG=path/to/log.jsonl
+```
 
-Close the loop by planning the next logical step.
+### **Step 5: Ablation Study Analysis (Optional)**
+For parameter sweeps and comparisons:
 
-1. **Form a New Hypothesis**: Based on your analysis, what should be tested next?
-2. **Define Next Steps**: In the "Next Steps" section of your experiment log, create a clear, actionable checklist for the subsequent experiment. This becomes the input for the next cycle, starting again at Step 1.
-3. **Auto-Propose the Follow-up Command (Optional)**: If you have a canonical W&B run ID, generate a draft Hydra command with the command:
+```bash
+# Collect W&B results
+uv run python ablation_study/collect_results.py \
+  --project "receipt-text-recognition-ocr-project" \
+  --tag experiment_tag \
+  --output outputs/ablation/results.csv
 
-   ```bash
-   uv run python scripts/agent_tools/propose_next_run.py <wandb_run_id>
-   ```
+# Generate comparison tables
+uv run python ablation_study/generate_ablation_table.py \
+  --input outputs/ablation/results.csv \
+  --ablation-type parameter_name \
+  --metric val/hmean \
+  --output-md docs/ablation/comparison.md
+```
 
-   The helper inspects the original configuration and returns a prefilled suggestion you can refine before committing to the next experiment.
+## **API Reference**
+
+### **Key Commands**
+- `make context-log-start LABEL="name"`: Initialize experiment logging
+- `make context-log-summarize LOG=path`: Generate session summary
+- `python runners/train.py [config]`: Execute training run
+- `python ablation_study/collect_results.py`: Gather experiment results
+
+### **Configuration Parameters**
+- `exp_name`: Experiment identifier for output organization
+- `trainer.max_epochs`: Training duration
+- `data.batch_size`: Batch size for training
+- `training.learning_rate`: Optimization learning rate
+- `model.*`: Architecture-specific parameters
+
+### **Output Structure**
+```
+outputs/${exp_name}/
+├── checkpoints/          # Model checkpoints
+├── logs/                 # Training logs
+├── .hydra/              # Configuration snapshots
+└── wandb/               # W&B artifacts
+```
+
+## **Configuration Structure**
+
+```
+docs/ai_handbook/04_experiments/
+├── TEMPLATE.md              # Experiment planning template
+├── YYYY-MM-DD_experiment.md # Individual experiment logs
+└── summaries/               # Session summaries
+
+ablation_study/
+├── collect_results.py       # Result aggregation
+├── generate_ablation_table.py # Comparison tables
+└── demo_ablation.py         # Analysis examples
+```
+
+## **Validation**
+
+### **Pre-Experiment Validation**
+- [ ] Experiment plan created with clear hypothesis
+- [ ] Configuration command is complete and runnable
+- [ ] Context logging initialized
+- [ ] W&B project and entity configured
+
+### **Execution Validation**
+- [ ] Training command runs without immediate errors
+- [ ] W&B logging active and receiving metrics
+- [ ] System resources monitored (GPU, memory)
+- [ ] Checkpoint saving functional
+
+### **Analysis Validation**
+- [ ] W&B run URL captured in experiment log
+- [ ] Key metrics recorded and compared to baseline
+- [ ] Analysis section completed with insights
+- [ ] Next steps clearly defined
+
+### **Ablation Validation**
+```bash
+# Verify result collection
+wc -l outputs/ablation/results.csv
+
+# Check table generation
+head -10 docs/ablation/comparison.md
+
+# Validate metrics
+python -c "import pandas as pd; df = pd.read_csv('outputs/ablation/results.csv'); print(df.describe())"
+```
+
+## **Troubleshooting**
+
+### **Common Issues**
+
+**Experiment Planning Problems**
+- Use TEMPLATE.md as starting point
+- Ensure hypothesis is testable and specific
+- Include all necessary configuration overrides
+
+**Training Execution Failures**
+- Verify configuration syntax
+- Check GPU/memory availability
+- Validate data paths and permissions
+
+**W&B Integration Issues**
+- Confirm API key and project settings
+- Check network connectivity
+- Verify entity/project permissions
+
+**Result Analysis Challenges**
+- Ensure consistent metric naming
+- Check for missing or corrupted runs
+- Validate sweep parameter ranges
+
+**Ablation Study Errors**
+- Verify W&B run tagging
+- Check metric availability across runs
+- Ensure consistent configuration naming
+
+## **Related Documents**
+
+- `17_advanced_training_techniques.md`: Advanced training methodologies
+- `21_experiment_analysis_framework_handbook.md`: Experiment analysis tools
+- `23_hydra_configuration_testing_implementation_plan.md`: Configuration testing
+- `22_command_builder_hydra_configuration_fixes.md`: Command construction

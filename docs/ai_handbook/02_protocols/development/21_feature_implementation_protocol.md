@@ -1,217 +1,106 @@
+# **filename: docs/ai_handbook/02_protocols/development/21_feature_implementation_protocol.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=feature_implementation,new_functionality,data_contracts -->
+
 # **Protocol: Feature Implementation**
 
-This protocol codifies the AI agent's process for implementing new features, ensuring consistent development practices, data validation, comprehensive testing, and proper documentation. It extends the development protocols by providing a structured approach to feature development that includes data contracts and documentation standards.
+## **Overview**
+This protocol establishes a structured approach for implementing new features with consistent development practices, data validation, comprehensive testing, and proper documentation. It ensures new functionality integrates seamlessly while maintaining project quality and usability standards.
 
----
+## **Prerequisites**
+- Clear feature requirements and acceptance criteria defined
+- Understanding of Pydantic v2 for data contract design
+- Knowledge of project testing frameworks and documentation standards
+- Access to relevant development tools and validation scripts
+- Familiarity with project's modular architecture and integration patterns
 
-## **1. Scope & Applicability**
+## **Procedure**
 
-This protocol applies to all new feature implementations that involve:
-- Adding new functionality or capabilities
-- Modifying existing behavior in significant ways
-- Introducing new data structures or APIs
-- Integrating new technologies or libraries
+### **Step 1: Analyze Requirements & Design Data Contracts**
+Establish feature scope and design robust data validation structures:
 
-It does not apply to:
-- Pure bug fixes (use Bug Fix Protocol instead)
-- Minor configuration changes
-- Documentation-only updates
-- Performance optimizations without functional changes
+**Requirements Gathering:**
+- Clarify feature requirements and acceptance criteria
+- Identify stakeholders and define success metrics
+- Assess impact on existing functionality and components
 
----
+**Data Contract Design:**
+- Design Pydantic v2 models for new data structures
+- Define validation rules, constraints, and error handling
+- Ensure compatibility with existing data contracts
+- Follow standards in `docs/pipeline/data_contracts.md`
 
-## **2. Trigger Conditions**
+**Architecture Planning:**
+- Identify affected components and integration points
+- Plan dependencies and scalability considerations
+- Design modular implementation approach
 
-Activate this protocol when:
-1. User requests implementation of new functionality
-2. Feature requires new data structures or validation
-3. Implementation involves multiple components
-4. Feature needs comprehensive testing and documentation
+### **Step 2: Implement Core Functionality**
+Develop feature following established patterns and quality standards:
 
----
+**Data Contract Implementation:**
+- Create Pydantic v2 models with field descriptions and examples
+- Implement custom validators for complex validation logic
+- Add comprehensive type hints and error messages
+- Register contracts in validation pipeline
 
-## **3. Response Workflow**
+**Core Feature Development:**
+- Implement functionality following coding standards
+- Use dependency injection and modular design principles
+- Include comprehensive error handling and logging
+- Add monitoring hooks and observability features
 
-### **Phase 1: Feature Analysis & Planning**
+### **Step 3: Integrate & Validate**
+Connect feature to existing systems and ensure quality through testing:
 
-1. **Requirements Gathering**
-   - Clarify feature requirements and acceptance criteria
-   - Identify stakeholders and success metrics
-   - Assess impact on existing functionality
+**System Integration:**
+- Integrate with existing components and APIs
+- Validate data flow and contract compliance
+- Test compatibility with current architecture
 
-2. **Data Contract Design**
-   - Design data structures using Pydantic v2 models
-   - Define validation rules and constraints
-   - Ensure compatibility with existing data contracts
-   - Reference `docs/pipeline/data_contracts.md` for standards
+**Comprehensive Testing:**
+- Write unit tests for all new functionality
+- Implement integration tests for component interactions
+- Validate data contracts with comprehensive test scenarios
+- Ensure no regressions in existing functionality
 
-3. **Architecture Planning**
-   - Identify affected components and modules
-   - Plan integration points and dependencies
-   - Consider scalability and maintainability
+### **Step 4: Document & Deploy**
+Create complete documentation and prepare for production deployment:
 
-### **Phase 2: Implementation**
-
-1. **Data Contract Implementation**
-   - Create Pydantic v2 models for new data structures
-   - Implement validation logic and error handling
-   - Add type hints and documentation
-   - Register contracts in validation pipeline
-
-2. **Core Feature Development**
-   - Implement functionality following coding standards
-   - Use dependency injection and modular design
-   - Include comprehensive error handling
-   - Add logging and monitoring hooks
-
-3. **Integration & Testing**
-   - Integrate with existing components
-   - Write unit tests for new functionality
-   - Implement integration tests
-   - Validate data contracts with test data
-
-### **Phase 3: Documentation & Deployment**
-
-1. **Generate Feature Documentation**
-   - Create dated summary in `docs/ai_handbook/05_changelog/YYYY-MM/`
-   - Document new data contracts and validation rules
-   - Include usage examples and API documentation
-
-2. **Update Project Documentation**
-   - Add feature to `docs/CHANGELOG.md` under "Added" section
-   - Update relevant guides and API documentation
-   - Add data contract references to validation guides
-
-3. **Code Documentation**
-   - Add docstrings and type hints
-   - Update inline documentation
-   - Include AI_DOCS markers for automated documentation
-
----
-
-## **4. Data Contracts Integration**
-
-### **Pydantic v2 Usage Guidelines**
-
-1. **Model Definition**
-   - Use `BaseModel` from Pydantic v2
-   - Include field descriptions and examples
-   - Define custom validators for complex logic
-
-2. **Validation Strategy**
-   - Implement strict validation for critical data
-   - Use conditional validation where appropriate
-   - Provide clear error messages
-
-3. **Integration Points**
-   - Validate inputs at API boundaries
-   - Use contracts in configuration loading
-   - Include in data processing pipelines
-
-### **Contract Documentation**
-
-- Document all contracts in `docs/pipeline/data_contracts.md`
-- Include validation rules and error conditions
-- Provide migration guides for contract changes
-
----
-
-## **5. Documentation Standards**
-
-### **Feature Summary Format**
-
-```markdown
-# YYYY-MM-DD: Feature Name
-
-## Summary
-One-paragraph description of the new feature.
-
-## Data Contracts
-- New Pydantic models introduced
-- Validation rules and constraints
-- Integration points
-
-## Implementation Details
-- Architecture decisions
-- Key components added/modified
-- Dependencies introduced
-
-## Usage Examples
-- Code examples showing feature usage
-- Configuration examples
-- API usage patterns
-
-## Testing
-- Test coverage achieved
-- Key test scenarios
-- Validation of data contracts
-
-## Related Changes
-- Files modified
-- Documentation updated
-- Breaking changes (if any)
-```
-
-### **Changelog Entry Format**
-
-```markdown
-### Added - YYYY-MM-DD
-
-#### Feature Name
-
-**Description**
-
-- **Data Contracts:**
-  - New validation models added
-  - Enhanced data integrity checks
-- **New Features:**
-  - List of new capabilities
-- **API Changes:**
-  - New endpoints or interfaces
-- **Related Files:**
-  - `path/to/new/file.py`
-  - Summary: `docs/ai_handbook/05_changelog/YYYY-MM/DD_feature_summary.md`
-```
-
----
-
-## **6. Quality Assurance Checklist**
-
-- [ ] Feature requirements clearly defined and documented
-- [ ] Data contracts designed and validated with Pydantic v2
-- [ ] Comprehensive test coverage (unit, integration, validation)
-- [ ] No regressions in existing functionality
-- [ ] Feature summary created with proper naming
-- [ ] Changelog updated appropriately
-- [ ] Documentation references are accurate
-- [ ] Code follows project standards and includes type hints
-- [ ] Data contracts integrated into validation pipeline
-
----
-
-## **7. Communication Guidelines**
-
-### **User Updates**
-- Provide clear explanation of new capabilities
+**Generate Documentation:**
+- Create dated feature summary in `docs/ai_handbook/05_changelog/YYYY-MM/`
+- Document data contracts, validation rules, and API changes
 - Include usage examples and configuration instructions
-- Reference documentation for detailed information
-- Highlight any breaking changes or migration requirements
 
-### **Team Coordination**
-- Notify relevant team members of new features
-- Update issue trackers and project boards
-- Share implementation details for knowledge transfer
-- Document lessons learned for future features
+**Update Project References:**
+- Add entry to `docs/CHANGELOG.md` under "Added" section
+- Update API documentation and relevant guides
+- Add data contract references to validation documentation
 
----
+**Code Documentation:**
+- Add comprehensive docstrings and type hints
+- Update inline documentation with AI_DOCS markers
+- Include examples and migration guides
 
-## **8. Quick Reference**
+## **Validation**
+- [ ] Feature requirements clearly defined and documented
+- [ ] Data contracts designed with Pydantic v2 and fully validated
+- [ ] Comprehensive test coverage (unit, integration, contract validation)
+- [ ] No regressions in existing functionality
+- [ ] Feature summary created with proper naming convention
+- [ ] Changelog updated with complete feature details
+- [ ] Documentation references are accurate and current
+- [ ] Code follows standards with type hints and error handling
 
-| Task | Location | Format |
-|------|----------|--------|
-| Feature Summary | `docs/ai_handbook/05_changelog/YYYY-MM/DD_feature_name.md` | Markdown |
-| Changelog Entry | `docs/CHANGELOG.md` | Section under [Unreleased] |
-| Data Contracts | `docs/pipeline/data_contracts.md` | Validation specifications |
-| API Documentation | Relevant module docs | Function/class documentation |
+## **Troubleshooting**
+- If data contracts fail validation, review Pydantic model definitions and field constraints
+- When integration tests fail, check component interfaces and data flow compatibility
+- If documentation is incomplete, use the provided format templates as guidance
+- For complex features, consider breaking into smaller, independently testable components
+- When performance issues arise, profile integration points and optimize data validation
 
-Use this protocol to ensure new features are implemented with proper data validation, comprehensive testing, and complete documentation that maintains project quality and usability.
+## **Related Documents**
+- [Coding Standards](01_coding_standards.md) - Development best practices
+- [Modular Refactor](05_modular_refactor.md) - Architecture and integration patterns
+- [Utility Adoption](04_utility_adoption.md) - Code reuse and DRY principles
+- [Data Contracts Reference](../../pipeline/data_contracts.md) - Validation standards and patterns

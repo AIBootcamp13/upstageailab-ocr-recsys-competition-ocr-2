@@ -1,53 +1,99 @@
-# **filename: docs/ai_handbook/02_protocols/01_coding_standards.md**
-<!-- ai_cue:priority=medium -->
-<!-- ai_cue:use_when=code_changes,style -->
+# **filename: docs/ai_handbook/02_protocols/development/01_coding_standards.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=code_changes,standards,development -->
 
 # **Protocol: Coding Standards & Naming Conventions**
 
-This document defines the coding standards and naming conventions for the project to ensure consistency, readability, and maintainability.
+This protocol provides the standardized approach for maintaining coding standards and naming conventions across the project to ensure consistency, readability, and maintainability.
 
-## **1. Code Formatting & Linting**
+## **Overview**
 
-* **Formatter:** Ruff Formatter (or Black with line length 88).
-* **Linter:** Ruff.
-* **Execution:** All formatting and linting is handled automatically via pre-commit hooks and the CI pipeline. Run uv run ruff check . --fix && uv run ruff format . to apply manually.
-* **Import Sorting:** Imports are organized by Ruff into three groups: standard library, third-party, and local application imports.
+This protocol establishes the coding standards, formatting requirements, and naming conventions that all contributors must follow. These standards ensure code consistency across the project, improve readability, and reduce maintenance overhead. The standards are enforced through automated tools and CI/CD validation.
 
-## **2. Type Hinting**
+## **Prerequisites**
 
-* **Requirement:** All public functions, methods, and class attributes **must** include type hints.
-* **Clarity:** Use specific types from the typing module (Dict, List, Optional, Tuple, Union) where appropriate.
+- Familiarity with Python development and PEP 8 standards
+- Understanding of the project's architecture (see: `docs/ai_handbook/03_references/architecture/01_architecture.md`)
+- Access to development environment with required dependencies
+- Knowledge of type hinting and modern Python practices
 
-```python
-from typing import Dict, List, Optional, Tuple
-import torch
+## **Procedure**
 
-def process_batch(
-    images: torch.Tensor,
-    targets: List[Dict[str, any]],
-    device: Optional[str] = "cuda"
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Processes a batch of images and targets."""
-    # ... function implementation
-    pass
+### **Step 1: Code Formatting & Linting Setup**
+Configure your development environment with the required tools:
+- Install Ruff: `uv add --dev ruff`
+- Set up pre-commit hooks: `pre-commit install`
+- Configure IDE to use Ruff formatter and linter
+
+### **Step 2: Apply Coding Standards**
+Follow these standards when writing or modifying code:
+
+**Code Formatting:**
+- Use Ruff Formatter (or Black with line length 88)
+- All formatting is handled automatically via pre-commit hooks
+- Manual application: `uv run ruff check . --fix && uv run ruff format .`
+
+**Import Organization:**
+- Imports organized by Ruff into three groups: standard library, third-party, and local application imports
+- One import per line
+- Alphabetical ordering within each group
+
+### **Step 3: Type Hinting Implementation**
+Apply comprehensive type hinting:
+- All public functions, methods, and class attributes must include type hints
+- Use specific types from typing module (Dict, List, Optional, Tuple, Union)
+- Private methods should also be typed for internal consistency
+
+### **Step 4: Naming Convention Application**
+Apply consistent naming conventions following PEP 8:
+
+**Modules & Packages:** snake_case (e.g., ocr_framework, data_loader.py)
+**Classes:** PascalCase (e.g., OCRLightningModule, TimmBackbone)
+- Abstract Base Classes start with Base (e.g., BaseEncoder)
+- Exceptions end with Error (e.g., ConfigurationError)
+**Functions & Methods:** snake_case (e.g., validate_polygons, training_step)
+- Private methods prefixed with single underscore (e.g., _preprocess_image)
+**Variables & Attributes:** snake_case (e.g., learning_rate, self.batch_size)
+**Constants:** UPPER_SNAKE_CASE (e.g., MAX_IMAGE_SIZE, DEFAULT_THRESHOLD)
+
+## **Validation**
+
+Run the following validation checks:
+
+```bash
+# Code quality validation
+uv run ruff check docs/ai_handbook/02_protocols/development/01_coding_standards.md
+uv run ruff format --check docs/ai_handbook/02_protocols/development/01_coding_standards.md
+
+# Type checking (if applicable)
+uv run mypy --ignore-missing-imports docs/ai_handbook/02_protocols/development/01_coding_standards.md
+
+# Template compliance
+python scripts/validate_templates.py docs/ai_handbook/_templates docs/ai_handbook
 ```
 
-## **3. Naming Conventions**
+## **Troubleshooting**
 
-Adherence to PEP 8 is required. The key conventions are summarized below.
+### **Common Issues**
+- **Formatting Failures**: Run `uv run ruff format .` to auto-fix formatting issues
+- **Linting Errors**: Use `uv run ruff check . --fix` to auto-fix common linting issues
+- **Type Checking Failures**: Review type hints and update imports as needed
+- **Pre-commit Hook Failures**: Ensure all dependencies are installed with `uv sync`
 
-* **Modules & Packages:** snake_case (e.g., ocr_framework, data_loader.py).
-* **Classes:** PascalCase (e.g., OCRLightningModule, TimmBackbone).
-  * Abstract Base Classes should start with Base (e.g., BaseEncoder).
-  * Exceptions should end with Error (e.g., ConfigurationError).
-* **Functions & Methods:** snake_case (e.g., validate_polygons, training_step).
-  * Private methods should be prefixed with a single underscore (e.g., _preprocess_image).
-* **Variables & Attributes:** snake_case (e.g., learning_rate, self.batch_size).
-* **Constants:** UPPER_SNAKE_CASE (e.g., MAX_IMAGE_SIZE, DEFAULT_THRESHOLD).
+### **Debugging Steps**
+1. Check Ruff version: `uv run ruff --version`
+2. Validate configuration: `uv run ruff check --show-settings`
+3. Test individual files: `uv run ruff check path/to/file.py`
+4. Review CI/CD logs for specific error details
 
-## **4. Architecture & Design Patterns**
+## **Related Documents**
 
-* **Configuration-Driven:** All components (models, datasets, optimizers) are instantiated from Hydra configurations. Avoid hard-coding component choices in Python code.
-* **Abstract Base Classes:** New core components (encoders, decoders, heads) should inherit from their respective Base class in ocr_framework/core/ to ensure a consistent interface.
-* **Registry Pattern:** Architectures and components are registered in and retrieved from the ArchitectureRegistry to enable plug-and-play experimentation.
-* **Factory Functions:** Use factory functions (e.g., get_encoder_by_cfg) that take a config object as input and return an instantiated component.
+- `docs/ai_handbook/02_protocols/governance/18_documentation_governance_protocol.md` - Documentation standards
+- `docs/ai_handbook/02_protocols/development/03_debugging_workflow.md` - Debugging procedures
+- `docs/ai_handbook/02_protocols/development/05_modular_refactor.md` - Refactoring guidelines
+- `docs/ai_handbook/03_references/architecture/01_architecture.md` - Project architecture
+- `docs/ai_handbook/_templates/development.md` - Development template
+
+---
+
+*This document follows the development protocol template. Last updated: October 13, 2025*

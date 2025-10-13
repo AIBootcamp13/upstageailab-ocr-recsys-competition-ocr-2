@@ -1,37 +1,98 @@
-# **filename: docs/ai_handbook/02_protocols/04_utility_adoption.md**
+# **filename: docs/ai_handbook/02_protocols/development/04_utility_adoption.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=utility_adoption,code_reuse,refactoring -->
 
 # **Protocol: Utility Adoption**
 
-This protocol governs the use and contribution to the project's shared utility modules. The primary goal is to adhere to the Don't Repeat Yourself (DRY) principle, ensuring that common logic is centralized, maintainable, and consistently applied.
+## **Overview**
+This protocol governs the use and contribution to the project's shared utility modules. The primary goal is to adhere to the Don't Repeat Yourself (DRY) principle, ensuring that common logic is centralized, maintainable, and consistently applied across the codebase.
 
-## **1. The Principle: Check the Toolbox First**
+## **Prerequisites**
+- Access to project repository and utility modules
+- Familiarity with Python import system and module structure
+- Understanding of the project's utility reference documentation
+- Knowledge of basic refactoring principles
 
-Before writing any new helper function, you **must** first check if a suitable utility already exists in the shared "toolbox." Re-implementing logic that already exists leads to code duplication, bugs, and maintenance overhead.
+## **Procedure**
 
-## **2. The Discovery Process**
+### **Step 1: Check the Toolbox First**
+Before writing any new helper function, you **must** first check if a suitable utility already exists:
 
-Your primary resource for discovering available tools is the reference document.
+- Re-implementing existing logic leads to code duplication, bugs, and maintenance overhead
+- Always prioritize reuse of existing utilities over creating new implementations
+- Consult the utility reference document as the primary discovery resource
 
-* **Consult the Reference:** Before implementing any common task (e.g., path manipulation, logging, visualization), you must review the **docs/ai_handbook/03_references/03_utility_functions.md** document.
+### **Step 2: Discover Available Utilities**
+Use the reference documentation to find appropriate tools for common tasks:
 
-This document serves as the canonical catalog of all approved, reusable utility functions.
+**Consult the Reference Document:**
+```markdown
+docs/ai_handbook/03_references/03_utility_functions.md
+```
 
-## **3. The Adoption Workflow**
+This document serves as the canonical catalog of all approved, reusable utility functions covering:
+- Path manipulation and file system operations
+- Logging and visualization helpers
+- OCR-specific utilities and formatting functions
 
-When you identify a utility function that fits your needs, follow these steps to integrate it:
+### **Step 3: Adopt Existing Utilities**
+When you identify a suitable utility function, integrate it properly:
 
-1. **Import Correctly:** Import the function from its canonical path as specified in the reference document (e.g., from ocr.utils.path_utils import get_project_root).
-2. **Replace Local Logic:** Remove any duplicated or similar logic from your current script and replace it with a call to the shared utility function.
-3. **Validate:** Ensure that your code still functions as expected after the replacement. If the utility function is being used in a script covered by tests, run the relevant tests to confirm there are no regressions.
+**Import Correctly:**
+```python
+from ocr.utils.path_utils import get_project_root
+from ocr.utils.wandb_utils import log_experiment
+from ocr.utils.ocr_utils import visualize_predictions
+```
 
-## **4. The Contribution Workflow**
+**Replace Local Logic:**
+- Remove any duplicated or similar logic from your current script
+- Replace with calls to the shared utility function
+- Ensure consistent API usage across the codebase
 
-If you develop a new piece of logic that is generic and could be useful in other parts of the codebase, you should contribute it back to the shared utilities.
+**Validate Integration:**
+- Confirm code functions as expected after replacement
+- Run relevant tests to prevent regressions
+- Verify no breaking changes in dependent functionality
 
-1. **Identify a Candidate:** The logic should be a "pure" function where possible—meaning it is stateless and produces the same output for the same input. Good candidates are functions for formatting, calculation, or I/O operations.
-2. **Add to the Correct Module:** Place your new function in the most appropriate utility module:
-   * `ocr/utils/path_utils.py` for path and file system operations.
-   * `ocr/utils/wandb_utils.py` for Weights & Biases integration.
-   * `ocr/utils/ocr_utils.py` for general visualization or OCR-specific helpers.
-3. **Document the Function:** Add a clear docstring and type hints to your new function, explaining what it does, its parameters, and what it returns.
-4. **Update the Reference (CRITICAL):** This is the most important step. You **must** update the `docs/ai_handbook/03_references/03_utility_functions.md` document to include your new function. If the documentation is not updated, the utility does not officially "exist" for other agents or developers.
+### **Step 4: Contribute New Utilities**
+If you develop generic logic useful across the codebase, contribute it back:
+
+**Identify Candidates:**
+- Pure functions (stateless, same output for same input)
+- Generic operations: formatting, calculation, I/O operations
+- Logic that appears in multiple modules
+
+**Add to Appropriate Module:**
+- `ocr/utils/path_utils.py` - path and file system operations
+- `ocr/utils/wandb_utils.py` - Weights & Biases integration
+- `ocr/utils/ocr_utils.py` - visualization and OCR-specific helpers
+
+**Document Properly:**
+- Add clear docstring with parameters and return values
+- Include type hints for better IDE support
+- Follow existing documentation patterns
+
+**Update Reference (CRITICAL):**
+- Update `docs/ai_handbook/03_references/03_utility_functions.md`
+- Include function signature, description, and usage examples
+- This step makes the utility officially "discoverable" for other developers
+
+## **Validation**
+- All new code uses existing utilities where appropriate
+- No duplicate implementations of common functionality
+- Utility reference documentation is current and accurate
+- Tests pass after utility adoption or contribution
+- Code follows established import patterns and conventions
+
+## **Troubleshooting**
+- If utility function doesn't meet needs, consider extending rather than replacing
+- When reference documentation is outdated, update it immediately
+- For complex utilities, ensure proper error handling and edge cases
+- If tests fail after adoption, verify parameter compatibility
+
+## **Related Documents**
+- [Utility Functions Reference](../../references/architecture/03_utility_functions.md) - Catalog of available utilities
+- [Coding Standards](01_coding_standards.md) - Development best practices
+- [Modular Refactor](05_modular_refactor.md) - Code organization principles
+- [Refactoring Guide](10_refactoring_guide.md) - Advanced refactoring techniques

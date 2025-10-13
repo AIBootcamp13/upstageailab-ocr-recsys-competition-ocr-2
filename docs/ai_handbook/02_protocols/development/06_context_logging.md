@@ -1,22 +1,41 @@
-# **filename: docs/ai_handbook/02_protocols/04_context_logging.md**
+# **filename: docs/ai_handbook/02_protocols/development/06_context_logging.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=context_logging,summarization,agent_workflow -->
 
 # **Protocol: Context Logging and Summarization**
 
-To ensure that your actions are observable and can be used as context for future tasks without overloading the context window, you must follow this logging and summarization protocol.
+## **Overview**
+This protocol ensures agent actions are observable and can be used as context for future tasks without overloading context windows. It establishes structured logging and summarization practices for maintaining comprehensive audit trails and efficient knowledge transfer.
 
-> **What does “wrap-up” mean?** In this protocol, wrap-up refers to the end of an agent work session (the period of active coding or debugging during a conversation). Long-running training experiments should still be captured with the [experiment template](../04_experiments/TEMPLATE.md); you can link the experiment record from your context summary when needed.
+## **Prerequisites**
+- Access to project logging infrastructure and scripts
+- Understanding of JSON logging format and Markdown summaries
+- Familiarity with the context logging CLI tools
+- Environment configuration (`.env` and `.env.local` files)
 
-## **1. The Principle: Log Everything, Summarize for Context**
+## **Procedure**
 
-* **Logging:** Every significant action you take must be recorded in a structured JSON log file. This provides a detailed, machine-readable audit trail.
-* **Summarization:** Raw logs are too verbose for context. After every run, you will use a tool to generate a concise Markdown summary of the log. **This summary is the primary artifact used for context.**
+### **Step 1: Initialize Context Logging**
+Start structured logging at the beginning of any significant work session:
 
-## **2. Structured Logging**
+**Create Log File:**
+```bash
+uv run python scripts/agent_tools/context_log.py start [--label my-task]
+# Or use Makefile shortcut:
+make context-log-start LABEL="my-task"
+```
 
-For each run, a log file will be created at `logs/agent_runs/<YYYY-MM-DD_HH-MM-SS>.jsonl`.
+This creates `logs/agent_runs/<timestamp>[_my-task].jsonl` and prints the path for reference.
 
-Each action you take should be logged as a new line in this file. Each line is a JSON object with the following schema:
+**Configure Environment:**
+- `.env` contains non-sensitive defaults like `AGENT_CONTEXT_LOG_DIR`
+- `.env.local` contains private keys and optional default labels
+- Set `AGENT_CONTEXT_LOG_LABEL` for per-session consistency
 
+### **Step 2: Log All Significant Actions**
+Record every meaningful action in structured JSON format throughout the session:
+
+**Log Format:**
 ```json
 {
   "timestamp": "2025-09-28T15:30:00Z",
@@ -31,52 +50,65 @@ Each action you take should be logged as a new line in this file. Each line is a
 }
 ```
 
-A helper function (`log_agent_action`) ships in `scripts/agent_tools/context_log.py`; see the helper tooling section below.
+**Use Helper Function:**
+```python
+from scripts.agent_tools.context_log import log_agent_action
 
-## **3. Generating and Using Summaries**
-
-At the end of your run (whether it succeeds or fails), you **must** call the summarization script.
-
-### **3.1. How to Generate a Summary**
-
-Execute the following command (or use the `make context-log-summarize` shortcut described below):
-```bash
-uv run python scripts/agent_tools/context_log.py summarize --log-file <path_to_your_log_file.jsonl>
-```
-This command will:
-
-1. Read the structured log file.
-2. Use an LLM to generate a concise summary.
-3. Save the summary as a Markdown file in `docs/ai_handbook/04_experiments/run_summary_<timestamp>.md`.
-
-### **3.2. How to Use Summaries**
-
-Summaries are the key to effective, long-term context.
-
-* **For Debugging:** When a task fails, your first step is to locate the summary of the failed run. It will provide the most efficient overview of what went wrong.
-* **For Multi-step Tasks:** If you are continuing a multi-part task, the summary from the previous part should be used as your primary context.
-
-## **4. Helper Tooling**
-
-To simplify adoption, the `scripts/agent_tools/context_log.py` CLI exposes three subcommands:
-
-| Command | Purpose |
-| --- | --- |
-| `uv run python scripts/agent_tools/context_log.py start [--label my-task]` | Creates `logs/agent_runs/<timestamp>[_my-task].jsonl` and prints its path. |
-| `uv run python scripts/agent_tools/context_log.py log --log-file <path> --action ...` | Manually append an entry (useful for shell-only workflows). |
-| `uv run python scripts/agent_tools/context_log.py summarize --log-file <path>` | Generates the Markdown summary via the LLM helper. |
-
-Shortcuts exist in the `Makefile`:
-
-```bash
-make context-log-start LABEL="streamlit-maintenance"
-make context-log-summarize LOG=logs/agent_runs/2025-09-30_18-00-00_streamlit-maintenance.jsonl
+log_agent_action(
+    log_file_path="logs/agent_runs/2025-09-28_15-30-00.jsonl",
+    action="execute_script",
+    parameters={"script_name": "validate_config.py", "args": ["--config-name", "train"]},
+    thought="Validating training configuration before starting experiment",
+    outcome="success",
+    output_snippet="Configuration validated successfully"
+)
 ```
 
-Both commands appear in `make help` and are listed in the Command Registry for easy agent invocation.
+### **Step 3: Generate Session Summary**
+Create concise Markdown summary at the end of each work session:
 
-### Environment defaults
+**Run Summarization:**
+```bash
+uv run python scripts/agent_tools/context_log.py summarize --log-file <path_to_log_file.jsonl>
+# Or use Makefile shortcut:
+make context-log-summarize LOG=<path_to_log_file.jsonl>
+```
 
-- `.env` (checked into git) defines non-sensitive defaults such as `AGENT_CONTEXT_LOG_DIR` and an optional blank `AGENT_CONTEXT_LOG_LABEL`.
-- `.env.local` (ignored by git) should contain private keys and, if desired, a default label override (for example `AGENT_CONTEXT_LOG_LABEL="streamlit-maintenance"`). Copy `.env.template` to `.env.local` and fill in the placeholders.
-- When you invoke `context_log.py start` without `--label`, the tool reads `AGENT_CONTEXT_LOG_LABEL` from the environment. This makes it easy to set a per-session label once (export it or place it in `.env.local`).
+**Summary Process:**
+- Reads the structured JSON log file
+- Uses LLM to generate concise Markdown summary
+- Saves as `docs/ai_handbook/04_experiments/run_summary_<timestamp>.md`
+- Provides efficient overview for future context
+
+### **Step 4: Utilize Summaries for Context**
+Leverage generated summaries for efficient knowledge transfer and debugging:
+
+**For Debugging:**
+- Locate summary of failed runs for efficient problem diagnosis
+- Use summary as primary context when investigating issues
+- Reference specific actions and outcomes without full log verbosity
+
+**For Multi-step Tasks:**
+- Use previous session summaries as primary context for continuation
+- Link experiment records to context summaries when applicable
+- Maintain continuity across long-running development efforts
+
+## **Validation**
+- Log file created and contains structured JSON entries for all significant actions
+- Each log entry includes timestamp, action, parameters, thought process, and outcome
+- Summary generation completes successfully and produces readable Markdown
+- Summaries provide sufficient context for understanding session outcomes
+- Environment configuration properly set up for logging workflow
+
+## **Troubleshooting**
+- If log file creation fails, check environment variables and directory permissions
+- When summary generation fails, verify LLM access and log file format
+- For missing context, ensure all significant actions were logged during session
+- If summaries are too verbose, review logging granularity and focus on key actions
+- When debugging past sessions, start with summary before diving into raw logs
+
+## **Related Documents**
+- [Command Registry](02_command_registry.md) - Available logging and context tools
+- [Experiment Template](../../experiments/TEMPLATE.md) - Long-running experiment documentation
+- [Context Checkpointing](08_context_checkpointing.md) - Advanced context management
+- [Iterative Debugging](07_iterative_debugging.md) - Debugging workflow integration

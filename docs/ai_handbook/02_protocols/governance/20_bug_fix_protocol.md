@@ -1,182 +1,97 @@
+# **filename: docs/ai_handbook/02_protocols/governance/20_bug_fix_protocol.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=bugfix,maintenance,governance -->
+
 # **Protocol: Bug Fix and Maintenance Response**
 
-This protocol codifies the AI agent's response process for bug fix requests, ensuring consistent documentation, changelog updates, and user communication. It extends the maintenance protocols by providing a structured approach to handling bugs that require code changes, documentation updates, and user notifications.
+This protocol establishes the governance framework for bug fix requests to ensure consistent documentation, changelog updates, and user communication across all maintenance activities.
 
----
+## **Overview**
 
-## **1. Scope & Applicability**
+This protocol codifies the AI agent's response process for bug fix requests, ensuring consistent documentation, changelog updates, and user communication. It extends maintenance protocols by providing a structured approach to handling bugs that require code changes, documentation updates, and user notifications.
 
-This protocol applies to all bug fix requests that involve:
-- Code changes to fix functional issues
-- UI/UX regressions or failures
-- Performance or compatibility problems
-- Data processing errors
+## **Prerequisites**
 
-It does not apply to:
-- Pure documentation updates without code changes
-- Feature requests or enhancements
-- Configuration-only changes
+- Access to bug reproduction environment
+- Understanding of codebase structure and debugging tools
+- Knowledge of documentation and changelog standards
+- Access to testing frameworks and validation scripts
 
----
+## **Governance Rules**
 
-## **2. Trigger Conditions**
+### **Rule 1: Scope and Applicability**
+This protocol applies to all bug fix requests involving code changes, UI/UX regressions, performance issues, or data processing errors. It does not apply to pure documentation updates or feature requests.
 
-Activate this protocol when:
-1. User reports a functional bug (e.g., "X is not working")
-2. Code investigation reveals the root cause
-3. A fix has been implemented and tested
-4. The fix requires documentation updates
+### **Rule 2: Trigger Conditions**
+Activate this protocol when user reports functional bugs, code investigation reveals root causes, fixes are implemented and tested, or documentation updates are required.
 
----
+### **Rule 3: Response Workflow**
+Follow the three-phase workflow: investigation and root cause analysis, fix implementation, and documentation and communication.
 
-## **3. Response Workflow**
+### **Rule 4: Documentation Standards**
+All fixes must include summary reports, changelog updates, and appropriate documentation changes following established formats.
 
-### **Phase 1: Bug Investigation & Root Cause Analysis**
+### **Rule 5: Quality Assurance**
+Complete the quality assurance checklist for every bug fix to ensure thoroughness and prevent regressions.
 
-1. **Reproduce the Issue**
-   - Attempt to reproduce the reported bug using available tools
-   - If reproduction fails, identify environmental differences
-   - Document reproduction steps and environment details
+## **Procedure**
 
-2. **Code Analysis**
-   - Examine relevant code paths using grep_search, read_file, and semantic_search
-   - Check recent changes in git history that might have introduced the bug
-   - Identify the root cause with specific file locations and code snippets
+### **Step 1: Assessment**
+Reproduce the issue, analyze code paths, check recent changes, and assess the impact and scope of the bug.
 
-3. **Impact Assessment**
-   - Determine scope of affected functionality
-   - Assess user impact (blocking, annoying, cosmetic)
-   - Identify related components that might be affected
+### **Step 2: Implementation**
+Develop minimal fixes addressing root causes, ensure backward compatibility, add error handling, and validate through testing.
 
-### **Phase 2: Fix Implementation**
+### **Step 3: Validation**
+Generate summary reports, update changelogs, create bug reports for serious issues, and update relevant documentation.
 
-1. **Develop Fix**
-   - Implement the minimal fix addressing the root cause
-   - Ensure backward compatibility where possible
-   - Add appropriate error handling and validation
+### **Step 4: Monitoring**
+Ensure all communication guidelines are followed and protocol improvements are documented.
 
-2. **Testing & Validation**
-   - Test the fix with the original reproduction case
-   - Run relevant automated tests if available
-   - Verify no regressions in related functionality
+## **Compliance Validation**
 
-3. **Code Review**
-   - Ensure code follows project conventions
-   - Add appropriate comments and documentation
-   - Validate imports and dependencies
-
-### **Phase 3: Documentation & Communication**
-
-1. **Generate Summary Report**
-   - Create a dated markdown summary in `docs/ai_handbook/05_changelog/YYYY-MM/`
-   - Use naming schema: `DD_bug_description.md`
-   - Include: problem description, root cause, changes made, impact, testing
-
-2. **Update Changelog**
-   - Add appropriate section in `docs/CHANGELOG.md` (Fixed, Changed, etc.)
-   - Follow existing format with date and concise description
-   - Reference the summary report
-
-3. **Bug Report Generation** (for serious bugs)
-   - If the bug represents a serious issue (data loss, security, major functionality), create a bug report
-   - Place in `docs/ai_handbook/05_changelog/YYYY-MM/DD_serious_bug_report.md`
-   - Include: severity assessment, reproduction steps, mitigation steps, prevention recommendations
-
-4. **Documentation Updates**
-   - Update any relevant documentation affected by the fix
-   - Ensure inline code documentation reflects changes
-   - Update troubleshooting guides if applicable
-
----
-
-## **4. Documentation Standards**
-
-### **Summary Report Format**
-
-```markdown
-# YYYY-MM-DD: Brief Bug Description
-
-## Summary
-One-paragraph description of the bug and fix.
-
-## Root Cause Analysis
-Detailed explanation of what caused the bug.
-
-## Changes Made
-- File: `path/to/file.py`
-  - Description of changes
-- File: `path/to/other.py`
-  - Description of changes
-
-## Impact
-- User-facing changes
-- Performance implications
-- Compatibility notes
-
-## Testing
-- How the fix was validated
-- Edge cases considered
-
-## Related Issues
-- Links to related problems or future work
+```bash
+# Bug fix compliance validation
+uv run ruff check <modified_files>
+uv run python -m pytest <relevant_tests>
+python scripts/validate_templates.py docs/ai_handbook/_templates docs/ai_handbook
 ```
 
-### **Changelog Entry Format**
+## **Enforcement**
 
-```markdown
-### Fixed - YYYY-MM-DD
+### **Automated Checks**
+- Pre-commit hooks for code quality validation
+- CI/CD pipeline testing requirements
+- Automated changelog and documentation validation
 
-#### Brief Title
+### **Manual Review**
+- Code review requirements for all bug fixes
+- Documentation review for changelog and summary reports
+- Exception approval for urgent critical fixes
 
-**Description**
+## **Troubleshooting**
 
-- **Changes:**
-  - List of key changes
-- **Impact:**
-  - User impact description
-- **Related Files:**
-  - `path/to/file.py`
-  - Summary: `docs/ai_handbook/05_changelog/YYYY-MM/DD_summary.md`
-```
+### **Common Governance Issues**
+- **Reproduction Failures**: Document environmental differences and alternative reproduction methods
+- **Root Cause Uncertainty**: Use systematic code analysis and git history investigation
+- **Regression Introduction**: Implement comprehensive testing before deployment
+- **Documentation Gaps**: Follow established formats and include all required sections
 
-### **Bug Report Format** (for serious bugs)
+### **Escalation Path**
+1. Consult team lead for complex or high-impact bugs
+2. Escalate to architecture team for systemic issues
+3. Document exceptions and update protocol for future improvements
 
-```markdown
-# 🚨 SERIOUS BUG REPORT: YYYY-MM-DD
+## **Related Documents**
 
-## Severity: [CRITICAL|HIGH|MEDIUM]
-
-## Problem
-Description of the serious issue.
-
-## Impact
-- User impact assessment
-- Data/system integrity concerns
-- Business impact
-
-## Root Cause
-Detailed technical analysis.
-
-## Immediate Mitigation
-Steps users should take immediately.
-
-## Long-term Prevention
-Recommendations to prevent similar issues.
-
-## Investigation Notes
-Technical details for future reference.
-```
+- `docs/ai_handbook/02_protocols/governance/18_documentation_governance_protocol.md` - Documentation governance
+- `docs/ai_handbook/02_protocols/governance/19_streamlit_maintenance_protocol.md` - Maintenance procedures
+- `docs/ai_handbook/02_protocols/development/03_debugging_workflow.md` - Debugging procedures
+- `docs/ai_handbook/_templates/governance.md` - Governance template
 
 ---
 
-## **5. Quality Assurance Checklist**
-
-- [ ] Bug successfully reproduced before fix
-- [ ] Root cause clearly identified and documented
-- [ ] Fix addresses root cause, not just symptoms
-- [ ] No regressions introduced
-- [ ] Summary report created with proper naming
-- [ ] Changelog updated appropriately
+*This document follows the governance protocol template. Last updated: October 13, 2025*
 - [ ] Documentation references are accurate
 - [ ] Code follows project standards
 - [ ] Appropriate testing completed

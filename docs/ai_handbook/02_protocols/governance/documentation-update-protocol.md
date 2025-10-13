@@ -1,159 +1,94 @@
-# Documentation Update Protocol
+# **filename: docs/ai_handbook/02_protocols/governance/documentation-update-protocol.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=documentation,updates,governance -->
 
-This protocol provides clear guidelines for instructing AI agents about which documentation files to update and when. Use this protocol to ensure consistent documentation maintenance across the project.
+# **Protocol: Documentation Update**
 
-## Document Hierarchy & Update Guidelines
+This protocol establishes the governance framework for documentation updates to ensure consistent maintenance, timely updates, and quality standards across all project documentation.
 
-### 1. Primary Documentation (Update Immediately)
+## **Overview**
 
-**README.md** - Main project documentation
-- **When to update:** Major feature additions, breaking changes, new setup requirements
-- **What to include:** Installation instructions, quick start guide, feature overview
-- **Agent instruction format:** "Update README.md to document [feature/change]"
+This protocol provides clear guidelines for instructing AI agents about which documentation files to update and when. Use this protocol to ensure consistent documentation maintenance across the project and maintain high-quality, up-to-date documentation.
 
-### 2. Component-Specific Documentation (Update After Implementation)
+## **Prerequisites**
 
-**docs/** directory files:
-- **docs/setup/** - Installation and configuration guides
-  - Update when: New dependencies, environment setup changes, configuration options
-- **docs/project/** - Architecture and design documents
-  - Update when: New components, architectural changes, design decisions
-- **docs/ai_handbook/** - AI/ML specific documentation
-  - Update when: New models, training procedures, evaluation methods
+- Understanding of project documentation hierarchy
+- Knowledge of change types and their documentation requirements
+- Access to validation tools and testing procedures
+- Familiarity with documentation standards and quality checks
 
-**ui/README.md** - UI-specific documentation
-- **When to update:** New UI features, interface changes, workflow updates
-- **Agent instruction format:** "Update ui/README.md to document [UI feature/change]"
+## **Governance Rules**
 
-### 3. Operational Documentation (Update After Testing)
+### **Rule 1: Document Hierarchy**
+Follow the established hierarchy: primary documentation (README.md), component-specific docs, operational documentation, and development documentation with appropriate update frequencies.
 
-**docs/submission-quick-reference.md** - Competition submission guide
-- **When to update:** Changes to submission process, new evaluation metrics, competition requirements
+### **Rule 2: Update Triggers**
+Immediate updates for breaking changes and major features, after-testing updates for bug fixes and enhancements, weekly reviews for outdated information, and pre-release reviews for comprehensive validation.
 
-**docs/generating-submissions.md** - Technical submission generation
-- **When to update:** Changes to submission format, new output requirements
+### **Rule 3: Agent Instruction Format**
+Use structured format for documentation update requests including target document, change type, context, update scope, validation criteria, and detailed description.
 
-### 4. Development Documentation (Update During Development)
+### **Rule 4: Quality Standards**
+All documentation must include entry points, prerequisites, validation steps, troubleshooting information, and concrete examples.
 
-**docs/agentic-workflow-example.md** - AI agent workflow examples
-- **When to update:** New agent capabilities, workflow improvements, automation examples
+### **Rule 5: Agent Response Protocol**
+Agents must confirm understanding, identify changes, provide summaries, validate updates, and report completion with recommendations.
 
-**docs/semantic_search_patterns.md** - Search and discovery patterns
-- **When to update:** New search features, indexing improvements, query patterns
+## **Procedure**
 
-## Agent Instruction Format
+### **Step 1: Assessment**
+Evaluate the change type, impact, and documentation requirements based on the established hierarchy and update triggers.
 
-When requesting documentation updates, use this structured format:
+### **Step 2: Implementation**
+Use the structured request format to specify target documents, change types, context, scope, and validation criteria.
 
-```
-DOCUMENTATION UPDATE REQUEST
+### **Step 3: Validation**
+Run quality checks including code example testing, prerequisite validation, cross-reference checking, and link accessibility verification.
 
-Target Document: [specific file path]
-Change Type: [new feature|bug fix|enhancement|breaking change]
-Context: [brief description of what changed]
-Update Scope: [what sections to update/add]
-Validation: [how to verify the documentation is correct]
+### **Step 4: Monitoring**
+Conduct regular reviews and emergency updates for critical issues following established protocols.
 
-Description:
-[Detailed description of changes and why documentation needs updating]
-```
+## **Compliance Validation**
 
-## Examples
-
-### Example 1: New Feature Documentation
-```
-DOCUMENTATION UPDATE REQUEST
-
-Target Document: ui/README.md
-Change Type: new feature
-Context: Added checkpoint catalog functionality to inference UI
-Update Scope: Inference UI section - add checkpoint catalog features
-Validation: Verify checkpoint catalog description matches implementation
-
-Description:
-The inference UI now includes automatic checkpoint discovery and cataloging.
-Update the Inference UI section to document:
-- Automatic checkpoint scanning
-- Metadata display features
-- Catalog browsing workflow
+```bash
+# Documentation update compliance check
+python scripts/validate_templates.py docs/ai_handbook/_templates docs/ai_handbook
+uv run python scripts/agent_tools/validate_manifest.py
+# Check for broken links and validate examples
 ```
 
-### Example 2: Breaking Change Documentation
-```
-DOCUMENTATION UPDATE REQUEST
+## **Enforcement**
 
-Target Document: README.md
-Change Type: breaking change
-Context: Updated PyTorch Lightning version requirement
-Update Scope: Requirements section, installation instructions
-Validation: Ensure version compatibility is clearly stated
+### **Automated Checks**
+- Pre-commit hooks for documentation validation
+- CI/CD pipeline checks for link integrity and format compliance
+- Automated quality checks for examples and prerequisites
 
-Description:
-PyTorch Lightning updated to 2.1+ with breaking changes.
-Update requirements and installation docs accordingly.
-```
+### **Manual Review**
+- Documentation review requirements for all updates
+- Quality assurance checklist completion
+- Exception approval for urgent documentation updates
 
-### Example 3: Test Documentation
-```
-DOCUMENTATION UPDATE REQUEST
+## **Troubleshooting**
 
-Target Document: tests/integration/test_checkpoint_fixes.py
-Change Type: new test
-Context: Added comprehensive checkpoint catalog testing
-Update Scope: Test file moved to appropriate directory
-Validation: Test runs successfully and documents catalog functionality
+### **Common Governance Issues**
+- **Missing Prerequisites**: Ensure all requirements are documented before usage instructions
+- **Outdated Examples**: Test all code examples and update as needed
+- **Broken Cross-references**: Validate all internal and external links
+- **Incomplete Validation**: Include verification steps for all procedures
 
-Description:
-Created comprehensive test suite for checkpoint catalog fixes.
-Moved test file to tests/integration/ and updated any references.
-```
+### **Escalation Path**
+1. Consult documentation maintainer for complex updates
+2. Escalate to governance committee for standard changes
+3. Use emergency protocol for critical documentation issues
 
-## Documentation Standards
+## **Related Documents**
 
-### Content Requirements
-- **Entry Points:** Every major feature must have clear usage examples
-- **Prerequisites:** List all requirements before usage instructions
-- **Validation:** Include verification steps for each procedure
-- **Troubleshooting:** Add common issues and solutions
-- **Examples:** Provide concrete code/command examples
+- `docs/ai_handbook/02_protocols/governance/18_documentation_governance_protocol.md` - Documentation governance
+- `docs/ai_handbook/02_protocols/governance/19_streamlit_maintenance_protocol.md` - Maintenance procedures
+- `docs/ai_handbook/_templates/governance.md` - Governance template
+- `docs/ai_handbook/index.json` - Master schema definition
 
-### Update Triggers
-- ✅ **Immediate:** Breaking changes, security issues, new major features
-- ✅ **After Testing:** Bug fixes, enhancements, new minor features
-- ✅ **Weekly Review:** Check for outdated information, missing examples
-- ✅ **Before Release:** Comprehensive documentation review
+---
 
-### Quality Checks
-- [ ] All code examples are tested and working
-- [ ] Prerequisites are complete and accurate
-- [ ] Cross-references between documents are valid
-- [ ] Table of contents matches document structure
-- [ ] External links are accessible
-- [ ] Screenshots/images are up to date (if applicable)
-
-## Agent Response Protocol
-
-When an agent updates documentation, they should:
-
-1. **Confirm understanding** of the update request
-2. **Identify target document** and specific sections to modify
-3. **Provide before/after summary** of changes
-4. **Validate** the documentation (run examples, check links)
-5. **Report completion** with any follow-up recommendations
-
-## Emergency Documentation Updates
-
-For critical issues requiring immediate documentation updates:
-
-```
-URGENT DOCUMENTATION UPDATE
-
-Priority: [HIGH|CRITICAL]
-Impact: [user safety|data loss|security|functionality]
-Deadline: [timeframe]
-Stakeholders: [who needs to be notified]
-
-[Standard update request format]
-```
-
-This protocol ensures consistent, timely, and high-quality documentation maintenance across the project.
+*This document follows the governance protocol template. Last updated: October 13, 2025*

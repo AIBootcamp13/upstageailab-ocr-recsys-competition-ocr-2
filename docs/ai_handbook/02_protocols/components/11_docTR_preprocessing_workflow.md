@@ -1,14 +1,179 @@
-# docTR-Enhanced Preprocessing Workflow
+# **filename: docs/ai_handbook/02_protocols/components/11_docTR_preprocessing_workflow.md**
 
-_Last updated: 2025-09-30_
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=preprocessing,document-analysis,orientation-correction -->
 
-## Overview
-This guide captures the workflow we used to adopt the docTR preprocessing pipeline inside our OCR stack. It is intended to be the one-stop reference when you need to pick the work back up from a fresh context, review required toggles, or extend the feature set (for example, into the Streamlit inference UI).
+# **Protocol: docTR Preprocessing Workflow**
 
-Key additions delivered so far:
-- Optional docTR-powered orientation correction, perspective rectification, and padding cleanup in `ocr/datasets/preprocessing.DocumentPreprocessor`.
-- Hydra-configurable switches (`configs/preset/datasets/preprocessing.yaml`) so experiments can turn the features on/off without code changes.
-- Unit tests (`tests/test_preprocessing.py`) guaranteeing behaviour when docTR is available.
+## **Overview**
+
+This protocol documents the integration of docTR-powered preprocessing pipeline for document analysis, including orientation correction, perspective rectification, and padding cleanup. The component provides optional enhancements to the OCR preprocessing stack with Hydra-configurable switches for experimentation.
+
+## **Prerequisites**
+
+- Python environment with `python-doctr>=1.0.0` installed
+- Access to `ocr/datasets/preprocessing.py` and related modules
+- Understanding of Hydra configuration system
+- Basic knowledge of document preprocessing concepts
+
+## **Component Architecture**
+
+### **Core Components**
+- **DocumentPreprocessor**: Main preprocessing class in `ocr/datasets/preprocessing.py`
+- **docTR Integration**: Optional orientation correction and geometry extraction
+- **Hydra Configuration**: Preset-based toggles in `configs/preset/datasets/preprocessing.yaml`
+- **Streamlit UI**: Visual controls and metadata display in inference interface
+
+### **Integration Points**
+- `ocr/datasets/preprocessing.py`: Core preprocessing logic
+- `configs/preset/datasets/preprocessing.yaml`: Configuration toggles
+- `tests/test_preprocessing.py`: Unit test validation
+- `ui/inference_ui.py`: Streamlit interface integration
+
+## **Procedure**
+
+### **Step 1: Environment Setup and Dependencies**
+```bash
+# Install docTR and sync environment
+uv sync
+uv pip install python-doctr>=1.0.0
+
+# Verify installation
+python -c "import doctr; print('docTR version:', doctr.__version__)"
+```
+
+### **Step 2: Configuration Setup**
+Configure preprocessing toggles in Hydra presets:
+
+```yaml
+# configs/preset/datasets/preprocessing.yaml
+preprocessing:
+  enable_document_detection: true
+  enable_orientation_correction: true
+  orientation_angle_threshold: 5.0
+  use_doctr_geometry: true
+  enable_padding_cleanup: true
+  target_size: [1024, 1024]
+  enable_final_resize: true
+```
+
+### **Step 3: Integration and Testing**
+Integrate docTR preprocessing into the pipeline:
+
+```python
+# In DocumentPreprocessor.__init__
+self.enable_document_detection = preprocessing_config.get('enable_document_detection', False)
+self.enable_orientation_correction = preprocessing_config.get('enable_orientation_correction', False)
+self.use_doctr_geometry = preprocessing_config.get('use_doctr_geometry', False)
+```
+
+Run focused unit tests:
+```bash
+uv run pytest tests/test_preprocessing.py -v
+```
+
+### **Step 4: UI Integration and Validation**
+Integrate with Streamlit inference UI:
+
+```bash
+# Run inference UI for visual validation
+uv run streamlit run ui/inference_ui.py
+```
+
+Generate demo assets for documentation:
+```bash
+uv run python scripts/generate_doctr_demo.py
+```
+
+## **API Reference**
+
+### **Configuration Parameters**
+- `enable_document_detection`: Enable contour-based document boundary detection
+- `enable_orientation_correction`: Enable docTR-powered page rotation correction
+- `orientation_angle_threshold`: Minimum angle (°) for correction trigger
+- `use_doctr_geometry`: Use docTR's extract_rcrops for perspective correction
+- `enable_padding_cleanup`: Remove black borders via docTR padding removal
+- `target_size`: Final output resolution [width, height]
+- `enable_final_resize`: Control final resolution scaling
+
+### **Key Methods**
+- `DocumentPreprocessor.__init__()`: Initialize with configuration
+- `preprocess_document()`: Main preprocessing pipeline
+- `detect_document_boundaries()`: Contour-based document detection
+- `correct_orientation()`: docTR-powered rotation correction
+
+## **Configuration Structure**
+
+```
+configs/preset/datasets/preprocessing.yaml:
+├── preprocessing:
+│   ├── enable_document_detection: bool
+│   ├── enable_orientation_correction: bool
+│   ├── orientation_angle_threshold: float
+│   ├── use_doctr_geometry: bool
+│   ├── enable_padding_cleanup: bool
+│   ├── target_size: [int, int]
+│   └── enable_final_resize: bool
+```
+
+## **Validation**
+
+### **Unit Testing**
+```bash
+# Run preprocessing tests
+uv run pytest tests/test_preprocessing.py
+
+# Test with docTR features enabled/disabled
+uv run pytest tests/test_preprocessing.py::test_orientation_correction
+```
+
+### **Integration Testing**
+- Verify Streamlit UI shows preprocessing metadata
+- Check W&B logs for correct image scaling
+- Validate demo asset generation
+- Confirm Hydra configuration overrides work
+
+### **Visual Validation**
+- Compare original vs processed images in UI
+- Check corner detection overlays
+- Verify orientation correction accuracy
+- Confirm padding cleanup effectiveness
+
+## **Troubleshooting**
+
+### **Common Issues**
+
+**docTR Import Errors**
+- Ensure `python-doctr>=1.0.0` is installed
+- Check virtual environment activation
+- Verify package availability: `uv pip list | grep doctr`
+
+**Document Detection Failures**
+- Lower `document_detection_min_area_ratio` for small documents
+- Enable `document_detection_use_adaptive` for poor contrast
+- Try `document_detection_use_fallback_box` as last resort
+
+**Orientation Correction Problems**
+- Check `orientation_angle_threshold` is appropriate for your documents
+- Enable `orientation_expand_canvas` to prevent corner cropping
+- Set `orientation_preserve_original_shape` for consistent output size
+
+**Performance Issues**
+- Disable `use_doctr_geometry` for faster processing
+- Set `doctr_assume_horizontal=true` for horizontal text
+- Skip `enable_enhancement` for speed optimization
+
+**UI Integration Issues**
+- Verify Streamlit config in `configs/ui/inference.yaml`
+- Check preprocessing metadata logging
+- Confirm demo asset generation works
+
+## **Related Documents**
+
+- `17_advanced_training_techniques.md`: Training workflows using preprocessing
+- `12_streamlit_refactoring_protocol.md`: UI integration patterns
+- `13_training_protocol.md`: Basic training with preprocessing
+- `22_command_builder_hydra_configuration_fixes.md`: Hydra configuration patterns
 
 ## Picking up from a new context
 1. **Sync & install dependencies**

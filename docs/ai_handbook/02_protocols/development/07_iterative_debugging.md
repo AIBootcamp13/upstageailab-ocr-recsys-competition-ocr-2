@@ -1,70 +1,125 @@
-# **filename: docs/ai_handbook/02_protocols/05_iterative_debugging.md**
+# **filename: docs/ai_handbook/02_protocols/development/07_iterative_debugging.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=debugging,root_cause_analysis,regression_testing -->
 
 # **Protocol: Iterative Debugging and Root Cause Analysis**
 
-This protocol is to be used when a code change introduces a complex bug that is not immediately obvious and requires a systematic investigation. It is designed to manage context efficiently and produce a valuable summary, even if the root cause is not found.
+## **Overview**
+This protocol provides systematic investigation methodology for complex bugs that require methodical hypothesis testing and root cause analysis. It complements standard debugging workflows by focusing on structured investigation, efficient context management, and valuable documentation even when issues remain unresolved.
 
-It complements the standard "Context Logging" protocol but is specific to a single, focused debugging session.
+## **Prerequisites**
+- Clear reproduction case for the bug
+- Access to git repository with commit history
+- Understanding of hypothesis-testing debugging approach
+- Familiarity with project testing framework and validation scripts
+- Knowledge of the debugging log format and summarization tools
 
-## **Phase 1: Isolate the Regression with git bisect**
+## **Procedure**
 
-Before manual investigation, you must first attempt to automatically find the exact commit that introduced the bug. This is the most efficient way to pinpoint a regression.
+### **Step 1: Isolate Regression with Git Bisect**
+Automatically identify the exact commit that introduced the bug before manual investigation:
 
-1. **Identify a "bad" commit:** This is typically the current HEAD where the bug is present.
-2. **Identify a "good" commit:** Find a recent commit hash where the bug did not exist.
-3. **Identify a test command:** Find a reliable command that can automatically detect the bug (e.g., a specific pytest command from the Command Registry that now fails).
-4. **Execute the git bisect process:**
-   `git bisect start`
-   `git bisect bad <bad_commit_hash>`
-   `git bisect good <good_commit_hash>`
-   # The agent will now be in a bisect session.
-   # For each step, run the test command:
-   `uv run pytest tests/path/to/failing_test.py`
-   # If the test fails, run:
-   `git bisect bad`
-   # If the test passes, run:
-   `git bisect good`
+**Identify Commits:**
+- "Bad" commit: Current HEAD where bug is present
+- "Good" commit: Recent commit where bug did not exist
 
-5. **Conclusion:** Continue this process until git identifies the first bad commit. This is often the complete solution. If it is, log this finding in an experiment summary and conclude. If git bisect is not feasible or does not reveal the cause, proceed to Phase 2.
+**Find Test Command:**
+- Locate reliable automated test that detects the bug
+- Use commands from Command Registry (e.g., specific pytest commands)
 
-## **Phase 2: The Structured Debugging Log**
+**Execute Bisect Process:**
+```bash
+git bisect start
+git bisect bad <bad_commit_hash>
+git bisect good <good_commit_hash>
 
-If the root cause is more complex than a single bad commit, you will start a dedicated debugging log for this session.
+# For each step, run test and mark result:
+uv run pytest tests/path/to/failing_test.py
 
-* **File Location:** `logs/debugging_sessions/<YYYY-MM-DD_HH-MM-SS>_debug.jsonl`
+# If test fails: git bisect bad
+# If test passes: git bisect good
+```
 
-This log is **not** for every single action. It is for recording the **scientific method** of your debugging: hypothesis, test, observation, conclusion.
+**Evaluate Results:**
+- If bisect identifies the first bad commit, log finding and conclude
+- If bisect is inconclusive, proceed to structured debugging
 
-For each hypothesis you test, you must log a single JSON object to the _debug.jsonl file with the following schema:
+### **Step 2: Conduct Structured Hypothesis Testing**
+Create dedicated debugging log for systematic investigation when bisect fails:
 
+**Initialize Debug Log:**
+- Location: `logs/debugging_sessions/<YYYY-MM-DD_HH-MM-SS>_debug.jsonl`
+- Focus: Scientific method recording, not every action
+
+**Hypothesis Testing Format:**
+```json
 {
   "timestamp": "2025-09-28T16:00:00Z",
-  "hypothesis": "I believe the channel mismatch error is caused by the UNet decoder's `output_channels` not matching the DBNet head's `in_channels`.",
+  "hypothesis": "Channel mismatch error caused by UNet decoder output_channels not matching DBNet head in_channels",
   "test_action": {
     "type": "code_modification",
     "file": "configs/preset/models/decoder/unet.yaml",
-    "change": "Set `output_channels` to 256."
+    "change": "Set output_channels to 256"
   },
-  "observation": "After modifying the config and re-running the test, the channel mismatch `RuntimeError` disappeared, but a new `CUDA out of memory` error occurred.",
-  "conclusion": "The hypothesis was correct about the channel mismatch, but this has revealed a downstream memory issue. The new hypothesis is that the larger feature maps from the corrected decoder are too large for the current batch size."
+  "observation": "Channel mismatch RuntimeError disappeared, but CUDA out of memory error occurred",
+  "conclusion": "Hypothesis correct about channel mismatch, revealed downstream memory issue with larger feature maps"
 }
+```
 
-## **Phase 3: Generate the Debugging Summary (RCA)**
+**Testing Methodology:**
+- Formulate clear, testable hypotheses
+- Execute minimal changes to validate each hypothesis
+- Record observations objectively
+- Draw conclusions that lead to next hypothesis
 
-At the end of your debugging session—whether you succeed, fail, or exhaust your attempts—you **must** generate a summary of your investigation.
+### **Step 3: Generate Root Cause Analysis Summary**
+Create comprehensive documentation of the debugging investigation:
 
-Execute the new summarization tool (which will be added to the Command Registry):
+**Run Summarization Tool:**
+```bash
+uv run python scripts/agent_tools/summarize_debugging_log.py --log-file <path_to_debug_log.jsonl>
+```
 
-`uv run python scripts/agent_tools/summarize_debugging_log.py --log-file <path_to_your_debug_log.jsonl>`
+**Summary Generation:**
+- Reads structured debugging log entries
+- Produces concise, human-readable Markdown summary
+- Output: `docs/ai_handbook/04_experiments/debug_summary_<timestamp>.md`
 
-This script will read your structured debugging log and generate a concise, human-readable Markdown summary of the entire investigation.
+### **Step 4: Utilize Summary for Context and Hand-off**
+Leverage the debugging summary as the primary artifact for knowledge transfer:
 
-* **Output Location:** docs/ai_handbook/04_experiments/debug_summary_<timestamp>.md.
+**For Successful Resolution:**
+- Summary serves as permanent record of root cause and fix
+- Documents complete investigation narrative
+- Enables future reference and similar issue prevention
 
-## **Phase 4: Using the Summary for Hand-off and Context**
+**For Escalation:**
+- When investigation exhausts attempts, provide only the summary
+- Contains full investigation narrative in condensed format
+- Allows rapid knowledge transfer to human experts
 
-This generated debug_summary.md is now the single most important artifact from your session.
+**For Continuation:**
+- Summary becomes primary context for resuming investigation
+- Prevents work duplication across sessions
+- Maintains investigation continuity
 
-* **If you solved the bug:** The summary serves as a permanent record of the root cause and the fix.
-* **If you failed to solve the bug:** When escalating to a human, provide **only this summary**. It contains the full narrative of your investigation in a condensed format, allowing a human to get up to speed in seconds.
-* **For the next session:** This summary becomes the primary context for you or another agent to continue the investigation, ensuring no prior work is lost or repeated.
+## **Validation**
+- Git bisect attempted and results documented (successful or inconclusive)
+- Debug log contains structured hypothesis-testing entries
+- Each hypothesis includes clear test action, observation, and conclusion
+- Summary generation completes successfully
+- Summary provides comprehensive investigation overview
+- Investigation follows systematic, documented approach
+
+## **Troubleshooting**
+- If git bisect cannot find suitable good/bad commits, proceed directly to hypothesis testing
+- When hypotheses are too broad, break them into smaller, testable components
+- If debug log becomes too verbose, focus on key hypothesis transitions
+- When summary generation fails, verify log format and tool access
+- For complex multi-factor bugs, consider separate investigations for each factor
+
+## **Related Documents**
+- [Debugging Workflow](03_debugging_workflow.md) - General debugging techniques and tools
+- [Context Logging](06_context_logging.md) - Session logging and summarization
+- [Context Checkpointing](08_context_checkpointing.md) - Advanced context management
+- [Command Registry](02_command_registry.md) - Available testing and debugging tools

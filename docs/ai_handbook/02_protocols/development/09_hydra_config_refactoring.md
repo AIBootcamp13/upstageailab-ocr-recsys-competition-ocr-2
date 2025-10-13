@@ -1,102 +1,114 @@
-# **filename: docs/ai_handbook/02_protocols/08_hydra_config_refactoring.md**
+# **filename: docs/ai_handbook/02_protocols/development/09_hydra_config_refactoring.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=hydra,configuration,refactoring -->
 
 # **Protocol: Hydra Configuration Refactoring**
 
-This protocol provides a safe and systematic process for refactoring the project's Hydra configuration structure. Due to the declarative and compositional nature of Hydra, this process is fundamentally different from refactoring Python code and requires a deliberate, plan-first approach.
+## **Overview**
+This protocol provides a safe, systematic process for refactoring Hydra configuration structures. Due to Hydra's declarative and compositional nature, refactoring requires careful planning to avoid breaking the entire configuration system, which lacks intermediate testable states.
 
-## **The Challenge: Why Hydra Refactoring is Hard**
+## **Prerequisites**
+- Deep understanding of Hydra configuration system and composition rules
+- Knowledge of project's current config structure and interdependencies
+- Access to Hydra debugging tools and validation commands
+- Familiarity with git branching for isolated changes
+- Understanding of package headers and resolver conventions
 
-* **Lack of Intermediate States:** A partially refactored Hydra config is often completely broken. Unlike Python, you cannot easily test one small change at a time. The entire structure must be valid for the application to even start.
-* **"Silent" Errors:** Incorrect defaults or path issues can lead to the wrong configuration being composed without any explicit error, leading to confusing behavior downstream.
-* **Context Contamination:** Iterative trial-and-error attempts quickly pollute the conversation history with failed approaches, making it difficult to track the intended state.
+## **Procedure**
 
-## **The Strategy: Plan, Execute, Validate**
+### **Step 1: Plan Offline - Define Target State**
+Create comprehensive refactoring plan without touching live configuration files:
 
-This protocol follows a strict three-phase process to mitigate these risks. You must complete each phase before proceeding to the next.
+**Define Clear Objective:**
+- State goal explicitly (e.g., "Decompose monolithic db.yaml into separate data and dataloader config groups")
+- Follow established patterns like lightning-hydra-template
 
-### **Phase 1: Offline Planning & Analysis**
+**Audit Current State:**
+- List all affected `.yaml` files (created, moved, modified, deleted)
+- Identify code references in runners/ and scripts/ directories
+- Map interdependencies and defaults list connections
 
-**Do not modify any live configuration files in this phase.** All work must be done in a single, comprehensive planning document.
+**Design Target Structure:**
+- Create before/after Mermaid diagrams of `configs/` structure
+- Write complete contents for all new/modified files
+- Define proper package headers for Hydra resolver:
 
-1. **Define the Goal:** State the objective clearly.
-   * *Good Example:* "Decompose the monolithic db.yaml into separate data and dataloader config groups to improve modularity, following the lightning-hydra-template pattern."
-2. **Audit the Current State:**
-   * **List Affected Config Files:** List every `.yaml` file that will be created, moved, modified, or deleted.
-   * **Identify Code References:** Search the codebase (especially runners/ and scripts/) to find how the main experiment configs (e.g., train.yaml) are invoked. This identifies the primary entry points.
-   * **Map Interdependencies:** Make a best effort to map how the defaults lists in your main configs connect to the various config groups.
-3. **Design the Target State:** This is the core of your plan.
-   * **Visualize the Migration:** Create a Mermaid diagram that shows the configs/ directory structure *before* and *after* the refactor.
+**Root Config Group Files:**
+```yaml
+# @package _global_
+# Main data configuration
+```
 
-     ```mermaid
-     graph TD
-         subgraph "Before"
-             A["configs/"] --> A1["preset/datasets/db.yaml"];
-             A --> A2["train.yaml (contains dataloader logic)"];
-         end
-         subgraph "After"
-             B["configs/"] --> B1["data/default.yaml"];
-             B --> B2["dataloaders/default.yaml"];
-             B --> B3["train.yaml (references new groups)"];
-         end
-     ```
+**Nested Config Files:**
+```yaml
+# @package _group_.model.decoder
+# UNet decoder configuration
+```
 
-   * **Write New File Contents & Define Headers:** For every new or modified file, write its complete contents. You **must** follow the convention for package headers to ensure Hydra's resolver works correctly.
-     * **For files in the root of a config group (e.g., configs/data/default.yaml):** Use the _global_ package header. This makes its contents available at the top level (e.g., as data).
+**Specify New Usage:**
+- Define updated defaults lists for main experiment configs
+- Provide new command-line invocation examples
+- Establish validation command for testing
 
-       ```yaml
-       # @package _global_
+### **Step 2: Execute Transactionally**
+Implement the complete refactoring plan in a single, focused operation:
 
-       # Main data configuration
-       # ...
-       ```
-     * **For files inside a config group (e.g., configs/model/decoder/unet.yaml):** Use a group-specific package header. This makes the file selectable from the defaults list.
+**Create Dedicated Branch:**
+```bash
+git checkout -b feature/refactor-hydra-configs
+```
 
-       ```yaml
-        # @package _group_.model.decoder
+**Apply All Changes:**
+- Create, modify, and move files exactly as planned
+- Execute as single comprehensive set of actions
+- Avoid partial or incremental changes
 
-       # UNet decoder configuration
-       # ...
-       ```
-   * **Define Post-Refactor Usage:** Clearly state how the new configuration will be used.
-   * **New defaults list:** Write the exact defaults list for the main experiment config (e.g., train.yaml).
+### **Step 3: Validate with Hydra Tools**
+Verify new configuration structure using systematic validation approach:
 
-     ```yaml
-      defaults:
-       - _self_
-       - data: default
-       - dataloaders: default
-       - model: dbnet
-       # ...
-     ```
-     * **New Invocation:** Provide an example of the new, cleaner command-line invocation if it has changed.
-4. **Establish a Validation Command:** Identify a single, simple command that is known to work with the *current* configuration and which you will use to verify the *new* configuration.
-   * *Example:* `uv run python runners/train.py --config-name train data.limit_val_batches=1`
+**Run Validation Command:**
+```bash
+uv run python runners/train.py --config-name train data.limit_val_batches=1
+```
 
-### **Phase 2: Transactional Execution**
+**Debug with Hydra Tools:**
+- View final composed config: `--cfg job`
+- See Hydra's search path: `hydra.verbose=true`
+- Compare output against planned structure
 
-Now, you will execute the plan you created in Phase 1. This should be done as a single, focused set of actions within a dedicated git branch.
+**Address Failures:**
+- Don't guess fixes - use Hydra tools to identify discrepancies
+- Compare actual vs. planned configuration composition
+- Verify package headers and resolver paths
 
-1. **Create a New Branch:** `git checkout -b feature/refactor-hydra-configs`
-2. **Execute Your Plan:** Create, modify, and move all files exactly as defined in your plan from Phase 1.
+### **Step 4: Finalize and Document**
+Complete successful refactor and update project references:
 
-### **Phase 3: Validation & Debugging**
+**Commit Changes:**
+- Validation command succeeds with new structure
+- Commit complete refactor as single operation
 
-Verify the new structure using your validation command and Hydra's built-in tools.
+**Update Documentation:**
+- Modify Command Registry for changed script invocations
+- Create changelog entry detailing the refactor
+- Update any configuration documentation
 
-1. **Run the Validation Command:** Execute the command you identified in Phase 1.
-   * **If it succeeds:** Your refactor was successful. Proceed to the Finalize step.
-   * **If it fails:** Do not guess the fix. Proceed to the debugging steps below.
-2. **Debugging with Hydra Tools:**
-   * **To See the Final Config (--cfg job):** This is your most powerful tool. It prints the fully composed configuration your application would receive.
-     ```bash
-      uv run python runners/train.py --config-name train data.limit_val_batches=1 --cfg job
-     ```
-     Compare this output to your plan. The discrepancy will reveal the error.
-   * **To See How Hydra is Working (hydra.verbose):** If the composition is unexpected, this will show you Hydra's search path and exactly which files it is composing.
-     ```bash
-      uv run python runners/train.py --config-name train hydra.verbose=true
-     ```
-3. **Finalize and Document:**
-   * Once the validation command succeeds, commit your changes.
-   * Update the Command Registry if any script invocations have changed.
-   * Create a Changelog entry detailing the refactor.
+## **Validation**
+- Offline plan is comprehensive and covers all affected files
+- All configuration files follow proper package header conventions
+- Validation command succeeds with new structure
+- Hydra composition matches planned target state
+- No silent errors or unexpected configuration behavior
+
+## **Troubleshooting**
+- If validation fails, use `--cfg job` to identify composition discrepancies
+- When package headers are incorrect, check resolver paths with `hydra.verbose=true`
+- For complex refactors, consider smaller incremental changes
+- If silent errors occur, verify all interdependencies are properly mapped
+- When context becomes contaminated, restart with fresh plan document
+
+## **Related Documents**
+- [Configuration Management](../../configuration/01_hydra_config_system.md) - Hydra configuration patterns
+- [Modular Refactor](05_modular_refactor.md) - General refactoring principles
+- [Command Registry](02_command_registry.md) - Available validation and testing tools
+- [Coding Standards](01_coding_standards.md) - Development best practices

@@ -87,7 +87,7 @@ class LinkValidator:
                 content = f.read()
                 # Look for headers that would generate this anchor
                 # GitHub-style anchor generation: lowercase, spaces to hyphens
-                anchor_pattern = re.compile(rf'^#+\s+{re.escape(anchor.replace("-", " "))}', re.MULTILINE | re.IGNORECASE)
+                anchor_pattern = re.compile(rf"^#+\s+{re.escape(anchor.replace('-', ' '))}", re.MULTILINE | re.IGNORECASE)
                 return bool(anchor_pattern.search(content))
         except Exception:
             return False

@@ -1,74 +1,263 @@
-# 06. Wandb Integration Reference
+# Wandb Integration
+
+> **AI Cues**
+> - **priority**: high
+> - **use_when**: users need to configure experiment logging, troubleshoot wandb issues, set up per-batch image logging, handle config serialization
 
 ## Overview
 
-This document serves as a comprehensive reference for working with Weights & Biases (Wandb) in the OCR project. It covers common issues, best practices, troubleshooting, and lessons learned from integrating Wandb with Hydra-based ML pipelines.
+This reference provides comprehensive guidance for working with Weights & Biases (Wandb) in the OCR project. It covers configuration, common issues, best practices, and troubleshooting for Hydra-based ML pipelines with Wandb integration.
 
-## Table of Contents
+## Key Concepts
 
-- [Configuration and Setup](#configuration-and-setup)
-- [Per Batch Image Logging](#per-batch-image-logging)
-- [Common Issues and Solutions](#common-issues-and-solutions)
-- [Config Serialization Issues](#config-serialization-issues)
-- [Best Practices](#best-practices)
-- [Troubleshooting Guide](#troubleshooting-guide)
-- [API Reference](#api-reference)
+### Wandb Integration
 
-## Configuration and Setup
+- **Experiment Tracking**: Centralized logging of metrics, configs, and artifacts
+- **Per-Batch Image Logging**: Automatic logging of poorly performing validation batches
+- **Config Serialization**: Proper handling of Hydra configurations for Wandb logging
+- **Run Management**: Naming, tagging, and finalization of experiment runs
 
-### Environment Variables
+### Core Components
 
-Required environment variables for Wandb integration:
+- **WandbLogger**: PyTorch Lightning logger for Wandb integration
+- **Config Handling**: OmegaConf serialization with interpolation resolution
+- **Metric Logging**: Structured logging of training/validation metrics
+- **Artifact Management**: Model checkpoints and dataset versioning
+
+### Environment Setup
+
+Required environment variables for Wandb authentication and configuration:
+- `WANDB_API_KEY`: Authentication key (40 characters)
+- `WANDB_PROJECT`: Project name for experiment grouping
+- `WANDB_ENTITY`: Team/entity name for organization
+- `WANDB_USER`: Username for run attribution
+
+## Detailed Information
+
+### Per-Batch Image Logging
+
+The per-batch image logging feature automatically logs images from validation batches that perform poorly, helping with error analysis and debugging.
+
+During validation, the system computes per-batch metrics (recall, precision, hmean) for each batch. When a batch's recall falls below the configured threshold, the system:
+
+1. Loads all images from that problematic batch
+2. Creates WandB Image objects with captions showing the batch index and recall score
+3. Logs the images, batch metrics, and metadata to WandB
+
+#### What Gets Logged
+
+For each problematic batch, WandB receives:
+- `problematic_batch_{idx}_images`: Array of WandB Image objects with captions
+- `problematic_batch_{idx}_count`: Number of images in the batch
+- `problematic_batch_{idx}_recall`: The batch's recall score
+- `problematic_batch_{idx}_precision`: The batch's precision score
+- `problematic_batch_{idx}_hmean`: The batch's harmonic mean score
+
+### Config Serialization Issues
+
+#### Hydra Interpolation Resolution
+
+**Problem:** `dict(config)` fails when config contains `${hydra:runtime.cwd}` or similar interpolations.
+
+**Why it happens:** Hydra interpolations require runtime context to resolve, but `dict()` conversion doesn't have access to Hydra's resolution engine.
+
+**Solutions:**
+1. Use `OmegaConf.to_container()` with `resolve=True`
+2. Handle resolution failures gracefully with fallback to `resolve=False`
+3. Manual interpolation replacement for known patterns
+
+#### Complex Object Serialization
+
+**Problem:** Config contains non-serializable objects (functions, classes, custom objects).
+
+**Solutions:**
+1. Filter out complex objects before serialization
+2. Use custom JSON encoders that convert complex objects to strings
+3. Implement selective config logging excluding problematic fields
+
+## Examples
+
+### Basic Training with Wandb
 
 ```bash
-WANDB_API_KEY=your_api_key_here
-WANDB_PROJECT=receipt-text-recognition-ocr-project
-WANDB_ENTITY=ocr-team2
-WANDB_USER=your_username
+# Enable wandb via config override
+python runners/train.py logger.wandb.enabled=true
+
+# Enable via environment variable
+export WANDB_ENABLED=true
+python runners/train.py
+
+# Adjust per-batch image logging threshold
+python runners/train.py logger.per_batch_image_logging.recall_threshold=0.7
 ```
 
-### Config Structure
+### Config Serialization
 
-Wandb configuration is defined in `configs/logger/wandb.yaml`:
+```python
+from omegaconf import OmegaConf
+
+# Properly serialize config for wandb, handling hydra interpolations
+try:
+    # Try to resolve interpolations for cleaner config
+    wandb_config = OmegaConf.to_container(config, resolve=True)
+except Exception:
+    # Fall back to unresolved config if resolution fails
+    wandb_config = OmegaConf.to_container(config, resolve=False)
+
+logger = WandbLogger(
+    run_name,
+    project=config.logger.project_name,
+    config=wandb_config,
+)
+```
+
+### Run Finalization
+
+```python
+# Finalize wandb run with summary metrics
+if config.logger.wandb:
+    from ocr.utils.wandb_utils import finalize_run
+
+    metrics = {}
+    for key, value in trainer.callback_metrics.items():
+        cast_value = _to_float(value)
+        if cast_value is not None and math.isfinite(cast_value):
+            metrics[key] = cast_value
+
+    finalize_run(metrics)
+```
+
+## Configuration Options
+
+### Wandb Configuration (`configs/logger/wandb.yaml`)
 
 ```yaml
-# Logger config
 wandb:
-  enabled: True
+  enabled: true                    # Enable/disable wandb logging
 project_name: "receipt-text-recognition-ocr-project"
 exp_version: "v1.0"
 
-# Per batch image logging for error analysis
 per_batch_image_logging:
-  enabled: true
-  recall_threshold: 0.8
+  enabled: true                    # Enable problematic batch image logging
+  recall_threshold: 0.8           # Threshold for logging batches (0.0-1.0)
 ```
 
-The logger is composed via `configs/logger/default.yaml`:
+### Logger Composition (`configs/logger/default.yaml`)
 
 ```yaml
-# Logger config
 defaults:
   - wandb
   - _self_
 ```
 
-### Enabling Wandb in Training
+### Environment Variables
 
-Wandb can be enabled in several ways:
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `WANDB_API_KEY` | API key for authentication | Yes |
+| `WANDB_PROJECT` | Default project name | No |
+| `WANDB_ENTITY` | Default entity/team | No |
+| `WANDB_USER` | Username for run attribution | No |
+| `WANDB_DIR` | Local storage directory | No |
+| `WANDB_DISABLED` | Disable wandb globally | No |
 
-1. **Via config override:**
-   ```bash
-   python runners/train.py logger.wandb.enabled=true
-   ```
+## Best Practices
 
-2. **Via environment variable:**
-   ```bash
-   export WANDB_ENABLED=true
-   python runners/train.py
-   ```
+### Run Management
 
-3. **Via UI parameter** (when using the web interface)
+1. **Use descriptive run names** that include model architecture and key parameters
+2. **Tag runs appropriately** with experiment types, ablation studies, etc.
+3. **Set proper job types** (training, testing, evaluation)
+
+### Config Logging
+
+1. **Log resolved config** using `OmegaConf.to_container(config, resolve=True)`
+2. **Include relevant metadata** like git commit, hostname, and timestamp
+3. **Exclude sensitive data** such as API keys and private paths
+
+### Metrics and Artifacts
+
+1. **Log key metrics** with consistent naming conventions
+2. **Use summary for final metrics** to ensure they're prominently displayed
+3. **Log artifacts** for model checkpoints and important outputs
+
+### Resource Management
+
+1. **Always call `wandb.finish()`** at the end of runs
+2. **Handle interruptions gracefully** with proper cleanup
+3. **Monitor storage usage** and clean up old runs regularly
+
+## Troubleshooting
+
+### Config.json Not Appearing in Overview Tab
+
+**Symptoms:** Charts display but config.json and summary metrics missing
+
+**Root Cause:** Config serialization fails due to unresolved Hydra interpolations
+
+**Solution:** Use `OmegaConf.to_container()` with error handling:
+
+```python
+try:
+    wandb_config = OmegaConf.to_container(config, resolve=True)
+except Exception:
+    wandb_config = OmegaConf.to_container(config, resolve=False)
+```
+
+### Summary Metrics Not Appearing
+
+**Symptoms:** Config appears but summary metrics missing
+
+**Causes:**
+- `finalize_run()` not called
+- Non-finite values in metrics
+- Metrics not properly extracted from `trainer.callback_metrics`
+
+**Solution:** Ensure `finalize_run()` is called with properly filtered metrics
+
+### Authentication Issues
+
+**Symptoms:** "Login required" errors
+
+**Solutions:**
+```bash
+wandb login --relogin
+export WANDB_API_KEY=your_key_here
+# Check .env files for proper key format
+```
+
+### Run Names Not Updating
+
+**Symptoms:** Run names remain as placeholders
+
+**Solution:** Ensure `finalize_run()` properly updates the run name with final metrics
+
+### Performance Issues
+
+**Symptoms:** Slow startup, high memory usage, network timeouts
+
+**Solutions:**
+- Reduce logging frequency
+- Use offline mode for large experiments
+- Batch log calls instead of logging every step
+
+### Run Not Appearing in Wandb
+
+**Checks:**
+1. API key validity and format
+2. Network connectivity to `api.wandb.ai`
+3. Project permissions and entity settings
+4. Offline mode configuration
+
+## Related References
+
+- **Wandb Config**: `configs/logger/wandb.yaml`
+- **Logger Utils**: `ocr/utils/wandb_utils.py`
+- **Training Runner**: `runners/train.py`
+- **Test Runner**: `runners/test.py`
+- **Hydra Configuration Guide**: `docs/ai_handbook/03_references/architecture/02_hydra_and_registry.md`
+- **Wandb Official Documentation**: https://docs.wandb.ai/
+- **PyTorch Lightning Integration**: Lightning logger documentation
 
 ## Per Batch Image Logging
 
