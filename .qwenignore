@@ -29,7 +29,7 @@ node_modules/
 # Documentation (can be large)
 docs/_deprecated
 <!-- *.md -->
-!README.md
+<!-- !README.md -->
 
 # Test files (can be numerous)
 <!-- tests/
@@ -37,8 +37,8 @@ docs/_deprecated
 test_*.py -->
 
 # Scripts (usually not needed for understanding)
-scripts/
-*.sh
+<!-- scripts/ -->
+<!-- *.sh -->
 
 # Git and version control
 .git/

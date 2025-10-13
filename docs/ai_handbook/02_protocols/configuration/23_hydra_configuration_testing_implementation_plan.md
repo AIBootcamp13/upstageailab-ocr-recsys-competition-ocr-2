@@ -1,12 +1,13 @@
-# 23_hydra_configuration_testing_implementation_plan
+# **filename: docs/ai_handbook/02_protocols/configuration/23_hydra_configuration_testing_implementation_plan.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=implementing_Hydra_configuration_testing_suite,setting_up_automated_config_validation,preventing_configuration_errors_in_ML_workflows -->
 
-> **priority**: high
-> **use_when**: implementing Hydra configuration testing suite, setting up automated config validation, preventing configuration errors in ML workflows
+# **Protocol: Hydra Configuration Testing Implementation Plan**
 
-## Overview
+## **Overview**
 This protocol outlines the systematic implementation of a Hydra configuration testing suite to prevent unexpected configuration errors that disrupt development workflows. The plan addresses the challenge of testing 345,600+ theoretical configuration combinations through practical, high-impact testing strategies.
 
-## Prerequisites
+## **Prerequisites**
 - pytest >= 7.0
 - hydra-core >= 1.3
 - pytest-cov for coverage reporting
@@ -16,9 +17,9 @@ This protocol outlines the systematic implementation of a Hydra configuration te
 - Knowledge of project configuration structure
 - Understanding of ML training workflows
 
-## Procedure
+## **Procedure**
 
-### Step 1: Create Test Infrastructure
+### **Step 1: Create Test Infrastructure**
 **Objective**: Establish testing framework and utilities
 
 **Tasks**:
@@ -51,7 +52,7 @@ class ConfigTestHelper:
         return validator.validate_command(command)
 ```
 
-### Step 2: Implement Core Validation Tests
+### **Step 2: Implement Core Validation Tests**
 **Objective**: Test fundamental configuration loading and compatibility
 
 **Test Categories**:
@@ -81,7 +82,7 @@ class TestPreprocessingProfiles:
         pass
 ```
 
-### Step 3: Implement Boundary and Integration Testing
+### **Step 3: Implement Boundary and Integration Testing**
 **Objective**: Test extreme values and complete workflows
 
 **Boundary Testing**:
@@ -96,7 +97,7 @@ class TestPreprocessingProfiles:
 - Multi-GPU configuration validation
 - Checkpoint loading compatibility
 
-### Step 4: CI/CD Integration and Monitoring
+### **Step 4: CI/CD Integration and Monitoring**
 **Objective**: Automated testing and performance tracking
 
 **CI/CD Setup**:
@@ -126,7 +127,7 @@ jobs:
 - Most common failure patterns
 - Time-to-detection for new issues
 
-## Configuration Structure
+## **Configuration Structure**
 The testing framework follows this structure:
 
 ```
@@ -143,7 +144,7 @@ tests/
     └── regression_configs/ (historical configs)
 ```
 
-## Validation
+## **Validation**
 Run the validation tests using:
 
 ```bash
@@ -163,9 +164,9 @@ uv run pytest tests/test_hydra_config_validation.py --cov=ui.utils.config_parser
 3. **False Positive Rate**: < 5% (tests should not fail on valid configs)
 4. **Time-to-Detection**: < 5 minutes from config change to failure detection
 
-## Troubleshooting
+## **Troubleshooting**
 
-### Common Issues
+### **Common Issues**
 - **Test Flakiness**: Config loading may be environment-dependent
   - **Solution**: Use fixed test environments and seeds
 - **Performance Issues**: Large configuration spaces may cause timeouts
@@ -173,19 +174,23 @@ uv run pytest tests/test_hydra_config_validation.py --cov=ui.utils.config_parser
 - **Maintenance Burden**: Tests may break when configs change
   - **Solution**: Create automated test updates and golden config snapshots
 
-### Debugging Steps
+### **Debugging Steps**
 1. **Identify Failure Pattern**: Check test logs for specific error messages
 2. **Isolate Configuration**: Test individual config components separately
 3. **Compare with Golden Configs**: Diff against known working configurations
 4. **Environment Check**: Verify test environment matches development setup
 
-### Rollback Strategy
+### **Rollback Strategy**
 1. **Immediate**: Disable failing tests in CI/CD
 2. **Short-term**: Revert to previous test version
 3. **Long-term**: Fix root cause and re-enable tests
 
-## Related Documents
-- [20_hydra_config_resolution_troubleshooting.md](20_hydra_config_resolution_troubleshooting.md) - Hydra configuration troubleshooting
-- [22_command_builder_hydra_configuration_fixes.md](22_command_builder_hydra_configuration_fixes.md) - Command builder configuration fixes
-- [21_experiment_analysis_framework_handbook.md](21_experiment_analysis_framework_handbook.md) - Experiment analysis framework
-- [02_protocols/governance/01_development_workflow.md](../../governance/01_development_workflow.md) - Development workflow standards
+## **Related Documents**
+- `02_protocols/configuration/20_hydra_config_resolution_troubleshooting.md` - Hydra configuration troubleshooting
+- `02_protocols/configuration/22_command_builder_hydra_configuration_fixes.md` - Command builder configuration fixes
+- `02_protocols/configuration/21_experiment_analysis_framework_handbook.md` - Experiment analysis framework
+- `02_protocols/governance/01_development_workflow.md` - Development workflow standards
+
+---
+
+*This document follows the configuration protocol template. Last updated: October 13, 2025*

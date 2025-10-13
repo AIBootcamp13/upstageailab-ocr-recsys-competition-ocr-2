@@ -1,46 +1,43 @@
-# Evaluation Metrics
+# **filename: docs/ai_handbook/03_references/architecture/04_evaluation_metrics.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=understanding_evaluation_metrics,configuring_CLEval_parameters,debugging_model_performance,interpreting_competition_scores -->
 
-> **AI Cues**
-> - **priority**: high
-> - **use_when**: users need to understand evaluation metrics, configure CLEval parameters, debug model performance, interpret competition scores
+# **Reference: Evaluation Metrics**
 
-## Overview
+This reference document provides comprehensive information about the evaluation metrics used in the OCR project for quick lookup and detailed understanding.
+
+## **Overview**
 
 This reference details the evaluation stack that powers both automated reporting and manual inspection across training, validation, and benchmarking runs. The primary metric is CLEval (Character-Level Evaluation), the official leaderboard metric for the competition that compares predictions to ground truth at the character level.
 
-## Key Concepts
+## **Key Concepts**
 
-### CLEval (Character-Level Evaluation)
-
+### **CLEval (Character-Level Evaluation)**
 - **Primary Metric**: Official competition leaderboard score that evaluates text detection at character level
 - **Polygon Matching**: Pairs predicted and ground-truth text polygons for character estimation
 - **Granularity Penalties**: Down-weights predictions that merge or split characters relative to ground truth
 - **Character Estimation**: Estimates character counts from polygon areas for precision/recall calculation
 
-### Evaluation Pipeline
-
+### **Evaluation Pipeline**
 1. Polygon validation and filtering (invalid polygons skipped)
 2. Character count estimation from polygon areas
 3. Precision/recall calculation with granularity penalties
 4. F1 score computation as harmonic mean
 5. Optional scale-wise breakdown by polygon size
 
-### Supporting Metrics
-
+### **Supporting Metrics**
 - **Loss Components**: BCE, Dice losses for training convergence monitoring
 - **Debug Counters**: Split/merge statistics for anomaly detection
 - **Scale-wise F1**: Per-size-bin F1 scores for targeted optimization
 
-## Detailed Information
+## **Detailed Information**
 
-### How CLEval Works
-
+### **How CLEval Works**
 1. **Polygon Matching**: Predicted text polygons are paired with ground-truth polygons. Invalid polygons (odd coordinate counts, fewer than four vertices) are skipped with a warning so they do not poison the score.
 2. **Character Estimation**: CLEval estimates the number of characters represented by each ground-truth polygon.
 3. **Granularity-Aware Scoring**: Precision and recall are computed from the estimated character counts with **granularity penalties** applied. These penalties down-weight predictions that merge or split characters relative to the ground truth.
 
-### Implementation Components
-
+### **Implementation Components**
 | Component | Location | Notes |
 | --- | --- | --- |
 | Metric implementation | `ocr.metrics.cleval_metric.CLEvalMetric` | TorchMetrics-compatible module with accumulated state storage. |
@@ -48,8 +45,7 @@ This reference details the evaluation stack that powers both automated reporting
 | Lightning integration | `ocr.lightning_modules.ocr_pl.OCRPLModule` | Instantiates `CLEvalMetric` during validation/test using Hydra-driven config. |
 | Parallel evaluator | `evaluate_single_sample` helper in `ocr/lightning_modules/ocr_pl.py` | Spawns per-sample workers during epoch end summarization and reuses the configured metric options. |
 
-### Reported Outputs
-
+### **Reported Outputs**
 `CLEvalMetric.compute()` returns a dictionary with the following keys:
 
 * `precision` *(torch.Tensor)* – Character-level precision after penalties.
@@ -60,18 +56,15 @@ This reference details the evaluation stack that powers both automated reporting
 
 These values are logged by Lightning under `val/*` and `test/*` namespaces. When running the standalone evaluator, the raw dictionary is serialized so downstream scripts can perform custom aggregation.
 
-## Examples
+## **Examples**
 
-### Training & Validation Integration
-
+### **Training & Validation Integration**
 The default Lightning module (`OCRPLModule`) resets the metric between epochs, logs `val/precision`, `val/recall`, and `val/hmean`, and performs parallel evaluation for faster epoch ends.
 
-### Testing Pipeline
-
+### **Testing Pipeline**
 The same pipeline runs on the `test` dataloader, logging under the `test/*` namespace.
 
-### Ad-hoc Evaluation
-
+### **Ad-hoc Evaluation**
 Import `CLEvalMetric` directly when benchmarking custom predictions:
 
 ```python
@@ -83,10 +76,9 @@ scores = metric.compute()
 print(scores["f1"].item())
 ```
 
-## Configuration Options
+## **Configuration Options**
 
-### CLEval Parameters
-
+### **CLEval Parameters**
 | Parameter | Default | Purpose |
 | --- | --- | --- |
 | `case_sensitive` | `True` | Toggle between case-sensitive and case-insensitive transcription comparison. |
@@ -97,36 +89,31 @@ print(scores["f1"].item())
 | `scale_wise` | `False` | Enables per-scale breakdowns using the provided `scale_bins`. |
 | `scale_bins` | `(0.0, 0.005, ..., 1.0)` | Normalized area bins used when `scale_wise=True`. |
 
-### Configuration File
-
+### **Configuration File**
 Hydra owns the metric defaults via `configs/metrics/cleval.yaml`. Override any field at runtime:
 
 ```bash
 python runners/train.py metrics.eval.case_sensitive=false metrics.eval.scale_wise=true
 ```
 
-## Best Practices
+## **Best Practices**
 
-### Validation Testing
-
+### **Validation Testing**
 Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking `configs/metrics/cleval.yaml` to ensure expected behaviours (case-sensitivity, penalties, scale-wise aggregation) remain intact.
 
-### Monitoring During Training
-
+### **Monitoring During Training**
 - **Track Loss Components**: Monitor BCE, Dice losses for training convergence even when CLEval is flat
 - **Watch Debug Counters**: Use split/merge statistics for anomaly detection
 - **Enable Scale-wise F1**: Use `scale_wise=True` to pinpoint weaknesses on tiny or large text
 
-### Performance Optimization
-
+### **Performance Optimization**
 - **Parallel Evaluation**: Use the parallel evaluator for faster epoch ends during training
 - **Memory Safety**: The `max_polygons` limit prevents runaway memory usage
 - **Invalid Polygon Handling**: Invalid polygons are skipped with warnings to prevent score poisoning
 
-## Troubleshooting
+## **Troubleshooting**
 
-### CLEval Score Issues
-
+### **CLEval Score Issues**
 **Problem**: CLEval scores are unexpectedly low
 
 **Solutions**:
@@ -134,8 +121,7 @@ Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking 
 - Verify character estimation is working correctly
 - Examine granularity penalties - they may be too harsh
 
-### Scale-wise Evaluation Problems
-
+### **Scale-wise Evaluation Problems**
 **Problem**: Scale-wise breakdowns not working
 
 **Solutions**:
@@ -143,8 +129,7 @@ Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking 
 - Check that `scale_bins` are properly defined
 - Verify normalized area calculations are correct
 
-### Memory Issues
-
+### **Memory Issues**
 **Problem**: Evaluation runs out of memory
 
 **Solutions**:
@@ -152,8 +137,7 @@ Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking 
 - Process fewer samples per batch
 - Disable scale-wise evaluation if not needed
 
-### Logging Issues
-
+### **Logging Issues**
 **Problem**: Metrics not appearing in logs
 
 **Solutions**:
@@ -161,7 +145,7 @@ Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking 
 - Verify metric is properly instantiated in `OCRPLModule`
 - Ensure Hydra configuration is loading correctly
 
-## Related References
+## **Related References**
 
 - **CLEval Implementation**: `ocr/metrics/cleval_metric.py`
 - **Data Containers**: `ocr/metrics/data.py`
@@ -170,3 +154,7 @@ Run `pytest tests/test_metrics.py` after modifying the metric logic or tweaking 
 - **Tests**: `tests/test_metrics.py`
 - **CLEval Paper**: Character-level evaluation for text detection
 - **Competition Leaderboard**: Official scoring methodology
+
+---
+
+*This document follows the references template. Last updated: October 13, 2025*

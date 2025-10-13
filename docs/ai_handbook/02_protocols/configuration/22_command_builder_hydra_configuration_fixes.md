@@ -1,5 +1,8 @@
-# **22_command_builder_hydra_configuration_fixes.md**
-> **AI Cues:** `priority=medium`, `use_when=command_builder_fixes,hydra_config_fixes,preprocessing_profile_issues`
+# **filename: docs/ai_handbook/02_protocols/configuration/22_command_builder_hydra_configuration_fixes.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=command_builder_fixes,hydra_config_fixes,preprocessing_profile_issues -->
+
+# **Protocol: Command Builder Hydra Configuration Fixes**
 
 ## **Overview**
 This protocol documents the systematic fixes applied to resolve Hydra configuration issues in the Streamlit UI Command Builder, specifically addressing invalid transform override paths and duplicate preprocessing profile handling that caused command generation failures.
@@ -153,3 +156,7 @@ except Exception as e:
 - `02_protocols/configuration/23_hydra_configuration_testing_implementation_plan.md` - Comprehensive testing for Hydra configs
 - `03_references/architecture/02_hydra_and_registry.md` - Hydra architecture reference
 - `configs/ui_meta/preprocessing_profiles.yaml` - Preprocessing profile definitions
+
+---
+
+*This document follows the configuration protocol template. Last updated: October 13, 2025*

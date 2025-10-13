@@ -1,122 +1,56 @@
-t
-# Check if there are type annotations in the problematic function
-from ocr.datasets.base import OCRDataset
-source = inspect.getsource(OCRDataset.__getitem__)
-print('Type annotations in __getitem__:')
-print('def __getitem__(self, idx):' in source)
-print('-> No return type annotation')
+# **filename: docs/ai_handbook/03_references/coding/type_checking.md**
+<!-- ai_cue:priority=high -->
+<!-- ai_cue:use_when=type_checking,mypy,pylance,typing -->
 
-# Check the image variable usage
-lines = source.split('\n')
-for i, line in enumerate(lines):
-    if 'image = ' in line:
-        print(f'Line {i}: {line.strip()}')
-"
+# **Reference: Type Checking in the OCR Project**
 
-Created [](file:///home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/type_checking_demo.py)
+This reference document provides comprehensive information about type checking practices, tools, and patterns used in the OCR project for quick lookup and detailed understanding.
 
-Using "Replace String in File"
+## **Overview**
 
-Using "Replace String in File"
+Type checking is a critical development practice in this project that helps prevent runtime errors by catching type inconsistencies at development time. The project uses both static type checking (mypy/Pylance) and gradual typing to balance code safety with development velocity.
 
-Ran terminal command: cd /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2 && python type_checking_demo.py
+## **Key Concepts**
 
-## Why Unit Tests Failed & How Type Checking Would Have Helped
+### **Static Type Checking**
+Using tools like mypy or Pylance to analyze code for type consistency without running it, identifying potential runtime errors before execution.
 
-You're absolutely right to question this! The bug slipped through despite comprehensive unit tests, and better type checking would have caught it. Here's the detailed analysis:
+### **Gradual Typing**
+A type system that allows mixing typed and untyped code, enabling incremental adoption of type annotations throughout the codebase.
 
----
+### **Union Types**
+Type annotations that allow a variable to be one of several possible types, such as `Union[PIL.Image, np.ndarray]` or `PIL.Image | np.ndarray`.
 
-## 🧪 **Why Unit Tests Failed to Catch This**
+### **Type Guards**
+Runtime checks (like `isinstance`) that narrow the type of a variable within a specific code block, improving type safety.
 
-### **1. Test Coverage Gaps**
-Your unit tests covered individual components but missed **integration scenarios**:
+## **Detailed Information**
 
-**✅ What tests covered:**
-- `OCRDataset` initialization
-- Individual `__getitem__` calls
-- Collate function behavior
-- Map loading functionality
+### **Type Checking Tools Configuration**
+The project uses Pylance (integrated in VS Code) and mypy for static type analysis. Configuration is typically found in `pyproject.toml` or `.mypy.ini`.
 
-**❌ What tests missed:**
-- **Caching + pre-normalization combination** (Phase 6B + Phase 6C)
-- **Type consistency across pipeline stages**
-- **Lightning module integration** with cached data
+### **Common Type Patterns**
+- **Union Types**: Use for polymorphic variables that can be different types
+- **Type Aliases**: Define reusable type definitions for complex types
+- **Generic Types**: Use TypeVar for reusable type-safe utilities
+- **Optional Types**: Use `Optional[T]` or `T | None` for values that might be None
 
-### **2. The Bug Required Specific Conditions**
-```python
-# Bug only triggered when ALL these were true:
-if image_filename in self.image_cache:           # Phase 6B enabled
-    is_normalized = cached_data.get("is_normalized", False)
-    if is_normalized:                            # Phase 6C enabled
-        image = image_array                      # numpy array path
-        org_shape = image.size                   # BUG: int instead of tuple
-```
+### **Type Checking Benefits**
+- **Early Bug Detection**: Catch type inconsistencies before runtime
+- **Code Documentation**: Type hints serve as documentation for function interfaces
+- **IDE Support**: Better autocomplete and refactoring support
+- **Refactoring Safety**: Type checker prevents breaking changes during refactoring
 
-### **3. Mock Objects Hid the Issue**
-Tests used mocks that didn't replicate the exact data types:
-```python
-# Test transform mock - didn't check actual data types
-transform = Mock()
-transform.return_value = {"image": torch.rand(3, 100, 100), ...}
-```
+## **Examples**
 
----
-
-## 🎯 **How Type Checking Would Have Prevented This**
-
-### **The Core Issue: Untyped Polymorphism**
-```python
-def __getitem__(self, idx):
-    # image could be PIL.Image OR np.ndarray - no type hints!
-    image = ...  # Dynamic type based on cache state
-    org_shape = image.size  # Different semantics for different types!
-```
-
-### **What Pylance Would Have Flagged**
-
-**1. Missing Type Annotations:**
-```python
-def __getitem__(self, idx) -> OrderedDict[str, Any]:  # Missing return type
-    image = ...  # No type hint - could be anything!
-```
-
-**2. Type Inconsistency:**
-```python
-# If properly typed, this would be a type error:
-def get_canonical_size(image: PIL.Image | np.ndarray) -> tuple[int, int]:
-    return image.size  # ERROR: np.ndarray.size returns int!
-```
-
-**3. Union Type Requirements:**
-```python
-# Proper typing would force explicit handling:
-def get_shape_safe(image: PIL.Image | np.ndarray) -> tuple[int, int]:
-    if isinstance(image, np.ndarray):
-        return (image.shape[1], image.shape[0])  # Explicit numpy handling
-    else:
-        return image.size  # PIL handling
-```
-
----
-
-## 🛠️ **Type Checking Improvements That Would Help**
-
-### **1. Add Union Types**
+### **Basic Type Annotations**
 ```python
 from typing import Union
 from PIL import Image
 import numpy as np
 
-def __getitem__(self, idx: int) -> OrderedDict[str, Any]:
-    # Now image has explicit possible types
-    image: Union[Image.Image, np.ndarray] = ...
-```
-
-### **2. Type Guards for Safety**
-```python
 def get_image_shape(image: Union[Image.Image, np.ndarray]) -> tuple[int, int]:
-    """Type-safe shape extraction"""
+    """Type-safe shape extraction with union type handling."""
     if isinstance(image, np.ndarray):
         height, width, *_ = image.shape
         return (width, height)
@@ -124,66 +58,67 @@ def get_image_shape(image: Union[Image.Image, np.ndarray]) -> tuple[int, int]:
         return image.size
 ```
 
-### **3. Generic Type Variables**
+### **Type Guards for Safety**
+```python
+def process_image(image: Union[Image.Image, np.ndarray]) -> ProcessedImage:
+    """Process image with type-safe handling."""
+    if isinstance(image, np.ndarray):
+        # Here, type checker knows image is np.ndarray
+        return process_numpy_image(image)
+    else:
+        # Here, type checker knows image is PIL.Image
+        return process_pil_image(image)
+```
+
+### **Generic Type Variables**
 ```python
 from typing import TypeVar
-ImageType = TypeVar('ImageType', Image.Image, np.ndarray)
 
-def process_image(image: ImageType) -> tuple[int, int]:
-    # Type checker enforces consistent behavior
-    ...
+T = TypeVar('T', bound=Image.Image)
+
+def transform_image(image: T) -> T:
+    """Transform that preserves the input type."""
+    # Transform logic here
+    return transformed_image
 ```
 
----
+## **Configuration Options**
 
-## 📊 **Industry Comparison: Type Safety Levels**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `python.analysis.typeCheckingMode` | str | "basic" | Type checking strictness level in Pylance |
+| `mypy.strict` | bool | false | Enable all optional error checking in mypy |
+| `mypy.disallow_untyped_defs` | bool | false | Require all function definitions to be typed |
 
-| Level | Description | Would Catch This Bug? |
-|-------|-------------|----------------------|
-| **No Types** | Your current codebase | ❌ No |
-| **Basic Types** | Parameter/return types | ⚠️ Partial |
-| **Union Types** | `PIL.Image \| np.ndarray` | ✅ Yes |
-| **Type Guards** | `isinstance` checks | ✅ Yes |
-| **Generic Types** | `TypeVar` constraints | ✅ Yes |
+## **Best Practices**
 
----
+- **Use Union Types**: For polymorphic variables like `PIL.Image | np.ndarray`
+- **Implement Type Guards**: Use `isinstance` checks to narrow types safely
+- **Add Type Hints**: To critical pipeline functions to prevent runtime errors
+- **Test Type Combinations**: Explicitly test different type scenarios
+- **Enable Strict Checking**: Use strict mode in development for maximum safety
+- **Document Type Contracts**: Between pipeline stages to ensure consistency
 
-## 🚀 **Recommendations for Your Codebase**
+## **Troubleshooting**
 
-### **Immediate Actions:**
-1. **Add type hints** to critical pipeline functions
-2. **Use union types** for polymorphic variables
-3. **Add type guards** before accessing attributes
-4. **Test type combinations** explicitly
+### **Common Issues**
+- **Too Many Type Errors**: Start with basic type checking and gradually increase strictness
+- **Complex Type Signatures**: Break down complex functions or use type aliases
+- **Third-party Library Types**: Use type stubs or `# type: ignore` comments when necessary
+- **Performance Impact**: Type checking only occurs at development time, not runtime
 
-### **Long-term:**
-1. **Enable strict mypy/Pylance** checking
-2. **Add integration tests** for feature combinations
-3. **Document type contracts** between pipeline stages
-4. **Use generics** for reusable type-safe utilities
+### **Debug Information**
+- Enable Pylance in VS Code for real-time type checking
+- Run mypy regularly: `mypy src/`
+- Check type errors before committing code
+- Use `reveal_type()` in mypy to debug inferred types
 
-### **Example Fix Pattern:**
-```python
-# Before (buggy)
-org_shape = image.size
+## **Related References**
 
-# After (type-safe)
-org_shape = get_image_shape(image)
-
-def get_image_shape(image: Image.Image | np.ndarray) -> tuple[int, int]:
-    if isinstance(image, np.ndarray):
-        return (image.shape[1], image.shape[0])
-    return image.size
-```
+- `docs/ai_handbook/02_protocols/development/01_coding_standards.md` - Coding standards and type hinting practices
+- `docs/ai_handbook/03_references/architecture/01_architecture.md` - System architecture with type interfaces
+- `docs/ai_handbook/03_references/guides/performance_profiler_usage.md` - Performance considerations with type checking
 
 ---
 
-## 🎯 **The Real Lesson**
-
-This bug exposed a **systemic issue**: **unit tests verify behavior, but type systems verify contracts**. Your comprehensive unit tests were excellent, but they couldn't catch a type confusion that only occurred in specific runtime conditions.
-
-**Type checking would have caught this at development time**, not runtime. The "excessive None type errors" from Pylance are actually **preventing** bugs like this one!
-
-The combination of **good unit tests + strict typing** would have made this codebase much more robust. Your instinct to address Pylance's type warnings is spot-on - they're preventing exactly this kind of subtle runtime bug.
-
-Made changes.
+*This document follows the references template. Last updated: October 13, 2025*

@@ -1,5 +1,8 @@
-# **21_experiment_analysis_framework_handbook.md**
-> **AI Cues:** `priority=medium`, `use_when=experiment_analysis,mlops_monitoring,automated_reporting`
+# **filename: docs/ai_handbook/02_protocols/configuration/21_experiment_analysis_framework_handbook.md**
+<!-- ai_cue:priority=medium -->
+<!-- ai_cue:use_when=experiment_analysis,mlops_monitoring,automated_reporting -->
+
+# **Protocol: Experiment Analysis Framework**
 
 ## **Overview**
 This protocol provides a comprehensive framework for analyzing, debugging, and automating the evaluation of machine learning experiments. It establishes systematic approaches to identify performance issues, understand root causes, and implement robust monitoring and data quality pipelines for reproducible ML experimentation.
@@ -218,3 +221,7 @@ python analyze_experiment.py --run-name test_run --output-dir ./experiment_repor
 - `02_protocols/development/06_context_logging.md` - Context logging for experiment tracking
 - `03_references/architecture/06_wandb_integration.md` - WandB integration reference
 - `03_references/guides/performance_monitoring_callbacks_usage.md` - Performance monitoring implementation
+
+---
+
+*This document follows the configuration protocol template. Last updated: October 13, 2025*
