@@ -22,6 +22,14 @@ from .external import (
 )
 from .metadata import DocumentMetadata, PreprocessingState
 from .pipeline import DocumentPreprocessor, LensStylePreprocessorAlbumentations
+from .validators import (
+    ContractValidator,
+    CornerArray,
+    ImageArray,
+    ImageValidator,
+    NumpyArray,
+    TransformationMatrix,
+)
 
 __all__ = [
     "A",
@@ -30,13 +38,19 @@ __all__ = [
     "AdvancedDocumentDetector",
     "AdvancedDocumentPreprocessor",
     "AdvancedPreprocessingConfig",
+    "ContractValidator",
+    "CornerArray",
     "DOCTR_AVAILABLE",
     "DocumentMetadata",
     "DocumentPreprocessor",
     "DocumentPreprocessorConfig",
+    "ImageArray",
+    "ImageValidator",
     "LensStylePreprocessorAlbumentations",
+    "NumpyArray",
     "OfficeLensPreprocessorAlbumentations",
     "PreprocessingState",
+    "TransformationMatrix",
     "create_high_accuracy_preprocessor",
     "create_office_lens_preprocessor",
     "doctr_remove_image_padding",

@@ -2,35 +2,119 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-@dataclass(slots=True)
-class DocumentMetadata:
-    """Structured metadata describing preprocessing outcomes."""
+class ImageShape(BaseModel):
+    """Validated image shape specification with dimension constraints."""
 
-    original_shape: Any
-    final_shape: tuple[int, ...] | None = None
-    processing_steps: list[str] = field(default_factory=list)
-    document_corners: np.ndarray | None = None
-    document_detection_method: str | None = None
-    perspective_matrix: np.ndarray | None = None
-    perspective_method: str | None = None
-    enhancement_applied: list[str] = field(default_factory=list)
-    orientation: dict[str, Any] | None = None
-    error: str | None = None
+    height: int = Field(gt=0, le=10000, description="Image height in pixels")
+    width: int = Field(gt=0, le=10000, description="Image width in pixels")
+    channels: int = Field(ge=1, le=4, description="Number of color channels")
+
+    @classmethod
+    def from_numpy(cls, array: np.ndarray) -> ImageShape:
+        """Create ImageShape from numpy array dimensions.
+
+        Args:
+            array: Input numpy array
+
+        Returns:
+            ImageShape instance with validated dimensions
+        """
+        if len(array.shape) < 2:
+            raise ValueError(f"Array must have at least 2 dimensions, got {len(array.shape)}")
+
+        height, width = array.shape[:2]
+        channels = array.shape[2] if len(array.shape) > 2 else 1
+
+        return cls(height=height, width=width, channels=channels)
+
+
+class DocumentMetadata(BaseModel):
+    """Structured metadata describing preprocessing outcomes with validated data contracts."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    original_shape: ImageShape | tuple[int, ...] = Field(
+        description="Original image shape as ImageShape or tuple for backward compatibility"
+    )
+    final_shape: tuple[int, ...] | None = Field(default=None, description="Final processed image shape")
+    processing_steps: list[str] = Field(default_factory=list, description="List of processing steps applied")
+    document_corners: np.ndarray | None = Field(default=None, description="Detected document corner coordinates")
+    document_detection_method: str | None = Field(default=None, description="Method used for document detection")
+    perspective_matrix: np.ndarray | None = Field(default=None, description="Perspective transformation matrix")
+    perspective_method: str | None = Field(default=None, description="Method used for perspective correction")
+    enhancement_applied: list[str] = Field(default_factory=list, description="List of enhancement techniques applied")
+    orientation: dict[str, Any] | None = Field(default=None, description="Orientation detection results and metadata")
+    error: str | None = Field(default=None, description="Error message if processing failed")
+
+    @field_validator("original_shape", mode="before")
+    @classmethod
+    def validate_original_shape(cls, v: Any) -> ImageShape | tuple[int, ...]:
+        """Convert tuple shapes to ImageShape or validate existing ImageShape."""
+        if isinstance(v, tuple):
+            # Convert tuple to ImageShape for validation
+            if len(v) < 2:
+                raise ValueError(f"Shape tuple must have at least 2 dimensions, got {len(v)}")
+            height, width = v[:2]
+            channels = v[2] if len(v) > 2 else 1
+            return ImageShape(height=height, width=width, channels=channels)
+        elif isinstance(v, ImageShape):
+            return v
+        else:
+            raise ValueError(f"original_shape must be ImageShape or tuple, got {type(v)}")
+
+    @field_validator("document_corners", mode="before")
+    @classmethod
+    def validate_document_corners(cls, v: Any) -> np.ndarray | None:
+        """Validate document corners as numpy array."""
+        if v is None:
+            return None
+        if not isinstance(v, np.ndarray):
+            try:
+                v = np.array(v)
+            except Exception as e:
+                raise ValueError(f"document_corners must be convertible to numpy array: {e}")
+        if v.size == 0:
+            raise ValueError("document_corners cannot be empty")
+        return v
+
+    @field_validator("perspective_matrix", mode="before")
+    @classmethod
+    def validate_perspective_matrix(cls, v: Any) -> np.ndarray | None:
+        """Validate perspective matrix as numpy array."""
+        if v is None:
+            return None
+        if not isinstance(v, np.ndarray):
+            try:
+                v = np.array(v)
+            except Exception as e:
+                raise ValueError(f"perspective_matrix must be convertible to numpy array: {e}")
+        # Perspective matrix should be 3x3
+        if v.shape != (3, 3):
+            raise ValueError(f"perspective_matrix must be 3x3, got shape {v.shape}")
+        return v
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for backward compatibility.
+
+        Returns:
+            Dictionary representation with original types preserved
+        """
         data: dict[str, Any] = {
-            "original_shape": self.original_shape,
+            "original_shape": self._get_original_shape_as_tuple(),
             "processing_steps": list(self.processing_steps),
             "document_corners": self.document_corners,
             "perspective_matrix": self.perspective_matrix,
             "enhancement_applied": list(self.enhancement_applied),
         }
+
+        # Add optional fields only if they are not None
         if self.document_detection_method is not None:
             data["document_detection_method"] = self.document_detection_method
         if self.perspective_method is not None:
@@ -41,7 +125,14 @@ class DocumentMetadata:
             data["error"] = self.error
         if self.final_shape is not None:
             data["final_shape"] = self.final_shape
+
         return data
+
+    def _get_original_shape_as_tuple(self) -> tuple[int, ...]:
+        """Get original_shape as tuple for backward compatibility."""
+        if isinstance(self.original_shape, ImageShape):
+            return (self.original_shape.height, self.original_shape.width, self.original_shape.channels)
+        return self.original_shape
 
 
 @dataclass(slots=True)
@@ -56,4 +147,4 @@ class PreprocessingState:
         self.metadata.final_shape = tuple(int(dim) for dim in self.image.shape)
 
 
-__all__ = ["DocumentMetadata", "PreprocessingState"]
+__all__ = ["ImageShape", "DocumentMetadata", "PreprocessingState"]
