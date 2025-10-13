@@ -11,9 +11,12 @@ on:
       - 'runners/**'
       - 'ui/**'
       - 'tests/**'
+      - 'docs/**'
+      - 'scripts/**'
       - 'pyproject.toml'
       - 'setup.cfg'
       - 'pytest.ini'
+      - 'mkdocs.yml'
       - '.github/workflows/ci.yml'
       - 'Makefile'
   pull_request:
