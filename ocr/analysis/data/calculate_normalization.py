@@ -15,7 +15,8 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from ...datasets import OCRDataset
+from ...datasets import ValidatedOCRDataset
+from ...datasets.schemas import DatasetConfig
 from ...datasets.transforms import DBTransforms
 
 
@@ -33,9 +34,16 @@ def calculate_normalization_stats(cfg: DictConfig):
     train_image_path = f"{dataset_base_path}images/train"
     train_annotation_path = f"{dataset_base_path}jsons/train.json"
 
-    dataset = OCRDataset(
-        image_path=train_image_path,
-        annotation_path=train_annotation_path,
+    # Create dataset config
+    dataset_config = DatasetConfig(
+        image_path=Path(train_image_path),
+        annotation_path=Path(train_annotation_path),
+        preload_images=False,  # Don't preload for stats calculation
+        load_maps=False,
+    )
+
+    dataset = ValidatedOCRDataset(
+        config=dataset_config,
         transform=temp_transform,
     )
     print(f"Found {len(dataset)} images in the training set.")

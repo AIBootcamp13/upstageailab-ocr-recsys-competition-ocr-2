@@ -110,8 +110,12 @@ class PerformanceProfilerCallback(Callback):
             if self.verbose:
                 print(f"Validation batch {batch_idx}: {batch_time:.3f}s")
 
-            if WANDB_AVAILABLE and wandb.run is not None:  # type: ignore
-                wandb.log(metrics, step=trainer.global_step)  # type: ignore
+            # Use trainer.fit_loop.epoch_loop.total_batch_idx for monotonic step
+            # This ensures step is always increasing, even during validation
+            # Fallback to global_step if total_batch_idx is invalid, and ensure >= 0
+            total_batch_idx = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
+            step = max(0, total_batch_idx if total_batch_idx >= 0 else trainer.global_step)
+            wandb.log(metrics, step=step)  # type: ignore
 
     def on_test_batch_end(
         self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0
@@ -159,9 +163,11 @@ class PerformanceProfilerCallback(Callback):
                 print(f"GPU memory: {metrics['performance/gpu_memory_gb']:.2f}GB")
             print("=" * 40 + "\n")
 
-        # Log to WandB
+        # Log to WandB with monotonic step
         if WANDB_AVAILABLE and wandb.run is not None:  # type: ignore
-            wandb.log(metrics, step=trainer.global_step)  # type: ignore
+            total_batch_idx = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
+            step = max(0, total_batch_idx if total_batch_idx >= 0 else trainer.global_step)
+            wandb.log(metrics, step=step)  # type: ignore
 
         # Log to Lightning logger as well
         pl_module.log_dict(metrics, on_epoch=True, sync_dist=True)

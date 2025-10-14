@@ -1,0 +1,54 @@
+# @package _global_.datasets.val_dataset.config
+# Performance Preset: Validation Optimized
+#
+# Use Case: Validation/test datasets ONLY (NOT training!)
+# Memory: ~3.5 GB (+1.5 GB vs minimal)
+# Speed: ~2.5-3x after cache warm-up (Epoch 0: +20%, Epoch 1+: -60% to -70%)
+# Safe for Training: ❌ NO - Data leakage risk!
+#
+# ⚠️ CRITICAL WARNING:
+# ONLY use this preset for validation/test datasets!
+# NEVER use for training datasets - causes data leakage!
+#
+# This preset maximizes speed by caching everything, including
+# transformed tensors. Only safe when NO augmentation is present.
+
+# Image loading - preload everything
+preload_images: true  # Load all images to RAM at startup
+preload_maps: true    # Load all maps to RAM at startup
+prenormalize_images: false
+
+# Map loading - enabled for evaluation
+load_maps: true
+
+# Cache configuration - FULL caching enabled
+cache_config:
+  cache_images: true              # Cache decoded images
+  cache_maps: true                # Cache probability/threshold maps
+  cache_transformed_tensors: true # ⚠️ ONLY safe for validation!
+  log_statistics_every_n: 100     # Monitor cache performance
+
+# Image loading configuration
+image_loading_config:
+  use_turbojpeg: true
+  turbojpeg_fallback: true
+
+
+# What Makes It Unsafe for Training
+# The preset enables cache_transformed_tensors: true, which caches the fully transformed/preprocessed tensors to disk/RAM. This is problematic for training datasets because:
+
+# Data Augmentation Bypass: During training, you want random augmentations (rotations, crops, noise, etc.) applied fresh each epoch to prevent overfitting
+# Data Leakage: If transformations are cached, the model sees identical samples every epoch instead of varied augmentations
+# Reduced Generalization: The model memorizes specific transformed versions rather than learning robust features
+# Safe Usage in Full Training Runs
+# You CAN use this preset in complete training runs (train + validate + test) because:
+
+# The preset is scoped to @package _global_.datasets.val_dataset.config
+# It only affects validation/test datasets, not training datasets
+# Training data remains unaffected and gets fresh augmentations each epoch
+# Validation/test data benefits from cached deterministic transformations (faster, consistent evaluation)
+# When You'd Want to Avoid It
+# If you have data augmentation on validation sets (uncommon, but possible)
+# If you need to evaluate on completely fresh transformations each time
+# For debugging transformation pipelines
+# The preset is designed specifically for validation acceleration while keeping training data augmentation intact. Your training runs with this preset are perfectly safe - it just makes validation much faster (~2.5-3x speedup after cache warmup).

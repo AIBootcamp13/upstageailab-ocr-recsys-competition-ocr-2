@@ -18,6 +18,9 @@ import numpy as np
 import pyclipper
 import torch
 
+# Module-level flag to prevent duplicate logging across all DBCollateFN instances
+_db_collate_logged_stats = False
+
 
 class DBCollateFN:
     """
@@ -152,8 +155,10 @@ class DBCollateFN:
             prob_maps.append(prob_map)
             thresh_maps.append(thresh_map)
 
-        # Log map loading statistics (only once per epoch to avoid spam)
-        if not hasattr(self, "_logged_stats"):
+        # Log map loading statistics (only once per process)
+        # Use module-level flag to ensure only one log per process across all instances
+        global _db_collate_logged_stats
+        if not _db_collate_logged_stats:
             import logging
 
             logger = logging.getLogger(__name__)
@@ -166,11 +171,18 @@ class DBCollateFN:
             if preloaded_count > 0:
                 logger.info("✓ Using .npz maps (from cache or disk): %d/%d samples (%.1f%%)", preloaded_count, total_samples, preloaded_pct)
             if fallback_count > 0:
-                logger.warning(
-                    "⚠ Fallback to on-the-fly generation: %d/%d samples (%.1f%%)", fallback_count, total_samples, 100 - preloaded_pct
-                )
+                # Commented out: Cache settings changed logging to reduce noise
+                # logger.info(
+                #     "Cache settings changed - safely falling back to on-the-fly generation:\n"
+                #     "  Samples: %d/%d (%.1f%%)\n"
+                #     "  Reason: This is normal when switching performance presets or cache configurations.",
+                #     fallback_count,
+                #     total_samples,
+                #     100 - preloaded_pct,
+                # )
+                pass  # Placeholder to maintain syntax
 
-            self._logged_stats = True
+            _db_collate_logged_stats = True
 
         collated_batch.update(
             polygons=polygons,

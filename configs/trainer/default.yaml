@@ -8,7 +8,9 @@ val_check_interval: null
 check_val_every_n_epoch: 1
 deterministic: True
 accumulate_grad_batches: 2
-precision: "16-mixed" # full | 16-mixed | bf16 | bf16-mixed
+precision: "32-true" # 32-true | 16-mixed | bf16 | bf16-mixed
+# NOTE: 16-mixed precision requires gradient scaling to prevent accuracy degradation
+# See docs/bug_reports/BUG_2025_002_MIXED_PRECISION_PERFORMANCE.md for details
 benchmark: true
 gradient_clip_val: 5.0
 accelerator: gpu

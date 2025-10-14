@@ -164,85 +164,48 @@ python run_ui.py command_builder
 uv run streamlit run ui/command_builder.py
 ```
 
-#### Evaluation Viewer (`ui/evaluation_viewer.py`) - ✅ Implemented
+#### Evaluation Viewer (`ui/evaluation_viewer.py`)
 평가 결과를 시각화하고 분석하는 도구입니다.
-
-### 유틸리티 스크립트
-
-#### Process Monitor (`scripts/process_monitor.py`) - ✅ Implemented
-훈련 프로세스와 작업자 프로세스를 모니터링하고 정리하는 유틸리티입니다.
-
-**주요 기능:**
-- 고아 프로세스 감지 및 정리
-- 훈련 프로세스와 DataLoader 작업자 프로세스 모니터링
-- 안전한 프로세스 종료 (SIGTERM) 및 강제 종료 (SIGKILL) 지원
-- 드라이런 모드로 미리보기 기능
-
-**사용법:**
-```bash
-# 현재 실행 중인 훈련 프로세스 목록 보기
-python scripts/process_monitor.py --list
-
-# 모든 고아 프로세스 정리 (안전 모드)
-python scripts/process_monitor.py --cleanup
-
-# 강제 정리 (SIGKILL 사용)
-python scripts/process_monitor.py --cleanup --force
-
-# 정리할 프로세스 미리보기 (실제로는 정리하지 않음)
-python scripts/process_monitor.py --cleanup --dry-run
-```
 <!--
-#### Resource Monitor (`ui/resource_monitor.py`) - ✅ New!
-시스템 리소스, 훈련 프로세스, GPU 사용량을 실시간으로 모니터링하는 도구입니다.
+### UI 데모 스크린샷
 
-**주요 기능:**
-- CPU, 메모리, GPU 리소스 실시간 모니터링
-- 훈련 프로세스와 작업자 프로세스 상태 표시
-- 프로세스 관리 (안전 종료 및 강제 종료)
-- GPU 메모리 사용량 시각화
-- 자동 새로고침 기능
+<div align="center">
 
-**사용법:**
-```bash
-# 리소스 모니터 UI 실행
-python run_ui.py resource_monitor
-```
+<table style="border-collapse: collapse; border: none;">
+<tr>
+<td style="border: none; padding: 20px; text-align: center; vertical-align: top;">
+<strong>Command Builder</strong><br><br>
+<img src="docs/assets/images/demo/command-builder-predict-command-generate.png" alt="Command Builder Interface" style="width: 800px; height: 500px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px;"><br><br>
+<small>훈련 및 예측 명령어를 직관적인 UI로 구축하고 실행할 수 있는 인터페이스</small>
+</td>
+</tr>
+<tr>
+<td style="border: none; padding: 20px; text-align: center; vertical-align: top;">
+<strong>Real-time OCR Inference</strong><br><br>
+<img src="docs/assets/images/demo/real-time-ocr-inference-select-img.png.jpg" alt="Real-time OCR Inference Interface" style="width: 800px; height: 500px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px;"><br><br>
+<small>실시간으로 영수증 이미지에서 텍스트를 검출하고 결과를 확인할 수 있는 인터페이스</small>
+</td>
+</tr>
+<tr>
+<td style="border: none; padding: 20px; text-align: center; vertical-align: top;">
+<strong>Evaluation Viewer</strong><br><br>
+<img src="docs/assets/images/demo/ocr-eval-results-viewer-gallery.png" alt="Evaluation Viewer Interface" style="width: 800px; height: 500px; object-fit: contain; border: 1px solid #ddd; border-radius: 8px;"><br><br>
+<small>모델 평가 결과를 시각화하고 상세하게 분석할 수 있는 갤러리 뷰 인터페이스</small>
+</td>
+</tr>
+</table>
 
-#### AI System Monitor (`scripts/monitoring/monitor.sh`) - ✅ New!
-AI 에이전트가 시스템 리소스를 모니터링하고 프로세스를 관리할 수 있는 도구입니다.
-
-**주요 기능:**
-- AI 기반 자연어 쿼리로 시스템 모니터링
-- CPU, 메모리, 디스크 사용량 종합 분석
-- 고아 프로세스와 좀비 프로세스 감지
-- 안전한 프로세스 종료 기능
-- Qwen MCP 서버를 통한 AI 에이전트 통합
-
-**사용법:**
-```bash
-# 시스템 상태 확인
-./scripts/monitoring/monitor.sh "Show system health status"
-
-# 고아 프로세스 검사
-./scripts/monitoring/monitor.sh "Monitor system resources and check for orphaned processes"
-
-# 상위 CPU 사용 프로세스 목록
-./scripts/monitoring/monitor.sh "List top 10 processes by CPU usage"
-
-# 메모리 사용량 분석
-./scripts/monitoring/monitor.sh "Check memory usage and identify high consumers"
-``` -->
+</div> -->
 
 ### 주요 구성 파일
 
 - `train.yaml`, `test.yaml`, `predict.yaml`: 러너 실행 설정
-- `preset/example.yaml`: 각 모듈의 구성 파일 지정
+<!-- - `preset/example.yaml`: 각 모듈의 구성 파일 지정
 - `preset/datasets/db.yaml`: Dataset, Transform, 데이터 관련 설정
 - `preset/lightning_modules/base.yaml`: PyTorch Lightning 실행 설정
 - `preset/metrics/cleval.yaml`: CLEval 평가 설정
 - `preset/models/model_example.yaml`: 각 모델 모듈과 Optimizer의 구성 파일 지정
-- `preset/models/*`: 모델 구성에 필요한 각 모듈 설정
+- `preset/models/*`: 모델 구성에 필요한 각 모듈 설정 -->
 
 ## 3. 데이터 설명
 
@@ -335,7 +298,7 @@ uv run python scripts/preprocess_maps.py data.train_num_samples=100 data.val_num
 
 #### DBNet: 미분 가능한 이진화를 통한 실시간 장면 텍스트 검출
 
-![DBNet](docs/assets/images/00_refactor_bsaeline/flow-chart-of-the-dbnet.png)
+![DBNet](docs/assets/images/banner/flow-chart-of-the-dbnet.png)
 
 ### 베이스라인 성능
 
@@ -372,103 +335,6 @@ uv run python runners/test.py preset=example checkpoint_path=\"outputs/ocr_train
 # 사용 예시
 uv run python runners/predict.py preset=example checkpoint_path=\"outputs/ocr_training/checkpoints/epoch-8-step-1845.ckpt\"
 ```
-
-### Ablation Studies ( ablation studies )
-
-이 프로젝트는 체계적인 ablation studies를 위한 완전한 워크플로우를 제공합니다. 하이퍼파라미터 튜닝, 모델 아키텍처 비교, 데이터 증강 실험 등을 자동화하여 연구 효율성을 높입니다.
-
-#### Quick Start
-
-```bash
-# 1. Learning rate ablation study
-python ablation_workflow.py --ablation learning_rate --tag lr_study
-
-# 2. Batch size ablation study
-python ablation_workflow.py --ablation batch_size --tag batch_study
-
-# 3. Model architecture comparison
-python ablation_workflow.py --ablation model_architecture --tag model_study
-```
-
-#### Available Ablation Types
-
-- **`learning_rate`**: 학습률 스윕 (1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5)
-- **`batch_size`**: 배치 크기 스윕 (4, 8, 16, 32)
-- **`model_architecture`**: 백본 아키텍처 비교 (resnet18, resnet34, resnet50, mobilenetv3_small_050, efficientnet_b0)
-- **`custom`**: 사용자 정의 설정
-
-#### Manual Control
-
-각 단계별로 개별 실행 가능:
-
-```bash
-# 1. Run experiments only
-python run_ablation.py +ablation=learning_rate experiment_tag=my_lr_study -m
-
-# 2. Collect results from wandb
-python collect_results.py --project OCR_Ablation --tag my_lr_study --output results.csv
-
-# 3. Generate comparison table
-python generate_ablation_table.py --input results.csv --ablation-type learning_rate --metric val/hmean --output-md table.md
-```
-
-#### Configuration
-
-Ablation 설정은 `configs/ablation/` 디렉토리에 YAML 파일로 정의:
-
-```yaml
-# configs/ablation/learning_rate.yaml
-defaults:
-  - _self_
-
-training:
-  learning_rate: [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5]
-
-trainer:
-  max_epochs: 5
-
-wandb: true
-experiment_tag: "lr_ablation"
-```
-
-#### Custom Ablations
-
-Hydra의 강력한 설정 시스템을 활용하여 복잡한 ablation studies 생성:
-
-```bash
-# Multiple parameter sweep
-python run_ablation.py \
-  training.learning_rate=1e-3,5e-4,1e-4 \
-  data.batch_size=8,16,32 \
-  experiment_tag=multi_param_study \
-  -m
-
-# Architecture + augmentation sweep
-python run_ablation.py \
-  +ablation=custom \
-  model.backbone.name=resnet18,resnet50 \
-  augmentation.rotate.limit=15,30 \
-  experiment_tag=arch_aug_study \
-  -m
-```
-
-#### Results Analysis
-
-자동 생성되는 결과물:
-- **CSV 파일**: 모든 실험의 상세 메트릭
-- **마크다운 테이블**: 발표용 비교 테이블
-- **LaTeX 테이블**: 논문용 테이블
-- **시각화**: 성능 추이 그래프
-
-#### wandb Integration
-
-모든 ablation studies는 자동으로 wandb에 기록되며:
-- 실험별 메트릭 추적
-- 하이퍼파라미터 로깅
-- 모델 체크포인트 저장
-- 실시간 비교 대시보드
-
----
 
 #### 사용 예시
 ```bash
@@ -575,13 +441,6 @@ uv run python ocr/utils/convert_submission.py --json_path outputs/ocr_training/s
 # 자동 환경 설정 (권장)
 ./scripts/setup/00_setup-environment.sh
 
-# 또는 수동으로:
-# 1. 의존성 설치
-uv sync --group dev
-
-# 2. 환경 확인
-uv run python -c "import torch; print('PyTorch:', torch.__version__)"
-```
 
 ### VS Code 설정
 
@@ -616,81 +475,6 @@ uv run pytest tests/test_metrics.py
 uv run pytest tests/ --cov=ocr
 ```
 
-### 구성 파일 설정
-
-```bash
-# 데이터셋 경로 설정
-# configs/preset/datasets/db.yaml 파일에서 base_path 수정
-base_path: /path/to/your/extracted/data
-
-# 환경 변수 설정 (선택사항)
-export CUDA_VISIBLE_DEVICES=0
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-```
-
-## 문제 해결
-
-### 일반적인 문제들
-
-#### CUDA 메모리 부족
-```bash
-# 배치 크기 줄이기
-# configs/preset/datasets/db.yaml에서 batch_size 조정
-batch_size: 8  # 기본값에서 줄이기
-```
-
-#### 패키지 의존성 문제
-```bash
-# UV 캐시 정리
-uv cache clean
-
-# 의존성 재설치
-uv sync --reinstall
-```
-
-#### 데이터 경로 오류
-```bash
-# 데이터 경로 확인
-ls -la data/images/train/
-ls -la data/jsons/
-
-# 구성 파일에서 경로 확인
-cat configs/preset/datasets/db.yaml
-```
-
-### 성능 최적화 팁
-
-- GPU 메모리에 맞게 배치 크기 조정
-- 데이터 로더의 num_workers 설정 최적화
-- 혼합 정밀도 훈련 사용 고려
-- 체크포인트 저장 빈도 조정
-
-## 기여 가이드라인
-
-### 코드 스타일
-
-- Python PEP 8 스타일 가이드 준수
-- 타입 힌트 사용 권장
-- Docstring 작성 (Google 스타일)
-
-### 테스트 작성
-
-```bash
-# 새로운 기능에 대한 테스트 작성
-# tests/ 디렉토리에 테스트 파일 추가
-
-# 테스트 실행 확인
-uv run pytest tests/test_new_feature.py -v
-```
-
-### Pull Request 가이드라인
-
-1. 기능 브랜치 생성
-2. 코드 변경 및 테스트 작성
-3. 모든 테스트 통과 확인
-4. 명확한 커밋 메시지 작성
-5. PR 설명에 변경 사항 상세 기록
-
 ## 라이선스
 
 이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다.
@@ -718,100 +502,3 @@ uv run pytest tests/test_new_feature.py -v
 - **디스코드**: [팀 디스코드 채널] -->
 
 ---
-
-**마지막 업데이트**: 2025년 9월 23일
-
-## 🤖 코드 품질 자동화
-
-이 프로젝트는 코드 품질을 자동으로 유지하기 위한 포괄적인 자동화 시스템을 갖추고 있습니다.
-
-### 자동화 수준
-
-#### 1. **Pre-commit Hooks** (로컬 개발자용)
-커밋 전에 자동으로 코드 품질 검사를 수행합니다.
-
-```bash
-# 설치 (최초 1회)
-make pre-commit
-# 또는
-pre-commit install
-
-# 수동 실행
-pre-commit run --all-files
-```
-
-#### 2. **CI/CD 자동화** (GitHub Actions)
-- **푸시/PR 시**: 자동 코드 품질 검사
-- **PR 시**: 자동 수정 적용 및 커밋
-- **주간**: 정기적인 코드 품질 유지보수
-
-#### 3. **로컬 자동화 스크립트**
-```bash
-# 코드 품질 자동 수정
-make quality-fix
-# 또는
-./scripts/code-quality.sh
-
-# 품질 검사만 수행
-make quality-check
-```
-
-### 자동화되는 작업
-
-| 도구 | 목적 | 자동화 수준 |
-|------|------|-------------|
-| **Black** | 코드 포맷팅 | ✅ 자동 적용 |
-| **isort** | import 정렬 | ✅ 자동 적용 |
-| **flake8** | 린팅 | ✅ 자동 적용 |
-| **autoflake** | 미사용 import 제거 | ✅ 자동 적용 |
-| **mypy** | 타입 체크 | ✅ 검사만 |
-
-### 워크플로우
-
-#### 개발자 워크플로우
-```bash
-# 1. 코드 작성
-# 2. 자동 품질 검사 (pre-commit)
-git add .
-git commit  # 자동으로 품질 검사가 실행됨
-
-# 3. 수동 품질 개선 (필요시)
-make quality-fix
-```
-
-#### CI 워크플로우
-- **푸시**: 코드 품질 검사
-- **PR**: 자동 수정 적용
-- **매주 월요일**: 유지보수 PR 생성
-
-### 설정 파일들
-
-- `.pre-commit-config.yaml` - Pre-commit 훅 설정
-- `.github/workflows/ci.yml` - CI/CD 파이프라인
-- `.github/workflows/scheduled-maintenance.yml` - 주간 유지보수
-- `setup.cfg` - Flake8 설정
-- `pyproject.toml` - Black, isort, mypy 설정
-- `Makefile` - 편의 명령어들
-
-### 수동 실행
-
-```bash
-# 모든 품질 도구 실행
-make quality-check
-
-# 코드 포맷팅만
-make format
-
-# 린팅만
-make lint
-
-# 테스트와 품질 검사
-make ci
-```
-
-### 자동화의 이점
-
-- **일관성**: 모든 기여자가 동일한 코드 스타일 유지
-- **품질 보장**: 자동으로 버그 유발 코드를 방지
-- **시간 절약**: 수동 코드 리뷰 시간 감소
-- **지속적 개선**: 정기적인 코드 품질 유지보수

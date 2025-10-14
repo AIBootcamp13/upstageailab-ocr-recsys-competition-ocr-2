@@ -2,6 +2,7 @@ defaults:
   - _self_
   - base                  # Keep for other settings
   - data: base            # Compose data group
+  - data/performance_preset: none  # Default performance preset (no optimizations)
   - transforms: base      # Compose transforms group
   - dataloaders: default  # Compose dataloaders group
   - /preset/models/model_example
@@ -23,4 +24,4 @@ runtime:
   min_auto_devices: 2
 
 # Add this to your trainer or model config section
-compile_model: true  # Set to false to disable compilation
+compile_model: false  # Set to true to enable compilation (experimental)

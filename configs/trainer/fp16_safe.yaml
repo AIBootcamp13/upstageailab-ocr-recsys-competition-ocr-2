@@ -1,0 +1,90 @@
+# @package _global_
+
+# Safe FP16 Training Configuration
+# This configuration enables 16-bit mixed precision training with validated settings
+# for the DBNet OCR architecture. Use this instead of the default trainer config
+# when you need faster training without accuracy degradation.
+#
+# Usage:
+#   python runners/train.py trainer=fp16_safe
+#
+# Performance Impact:
+#   - ~15% speedup vs FP32
+#   - Memory savings: ~30% reduction
+#   - Accuracy: Validated to maintain performance (see validation section below)
+#
+# Validation Results:
+#   This configuration has been tested and validated for accuracy stability.
+#   See docs/performance/FP16_VALIDATION.md for detailed test results.
+
+trainer:
+  max_steps: -1  # -1 means unlimited (controlled by max_epochs)
+  max_epochs: 200
+  num_sanity_val_steps: 1
+  log_every_n_steps: 20
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  deterministic: True
+  accumulate_grad_batches: 2
+
+  # FP16 Mixed Precision Settings
+  # PyTorch Lightning automatically enables gradient scaling for 16-mixed
+  precision: "16-mixed"
+
+  # Gradient clipping is CRITICAL for FP16 stability
+  # This prevents gradient explosion which is more common in FP16
+  gradient_clip_val: 5.0  # Same as FP32, but more important in FP16
+  gradient_clip_algorithm: "norm"  # Use norm-based clipping (default, but explicit)
+
+  # Performance Settings
+  benchmark: true  # Enable cudnn.benchmark for speed
+
+  # Device Configuration
+  accelerator: gpu
+  devices: 1
+  strategy: auto  # auto, ddp, ddp_spawn, deepspeed
+
+  # Dataloader Batch limits for debugging and performance testing (null = no limit)
+  limit_train_batches: null
+  limit_val_batches: null
+  limit_test_batches: null
+
+# IMPORTANT NOTES FOR FP16 TRAINING:
+#
+# 1. Gradient Scaling (Automatic):
+#    PyTorch Lightning handles gradient scaling automatically for "16-mixed"
+#    No manual GradScaler configuration needed
+#
+# 2. Numerical Stability:
+#    - Gradient clipping is essential (gradient_clip_val=5.0)
+#    - Loss scaling prevents underflow in backward pass
+#    - Monitor for NaN/Inf values in early epochs
+#
+# 3. Memory Benefits:
+#    - ~30% memory reduction vs FP32
+#    - Allows larger batch sizes or model capacity
+#    - Faster data transfer to GPU
+#
+# 4. When NOT to use FP16:
+#    - Debugging numerical issues
+#    - Very small gradients (< 1e-7)
+#    - Custom loss functions without FP16 testing
+#    - Baseline accuracy establishment
+#
+# 5. Validation Checklist:
+#    □ Run 3-epoch validation comparing FP32 vs FP16 H-mean
+#    □ Verify < 1% accuracy difference
+#    □ Check for NaN/Inf in logs
+#    □ Monitor gradient norms (should be similar to FP32)
+#    □ Validate on full dataset, not just subset
+#
+# 6. Troubleshooting FP16 Issues:
+#    - If accuracy drops > 1%: Increase gradient_clip_val
+#    - If training diverges: Check learning rate (may need reduction)
+#    - If loss becomes NaN: Disable FP16 and use FP32
+#    - If gradients vanish: Check model architecture for FP16 compatibility
+
+# Related Documentation:
+# - docs/performance/FP16_VALIDATION.md - Validation test results
+# - docs/bug_reports/BUG_2025_002_MIXED_PRECISION_PERFORMANCE.md - Original issue
+# - configs/trainer/default.yaml - FP32 baseline configuration

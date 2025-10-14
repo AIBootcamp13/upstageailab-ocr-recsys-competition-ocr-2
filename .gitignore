@@ -121,7 +121,7 @@ _archive/docs
 continuation-prompt-streamlit-ui.md
 sample_bounding_boxes.png
 _llm_code_gen_workflow_exp/
-*.png
+!docs/assets/images/demo/*.png
 notepad.md
 
 /LOW_PERFORMANCE_IMGS/*.jpg

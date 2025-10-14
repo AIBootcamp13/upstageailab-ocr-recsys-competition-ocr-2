@@ -1,0 +1,31 @@
+# @package _global_.datasets.val_dataset.config
+# Performance Preset: None (Explicit Default)
+#
+# Use Case: Explicitly disable all performance features
+# Memory: Baseline (~2 GB)
+# Speed: Baseline (no optimizations)
+# Safe for Training: ✅ YES - No caching or data leakage risk
+#
+# This preset explicitly disables all performance features.
+# Functionally identical to 'minimal' but provided for clarity
+# when you want to explicitly state "no optimizations".
+
+# Image loading - nothing preloaded
+preload_images: false
+preload_maps: false
+prenormalize_images: false
+
+# Map loading - disabled
+load_maps: false
+
+# Cache configuration - completely disabled
+cache_config:
+  cache_images: false
+  cache_maps: false
+  cache_transformed_tensors: false
+  log_statistics_every_n: null
+
+# Image loading configuration
+image_loading_config:
+  use_turbojpeg: true
+  turbojpeg_fallback: true

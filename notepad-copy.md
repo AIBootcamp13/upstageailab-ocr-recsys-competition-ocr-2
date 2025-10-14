@@ -6,7 +6,7 @@ uv run python runners/train.py --config-name train trainer.fast_dev_run=true
 ## Train run CLI
 ```bash
 uv run python /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/runners/train.py \
-    exp_name=transforms_test-dbnetpp-dbnetpp_decoder-resnet50 \
+    exp_name=transforms_test_caching-dbnetpp-dbnetpp_decoder-resnet518 \
     logger.wandb.enabled=true \
     model/architectures=dbnetpp \
     model.encoder.model_name=resnet50 \
@@ -21,7 +21,7 @@ uv run python /home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/r
     model.scheduler.eta_min=0.00001 \
     dataloaders.train_dataloader.batch_size=16 \
     dataloaders.val_dataloader.batch_size=16 \
-    trainer.max_epochs=10 \
+    trainer.max_epochs=1 \
     trainer.accumulate_grad_batches=1 \
     trainer.gradient_clip_val=5.0 \
     trainer.precision=32 \

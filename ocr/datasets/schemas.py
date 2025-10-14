@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -11,12 +12,47 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 
 
 class CacheConfig(BaseModel):
-    """Configuration flags controlling dataset caching behaviour."""
+    """Configuration flags controlling dataset caching behaviour.
+
+    Includes automatic cache versioning to prevent stale cache issues when
+    configuration changes affect cached data validity.
+    """
 
     cache_images: bool = True
     cache_maps: bool = True
     cache_transformed_tensors: bool = False
     log_statistics_every_n: int | None = Field(default=None, ge=1)
+
+    def get_cache_version(self, load_maps: bool = False) -> str:
+        """Generate cache version hash from configuration.
+
+        The cache version ensures that cached data is invalidated when configuration
+        changes affect data validity. Changes to any of these settings will result
+        in a new cache version:
+        - cache_transformed_tensors: Affects what gets cached
+        - cache_images: Affects image caching behavior
+        - cache_maps: Affects map caching behavior
+        - load_maps: Critical - maps must be in cached data if load_maps=True
+
+        Args:
+            load_maps: Whether maps are being loaded (from parent DatasetConfig)
+
+        Returns:
+            8-character hex string uniquely identifying this configuration
+
+        Example:
+            >>> config = CacheConfig(cache_transformed_tensors=True, load_maps=True)
+            >>> version = config.get_cache_version(load_maps=True)
+            >>> print(version)  # e.g., "a3f2b8c1"
+        """
+        # Include all configuration that affects cached data validity
+        config_str = (
+            f"cache_transformed_tensors={self.cache_transformed_tensors}|"
+            f"cache_images={self.cache_images}|"
+            f"cache_maps={self.cache_maps}|"
+            f"load_maps={load_maps}"
+        )
+        return hashlib.md5(config_str.encode()).hexdigest()[:8]
 
 
 class ImageLoadingConfig(BaseModel):

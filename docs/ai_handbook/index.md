@@ -1,7 +1,7 @@
 # # **AI Agent Handbook: OCR Project**
 
-Version: 1.11 (2025-10-09)
-Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10/08_hydra-logging-extras-implementation.md).
+Version: 1.12 (2025-10-14)
+Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10/14_performance_system_critical_fixes.md).
 
 ## **1. Project Overview**
 
@@ -16,8 +16,9 @@ Use these curated "context bundles" to load the most relevant files for common t
 #### **For a New Feature or Model Component:**
 
 1. **Protocol:** [Coding Standards & Workflow](./02_protocols/development/01_coding_standards.md)
-2. **Reference:** [Architecture](./03_references/architecture/01_architecture.md)
-3. **Reference:** [Hydra & Component Registry](./03_references/architecture/02_hydra_and_registry.md)
+2. **Protocol:** [Feature Implementation Protocol](./02_protocols/development/21_feature_implementation_protocol.md)
+3. **Reference:** [Architecture](./03_references/architecture/01_architecture.md)
+4. **Reference:** [Hydra & Component Registry](./03_references/architecture/02_hydra_and_registry.md)
 
 #### **For Debugging a Training Run:**
 
@@ -59,6 +60,15 @@ Use these curated "context bundles" to load the most relevant files for common t
 2. **Validator:** `uv run python scripts/agent_tools/validate_manifest.py`
 3. **Bundle Preview:** `uv run python scripts/agent_tools/get_context.py --list-bundles`
 
+#### **For Bug Reporting and Issue Tracking:**
+
+1. **Template:** [Bug Report Template](./bug_reports/BUG_REPORT_TEMPLATE.md)
+2. **Reference:** [Changelog](../CHANGELOG.md)
+
+#### **For AI Agent Collaboration:**
+
+1. **Guide:** [Qwen Coder Integration](./03_references/integrations/qwen_coder_integration.md)
+
 ## **3. 🤖 Command Registry**
 
 For safe, autonomous execution of tasks, refer to the [**Command Registry**](./02_protocols/02_command_registry.md). It contains a list of approved scripts, their functions, and examples.
@@ -83,6 +93,7 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 * [Context Checkpointing & Restoration](./02_protocols/development/08_context_checkpointing.md)
 * [Hydra Configuration Refactoring](./02_protocols/development/09_hydra_config_refactoring.md)
 * [Refactoring Guide (redirect)](./02_protocols/development/10_refactoring_guide.md)
+* [Feature Implementation Protocol](./02_protocols/development/21_feature_implementation_protocol.md)
 
 #### Component Protocols
 * [Training & Experimentation](./02_protocols/components/13_training_protocol.md)
@@ -107,9 +118,13 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 * [Performance Monitoring Callbacks](./03_references/guides/performance_monitoring_callbacks_usage.md)
 * [Performance Profiler Usage](./03_references/guides/performance_profiler_usage.md)
 
+#### Integrations
+* [Qwen Coder Integration](./03_references/integrations/qwen_coder_integration.md)
+
 ### **04. Experiments**
 
 * [Experiment Log Template](./04_experiments/experiment_logs/templates/experiment_log_template.md)
+* [Bug Report Template](./bug_reports/BUG_REPORT_TEMPLATE.md)
 * [View All Experiments](./04_experiments/)
 
 ### **05. Changelog**

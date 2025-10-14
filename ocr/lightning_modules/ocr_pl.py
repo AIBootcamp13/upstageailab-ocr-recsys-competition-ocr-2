@@ -69,6 +69,39 @@ class OCRPLModule(pl.LightningModule):
         )
         self.submission_writer = SubmissionWriter(config)
 
+        # Log selected performance preset in bright yellow
+        self._log_performance_preset()
+
+    def _log_performance_preset(self) -> None:
+        """Log the selected performance preset."""
+        try:
+            # Try to infer the preset from validation dataset config
+            val_dataset = self.dataset.get("val")
+            if val_dataset and hasattr(val_dataset, "config"):
+                config = val_dataset.config
+
+                # Determine which preset is active based on config settings
+                if config.cache_config.cache_transformed_tensors:
+                    preset_name = "validation_optimized"
+                    preset_desc = "Full caching (~2.5-3x speedup, validation only!)"
+                elif config.cache_config.cache_images:
+                    preset_name = "balanced"
+                    preset_desc = "Image caching (~1.12x speedup)"
+                elif config.preload_images or config.load_maps:
+                    preset_name = "memory_efficient"
+                    preset_desc = "Minimal memory footprint"
+                else:
+                    preset_name = "none"
+                    preset_desc = "No optimizations (baseline)"
+
+                # Simple logging without Rich to avoid conflicts
+                print(f"\n🚀 Performance Preset: {preset_name}")
+                print(f"   {preset_desc}\n")
+
+        except Exception:
+            # Silently ignore if we can't determine the preset
+            pass
+
     def load_state_dict(self, state_dict, strict: bool = True):
         """Load state dict with fallback handling for different checkpoint formats."""
         return load_state_dict_with_fallback(self, state_dict, strict=strict)
@@ -128,9 +161,21 @@ class OCRPLModule(pl.LightningModule):
 
         return pred["loss"]
 
+    def on_train_epoch_start(self) -> None:
+        # Reset collate function logging flag at the start of each training epoch
+        import ocr.datasets.db_collate_fn
+
+        ocr.datasets.db_collate_fn._db_collate_logged_stats = False
+        # Reset wandb logger step counter at the start of each training epoch
+        self.wandb_logger.reset_epoch_counter()
+
     def on_validation_epoch_start(self) -> None:
         self.validation_step_outputs.clear()
         self.wandb_logger.reset_epoch_counter()
+        # Reset collate function logging flag at the start of each validation epoch
+        import ocr.datasets.db_collate_fn
+
+        ocr.datasets.db_collate_fn._db_collate_logged_stats = False
 
     def on_validation_epoch_end(self):
         if self.valid_evaluator is None:

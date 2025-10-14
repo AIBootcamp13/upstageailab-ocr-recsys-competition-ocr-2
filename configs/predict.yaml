@@ -2,6 +2,7 @@ defaults:
   - _self_
   - base                  # Keep for other settings
   - data: base            # Compose data group
+  - data/performance_preset: none  # Default performance preset (no optimizations)
   - transforms: base      # Compose transforms group
   - dataloaders: default  # Compose dataloaders group
   - /preset/models/model_example

@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import signal
@@ -14,6 +15,15 @@ from omegaconf import DictConfig
 # This is a known issue where wandb uses incorrect Field() syntax in Annotated types
 # The warnings come from Pydantic when processing wandb's type annotations
 warnings.filterwarnings("ignore", message=r"The '(repr|frozen)' attribute.*Field.*function.*no effect", category=UserWarning)
+warnings.filterwarnings("ignore", message=r".*(repr|frozen).*Field.*function.*no effect", category=UserWarning)
+
+# Also suppress by category for more reliable filtering
+try:
+    from pydantic.warnings import UnsupportedFieldAttributeWarning
+
+    warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
+except ImportError:
+    pass  # In case the warning class is not available in future pydantic versions
 
 import wandb
 
@@ -64,6 +74,27 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # Avoid creating a new process group here; the caller (UI) manages process groups
+
+
+# Setup consistent logging configuration
+# Create a custom handler that flushes immediately
+class ImmediateFlushHandler(logging.StreamHandler):
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s - %(name)s - %(message)s",
+    force=True,  # Override any existing configuration
+    handlers=[ImmediateFlushHandler(sys.stdout)],
+)
+
+# Reduce verbosity of some noisy loggers
+logging.getLogger("lightning.pytorch").setLevel(logging.WARNING)
+logging.getLogger("torch").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 @hydra.main(config_path=str(get_path_resolver().config.config_dir), config_name="train", version_base="1.2")
@@ -174,7 +205,8 @@ def train(config: DictConfig):
             if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
                 # Only instantiate enabled callbacks
                 if cb_conf.get("enabled", True):
-                    print(f"Instantiating callback <{cb_conf._target_}>")
+                    # Commented out: Callback instantiation logging to reduce noise
+                    # print(f"Instantiating callback <{cb_conf._target_}>")
                     callbacks.append(hydra.utils.instantiate(cb_conf))
 
     # Always add LearningRateMonitor

@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from ocr.datasets.schemas import CacheConfig, DataItem, ImageData, MapData
 
@@ -80,15 +81,22 @@ class CacheManager:
     - maps_cache: dict[str, MapData] - keyed by filename
     """
 
-    def __init__(self, config: CacheConfig) -> None:
+    def __init__(self, config: CacheConfig, cache_version: str | None = None) -> None:
         """
         AI_DOCS: Constructor Constraints
         - config: CacheConfig (Pydantic model) - NEVER pass raw dict
+        - cache_version: Version string for cache invalidation (optional)
         - Initialize all cache dicts as empty
         - Setup statistics counters
         - DO NOT modify cache structure without updating all consumers
+
+        Cache Versioning:
+        If cache_version is provided, it's stored and can be used to validate
+        cache compatibility. This prevents stale cache issues when configuration
+        changes (e.g., enabling load_maps after cache was built without maps).
         """
         self.config = config
+        self.cache_version = cache_version
         self.logger = logging.getLogger(__name__)
         self.image_cache: dict[str, ImageData] = {}
         self.tensor_cache: dict[int, DataItem] = {}
@@ -96,6 +104,10 @@ class CacheManager:
         self._cache_hit_count = 0
         self._cache_miss_count = 0
         self._access_counter = 0
+
+        # Log cache version for debugging
+        if cache_version:
+            self.logger.debug(f"CacheManager initialized with version: {cache_version}")
 
     # ------------------------------------------------------------------
     # Generic helpers
@@ -230,6 +242,79 @@ class CacheManager:
         self.clear_image_cache()
         self.clear_maps_cache()
         self.logger.info("All caches cleared")
+
+    def get_cache_health(self) -> dict[str, Any]:
+        """Get comprehensive cache health statistics.
+
+        Returns a dictionary with:
+        - Cache sizes (entries per cache type)
+        - Hit/miss statistics
+        - Hit rate percentage
+        - Cache version information
+        - Memory usage estimates
+
+        This is useful for monitoring cache performance and debugging cache issues.
+
+        Returns:
+            Dictionary with cache health metrics
+
+        Example:
+            >>> manager = CacheManager(config, cache_version="abc123")
+            >>> health = manager.get_cache_health()
+            >>> print(f"Hit rate: {health['hit_rate_percent']:.1f}%")
+        """
+        total_accesses = self._cache_hit_count + self._cache_miss_count
+        hit_rate = (self._cache_hit_count / total_accesses * 100.0) if total_accesses else 0.0
+
+        return {
+            "cache_version": self.cache_version,
+            "image_cache_size": len(self.image_cache),
+            "tensor_cache_size": len(self.tensor_cache),
+            "maps_cache_size": len(self.maps_cache),
+            "total_cache_entries": len(self.image_cache) + len(self.tensor_cache) + len(self.maps_cache),
+            "cache_hits": self._cache_hit_count,
+            "cache_misses": self._cache_miss_count,
+            "total_accesses": total_accesses,
+            "hit_rate_percent": hit_rate,
+            "config": {
+                "cache_images": self.config.cache_images,
+                "cache_maps": self.config.cache_maps,
+                "cache_transformed_tensors": self.config.cache_transformed_tensors,
+            },
+        }
+
+    def log_cache_health(self) -> None:
+        """Log comprehensive cache health information.
+
+        This provides a detailed overview of cache status including:
+        - Cache sizes
+        - Hit/miss rates
+        - Configuration settings
+        - Cache version
+
+        Useful for debugging performance issues and validating cache behavior.
+        """
+        health = self.get_cache_health()
+
+        self.logger.info("=" * 60)
+        self.logger.info("CACHE HEALTH REPORT")
+        self.logger.info("=" * 60)
+        if health["cache_version"]:
+            self.logger.info(f"Cache Version: {health['cache_version']}")
+        self.logger.info(f"Image Cache: {health['image_cache_size']} entries")
+        self.logger.info(f"Tensor Cache: {health['tensor_cache_size']} entries")
+        self.logger.info(f"Maps Cache: {health['maps_cache_size']} entries")
+        self.logger.info(f"Total Entries: {health['total_cache_entries']}")
+        self.logger.info("-" * 60)
+        self.logger.info(f"Cache Hits: {health['cache_hits']}")
+        self.logger.info(f"Cache Misses: {health['cache_misses']}")
+        self.logger.info(f"Hit Rate: {health['hit_rate_percent']:.1f}%")
+        self.logger.info("-" * 60)
+        self.logger.info("Configuration:")
+        self.logger.info(f"  cache_images: {health['config']['cache_images']}")
+        self.logger.info(f"  cache_maps: {health['config']['cache_maps']}")
+        self.logger.info(f"  cache_transformed_tensors: {health['config']['cache_transformed_tensors']}")
+        self.logger.info("=" * 60)
 
 
 #

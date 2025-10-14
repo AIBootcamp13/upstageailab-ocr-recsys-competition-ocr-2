@@ -1,0 +1,30 @@
+# @package _global_.datasets.val_dataset.config
+# Performance Preset: Balanced Performance
+#
+# Use Case: Standard training workflows with moderate memory
+# Memory: ~2.4 GB (+400 MB vs minimal)
+# Speed: ~1.12x (10-12% faster)
+# Safe for Training: ✅ YES
+#
+# This preset enables image caching for moderate speedup without
+# risk of data leakage. Good default for production training.
+
+# Image loading - no preloading to save startup time
+preload_images: false
+preload_maps: false
+prenormalize_images: false
+
+# Map loading - disabled for training safety
+load_maps: false
+
+# Cache configuration - image cache only
+cache_config:
+  cache_images: true  # Cache decoded images
+  cache_maps: false
+  cache_transformed_tensors: false  # NEVER enable for training!
+  log_statistics_every_n: 100  # Monitor cache health
+
+# Image loading configuration
+image_loading_config:
+  use_turbojpeg: true
+  turbojpeg_fallback: true

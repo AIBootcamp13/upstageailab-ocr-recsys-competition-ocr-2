@@ -1,0 +1,1762 @@
+{
+  "baseline_metrics": {
+    "run_id": "b1bipuoz",
+    "run_name": "wchoi189_dbnet-resnet18-unet-dbhead-dbloss-bs16-lr1e-3_hmean0.619",
+    "created_at": "2025-10-13T15:48:48Z",
+    "state": "finished",
+    "config": {
+      "data": {
+        "val_num_samples": null,
+        "test_num_samples": null,
+        "train_num_samples": null
+      },
+      "seed": 42,
+      "debug": {
+        "verbose": false,
+        "profiling": false
+      },
+      "model": {
+        "head": {
+          "k": 50,
+          "bias": false,
+          "smooth": false,
+          "upscale": 4,
+          "_target_": "ocr.models.head.DBHead",
+          "in_channels": 256,
+          "postprocess": {
+            "thresh": 0.3,
+            "box_thresh": 0.4,
+            "use_polygon": true,
+            "max_candidates": 300
+          }
+        },
+        "loss": {
+          "eps": 1e-06,
+          "_target_": "ocr.models.loss.DBLoss",
+          "negative_ratio": 3,
+          "prob_map_loss_weight": 5,
+          "binary_map_loss_weight": 1,
+          "thresh_map_loss_weight": 10
+        },
+        "decoder": {
+          "bias": false,
+          "strides": [
+            4,
+            8,
+            16,
+            32
+          ],
+          "_target_": "ocr.models.decoder.UNet",
+          "in_channels": [
+            64,
+            128,
+            256,
+            512
+          ],
+          "inner_channels": 256,
+          "output_channels": 256
+        },
+        "encoder": {
+          "_target_": "ocr.models.encoder.TimmBackbone",
+          "model_name": "resnet18",
+          "pretrained": true,
+          "select_features": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "_target_": "ocr.models.architecture.OCRModel",
+        "optimizer": {
+          "lr": 0.001,
+          "eps": 1e-08,
+          "betas": [
+            0.9,
+            0.999
+          ],
+          "_target_": "torch.optim.AdamW",
+          "weight_decay": 0.0001
+        },
+        "scheduler": {
+          "T_max": 1000,
+          "eta_min": 0,
+          "_target_": "torch.optim.lr_scheduler.CosineAnnealingLR"
+        },
+        "architecture_name": "dbnet",
+        "component_overrides": {
+          "head": {
+            "name": "db_head",
+            "params": {
+              "k": 50,
+              "postprocess": {
+                "thresh": 0.2,
+                "box_thresh": 0.3,
+                "use_polygon": true,
+                "max_candidates": 300
+              }
+            }
+          },
+          "loss": {
+            "name": "db_loss",
+            "params": {
+              "negative_ratio": 3,
+              "prob_map_loss_weight": 5,
+              "binary_map_loss_weight": 1,
+              "thresh_map_loss_weight": 10
+            }
+          },
+          "decoder": {
+            "name": "fpn_decoder",
+            "params": {
+              "out_channels": 256,
+              "inner_channels": 256,
+              "output_channels": 256
+            }
+          },
+          "encoder": {
+            "model_name": "resnet18",
+            "pretrained": false,
+            "select_features": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        }
+      },
+      "paths": {
+        "log_dir": "outputs/benchmark_optimized_16bit_full_cache/logs",
+        "output_dir": "outputs/benchmark_optimized_16bit_full_cache",
+        "checkpoint_dir": "outputs/benchmark_optimized_16bit_full_cache/checkpoints",
+        "submission_dir": "outputs/benchmark_optimized_16bit_full_cache/submissions"
+      },
+      "wandb": true,
+      "extras": {
+        "enforce_tags": true,
+        "print_config": true,
+        "ignore_warnings": false
+      },
+      "logger": {
+        "csv": {
+          "name": "csv/",
+          "prefix": "",
+          "_target_": "lightning.pytorch.loggers.csv_logs.CSVLogger",
+          "save_dir": "outputs/benchmark_optimized_16bit_full_cache"
+        },
+        "wandb": {
+          "enabled": true
+        },
+        "settings": {
+          "offline": false,
+          "sync_dir": "outputs/wandb_sync",
+          "save_code": false
+        },
+        "exp_version": "v1.0",
+        "project_name": "receipt-text-recognition-ocr-project",
+        "per_batch_image_logging": {
+          "enabled": false,
+          "image_format": "jpeg",
+          "max_image_side": 640,
+          "recall_threshold": 0.4,
+          "max_images_per_batch": 4,
+          "max_batches_per_epoch": 2,
+          "use_transformed_batch": true
+        }
+      },
+      "resume": null,
+      "metrics": {
+        "eval": {
+          "_target_": "ocr.metrics.cleval_metric.CLEvalMetric",
+          "scale_bins": [
+            0,
+            0.005,
+            0.01,
+            0.015,
+            0.02,
+            0.025,
+            0.1,
+            0.5,
+            1
+          ],
+          "scale_wise": false,
+          "scale_range": [
+            0,
+            1
+          ],
+          "max_polygons": 500,
+          "ap_constraint": 0.3,
+          "case_sensitive": true,
+          "dist_sync_on_step": false,
+          "recall_gran_penalty": 1,
+          "precision_gran_penalty": 1,
+          "vertical_aspect_ratio_thresh": 0.5
+        }
+      },
+      "modules": {
+        "lightning_module": {
+          "_target_": "ocr.lightning_modules.OCRPLModule"
+        },
+        "lightning_data_module": {
+          "_target_": "ocr.lightning_modules.OCRDataPLModule"
+        }
+      },
+      "runtime": {
+        "ddp_strategy": "ddp_find_unused_parameters_false",
+        "auto_gpu_devices": true,
+        "min_auto_devices": 2
+      },
+      "trainer": {
+        "devices": 1,
+        "strategy": "auto",
+        "benchmark": true,
+        "max_steps": -1,
+        "precision": "16-mixed",
+        "max_epochs": 3,
+        "accelerator": "gpu",
+        "deterministic": true,
+        "gradient_clip_val": 5,
+        "limit_val_batches": 50,
+        "log_every_n_steps": 20,
+        "limit_test_batches": null,
+        "val_check_interval": null,
+        "limit_train_batches": null,
+        "num_sanity_val_steps": 1,
+        "accumulate_grad_batches": 2,
+        "check_val_every_n_epoch": 1
+      },
+      "datasets": {
+        "val_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "load_maps": true,
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images_val_canonical",
+            "cache_config": {
+              "_target_": "ocr.datasets.schemas.CacheConfig",
+              "cache_maps": true,
+              "cache_images": true,
+              "log_statistics_every_n": 100,
+              "cache_transformed_tensors": true
+            },
+            "preload_images": true,
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/val.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "test_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/val",
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/val.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "train_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/train",
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/train.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "p": 0.5,
+                "_target_": "albumentations.HorizontalFlip"
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "predict_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/test",
+            "annotation_path": null
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        }
+      },
+      "exp_name": "benchmark_optimized_16bit_full_cache",
+      "callbacks": {
+        "early_stopping": {
+          "mode": "max",
+          "strict": true,
+          "monitor": "val/hmean",
+          "verbose": false,
+          "_target_": "lightning.pytorch.callbacks.EarlyStopping",
+          "patience": 5,
+          "min_delta": 0,
+          "check_finite": true,
+          "stopping_threshold": null,
+          "divergence_threshold": null,
+          "check_on_train_epoch_end": false
+        },
+        "model_checkpoint": {
+          "mode": "max",
+          "dirpath": "outputs/benchmark_optimized_16bit_full_cache/checkpoints",
+          "monitor": "val/hmean",
+          "verbose": true,
+          "_target_": "ocr.lightning_modules.callbacks.unique_checkpoint.UniqueModelCheckpoint",
+          "filename": "{val/hmean:.4f}-best",
+          "save_last": true,
+          "save_top_k": 3,
+          "add_timestamp": true,
+          "every_n_epochs": 1,
+          "save_weights_only": false,
+          "every_n_train_steps": null,
+          "train_time_interval": null,
+          "auto_insert_metric_name": true,
+          "save_on_train_epoch_end": false
+        },
+        "wandb_completion": {
+          "_target_": "ocr.lightning_modules.callbacks.wandb_completion.WandbCompletionCallback"
+        },
+        "rich_progress_bar": {
+          "theme": {
+            "time": "cyan",
+            "metrics": "white",
+            "_target_": "lightning.pytorch.callbacks.progress.rich_progress.RichProgressBarTheme",
+            "description": "bold white",
+            "progress_bar": "red",
+            "processing_speed": "cyan",
+            "progress_bar_pulse": "yellow",
+            "progress_bar_finished": "green"
+          },
+          "_target_": "lightning.pytorch.callbacks.RichProgressBar",
+          "refresh_rate": 2
+        },
+        "wandb_image_logging": {
+          "_target_": "ocr.lightning_modules.callbacks.wandb_image_logging.WandbImageLoggingCallback",
+          "log_every_n_epochs": 1
+        },
+        "performance_profiler": {
+          "enabled": true,
+          "verbose": false,
+          "_target_": "ocr.lightning_modules.callbacks.PerformanceProfilerCallback",
+          "log_interval": 10,
+          "profile_memory": true
+        }
+      },
+      "head_path": "ocr.models.head",
+      "loss_path": "ocr.models.loss",
+      "task_name": "train",
+      "batch_size": 16,
+      "collate_fn": {
+        "_target_": "ocr.datasets.DBCollateFN",
+        "thresh_max": 0.7,
+        "thresh_min": 0.3,
+        "shrink_ratio": 0.4
+      },
+      "model_path": "ocr.models",
+      "transforms": {
+        "val_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "test_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "train_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "p": 0.5,
+              "_target_": "albumentations.HorizontalFlip"
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "predict_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": null
+        }
+      },
+      "dataloaders": {
+        "val_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 8,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "test_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 4,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "train_dataloader": {
+          "shuffle": true,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 8,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "predict_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 4,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        }
+      },
+      "dataset_path": "ocr.datasets",
+      "decoder_path": "ocr.models.decoder",
+      "encoder_path": "ocr.models.encoder",
+      "project_name": null,
+      "compile_model": true,
+      "dataset_module": "ocr.datasets",
+      "experiment_tag": null,
+      "lightning_path": "ocr.lightning_modules",
+      "dataset_base_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/",
+      "dataset_config_path": "ocr.datasets.schemas",
+      "dataset_config_module": "ocr.datasets.schemas",
+      "default_interpolation": 1
+    },
+    "summary": {
+      "_runtime": 1002,
+      "_step": 313,
+      "_timestamp": 1760371531.2923975,
+      "_wandb": {
+        "runtime": 1002
+      },
+      "batch_0/hmean": 0.8422222137451172,
+      "batch_0/precision": 0.9239606261253356,
+      "batch_0/recall": 0.8102813363075256,
+      "batch_1/hmean": 0.7065528631210327,
+      "batch_1/precision": 0.82273268699646,
+      "batch_1/recall": 0.6838398575782776,
+      "batch_10/hmean": 0.6599703431129456,
+      "batch_10/precision": 0.7883185744285583,
+      "batch_10/recall": 0.6283837556838989,
+      "batch_11/hmean": 0.8403717279434204,
+      "batch_11/precision": 0.8942657709121704,
+      "batch_11/recall": 0.8218711614608765,
+      "batch_12/hmean": 0.7133658528327942,
+      "batch_12/precision": 0.8878536224365234,
+      "batch_12/recall": 0.7070171236991882,
+      "batch_13/hmean": 0.817581057548523,
+      "batch_13/precision": 0.9335581660270692,
+      "batch_13/recall": 0.7802119255065918,
+      "batch_14/hmean": 0.8733347654342651,
+      "batch_14/precision": 0.8938910365104675,
+      "batch_14/recall": 0.8654199242591858,
+      "batch_15/hmean": 0.7487742900848389,
+      "batch_15/precision": 0.8666765093803406,
+      "batch_15/recall": 0.7276906371116638,
+      "batch_16/hmean": 0.8314386010169983,
+      "batch_16/precision": 0.8896724581718445,
+      "batch_16/recall": 0.8051133751869202,
+      "batch_17/hmean": 0.8580721616744995,
+      "batch_17/precision": 0.9153167009353638,
+      "batch_17/recall": 0.8342483639717102,
+      "batch_18/hmean": 0.8331097364425659,
+      "batch_18/precision": 0.9130993485450744,
+      "batch_18/recall": 0.7932019233703613,
+      "batch_19/hmean": 0.8182979822158813,
+      "batch_19/precision": 0.8664923906326294,
+      "batch_19/recall": 0.7949312925338745,
+      "batch_2/hmean": 0.7641081213951111,
+      "batch_2/precision": 0.848284125328064,
+      "batch_2/recall": 0.7393476366996765,
+      "batch_20/hmean": 0.876315176486969,
+      "batch_20/precision": 0.9019200205802916,
+      "batch_20/recall": 0.8584260940551758,
+      "batch_21/hmean": 0.755635678768158,
+      "batch_21/precision": 0.8761802315711975,
+      "batch_21/recall": 0.7165350914001465,
+      "batch_22/hmean": 0.7854697108268738,
+      "batch_22/precision": 0.9125744104385376,
+      "batch_22/recall": 0.7482653856277466,
+      "batch_23/hmean": 0.8841327428817749,
+      "batch_23/precision": 0.9131230711936952,
+      "batch_23/recall": 0.8668026328086853,
+      "batch_24/hmean": 0.7726203203201294,
+      "batch_24/precision": 0.8362798094749451,
+      "batch_24/recall": 0.7293693423271179,
+      "batch_25/hmean": 0.49215787649154663,
+      "batch_25/precision": 0.7957887053489685,
+      "batch_25/recall": 0.4359053075313568,
+      "batch_3/hmean": 0.6119886636734009,
+      "batch_3/precision": 0.7022355198860168,
+      "batch_3/recall": 0.5693178176879883,
+      "batch_4/hmean": 0.8663221597671509,
+      "batch_4/precision": 0.9243832230567932,
+      "batch_4/recall": 0.8456067442893982,
+      "batch_5/hmean": 0.8529065847396851,
+      "batch_5/precision": 0.9295036792755128,
+      "batch_5/recall": 0.8298245668411255,
+      "batch_6/hmean": 0.6566833853721619,
+      "batch_6/precision": 0.9016380906105042,
+      "batch_6/recall": 0.607303261756897,
+      "batch_7/hmean": 0.8432564735412598,
+      "batch_7/precision": 0.8905692100524902,
+      "batch_7/recall": 0.8293477296829224,
+      "batch_8/hmean": 0.8005097508430481,
+      "batch_8/precision": 0.9065967202186584,
+      "batch_8/recall": 0.7801070809364319,
+      "batch_9/hmean": 0.6001965999603271,
+      "batch_9/precision": 0.7476807832717896,
+      "batch_9/recall": 0.5728247165679932,
+      "checkpoint_dir": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/outputs/benchmark_optimized_16bit_full_cache/checkpoints",
+      "epoch": 3,
+      "final_mean_loss": 0,
+      "final_run_name": "wchoi189_dbnet-resnet18-unet-dbhead-dbloss-bs16-lr1e-3_hmean0.619",
+      "final_status": "success",
+      "lr-AdamW": 0.001,
+      "performance/cpu_memory_percent": 15.699999809265137,
+      "performance/gpu_memory_gb": 0.062075138092041016,
+      "performance/gpu_memory_reserved_gb": 4.126953125,
+      "performance/val_batch_idx": 20,
+      "performance/val_batch_mean": 0.5924121141433716,
+      "performance/val_batch_median": 0.5095767974853516,
+      "performance/val_batch_p95": 0.902039647102356,
+      "performance/val_batch_p99": 1.8527259826660156,
+      "performance/val_batch_std": 0.3491477966308594,
+      "performance/val_batch_time": 4.437278032302856,
+      "performance/val_epoch_time": 17.630338668823242,
+      "performance/val_num_batches": 26,
+      "test/hmean": 0.6194570660591125,
+      "test/precision": 0.6979867815971375,
+      "test/recall": 0.5962907075881958,
+      "train/loss": 2.185105323791504,
+      "train/loss_binary": 0.27059704065322876,
+      "train/loss_prob": 0.32842323184013367,
+      "train/loss_thresh": 0.027239207178354263,
+      "trainer/global_step": 309,
+      "val/hmean": 0.7816186547279358,
+      "val/precision": 0.8746318221092224,
+      "val/recall": 0.7546243667602539,
+      "val_loss": 2.062822103500366,
+      "val_loss_binary": 0.24996836483478543,
+      "val_loss_prob": 0.3085179030895233,
+      "val_loss_thresh": 0.027026422321796417,
+      "validation_images": {
+        "_type": "images/separated",
+        "captions": [
+          "drp.en_ko.in_house.selectstar_000058.jpg (960x1280) | Ep 2 | GT=115 Pred=130",
+          "drp.en_ko.in_house.selectstar_000032.jpg (959x1280) | Ep 2 | GT=155 Pred=68",
+          "drp.en_ko.in_house.selectstar_000007.jpg (960x1280) | Ep 2 | GT=76 Pred=73",
+          "drp.en_ko.in_house.selectstar_000067.jpg (1006x1280) | Ep 2 | GT=81 Pred=83",
+          "drp.en_ko.in_house.selectstar_000064.jpg (682x1280) | Ep 2 | GT=106 Pred=91",
+          "drp.en_ko.in_house.selectstar_000030.jpg (927x1280) | Ep 2 | GT=127 Pred=95",
+          "drp.en_ko.in_house.selectstar_000046.jpg (920x1280) | Ep 2 | GT=104 Pred=100",
+          "drp.en_ko.in_house.selectstar_000056.jpg (960x1280) | Ep 2 | GT=196 Pred=66"
+        ],
+        "count": 8,
+        "filenames": [
+          "media/images/validation_images_309_28cb0995323e9b266774.png",
+          "media/images/validation_images_309_de909e9f2b2c7e9e7e9c.png",
+          "media/images/validation_images_309_82efd529c5d1e761ea5b.png",
+          "media/images/validation_images_309_e4c798ad233b96964888.png",
+          "media/images/validation_images_309_cbd88e70acd27482896b.png",
+          "media/images/validation_images_309_45d4606bd3f702d627a1.png",
+          "media/images/validation_images_309_331bedebc0e357c2195a.png",
+          "media/images/validation_images_309_6b5bb1c2dd04e4bf6091.png"
+        ],
+        "format": "png",
+        "height": 1280,
+        "width": 1006
+      }
+    },
+    "history": []
+  },
+  "optimized_metrics": {
+    "run_id": "9evam0xb",
+    "run_name": "wchoi189_dbnet-resnet18-unet-dbhead-dbloss-bs16-lr1e-3_hmean0.705",
+    "created_at": "2025-10-13T17:11:46Z",
+    "state": "finished",
+    "config": {
+      "data": {
+        "val_num_samples": null,
+        "test_num_samples": null,
+        "train_num_samples": null
+      },
+      "seed": 42,
+      "debug": {
+        "verbose": false,
+        "profiling": false
+      },
+      "model": {
+        "head": {
+          "k": 50,
+          "bias": false,
+          "smooth": false,
+          "upscale": 4,
+          "_target_": "ocr.models.head.DBHead",
+          "in_channels": 256,
+          "postprocess": {
+            "thresh": 0.3,
+            "box_thresh": 0.4,
+            "use_polygon": true,
+            "max_candidates": 300
+          }
+        },
+        "loss": {
+          "eps": 1e-06,
+          "_target_": "ocr.models.loss.DBLoss",
+          "negative_ratio": 3,
+          "prob_map_loss_weight": 5,
+          "binary_map_loss_weight": 1,
+          "thresh_map_loss_weight": 10
+        },
+        "decoder": {
+          "bias": false,
+          "strides": [
+            4,
+            8,
+            16,
+            32
+          ],
+          "_target_": "ocr.models.decoder.UNet",
+          "in_channels": [
+            64,
+            128,
+            256,
+            512
+          ],
+          "inner_channels": 256,
+          "output_channels": 256
+        },
+        "encoder": {
+          "_target_": "ocr.models.encoder.TimmBackbone",
+          "model_name": "resnet18",
+          "pretrained": true,
+          "select_features": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "_target_": "ocr.models.architecture.OCRModel",
+        "optimizer": {
+          "lr": 0.001,
+          "eps": 1e-08,
+          "betas": [
+            0.9,
+            0.999
+          ],
+          "_target_": "torch.optim.AdamW",
+          "weight_decay": 0.0001
+        },
+        "scheduler": {
+          "T_max": 1000,
+          "eta_min": 0,
+          "_target_": "torch.optim.lr_scheduler.CosineAnnealingLR"
+        },
+        "architecture_name": "dbnet",
+        "component_overrides": {
+          "head": {
+            "name": "db_head",
+            "params": {
+              "k": 50,
+              "postprocess": {
+                "thresh": 0.2,
+                "box_thresh": 0.3,
+                "use_polygon": true,
+                "max_candidates": 300
+              }
+            }
+          },
+          "loss": {
+            "name": "db_loss",
+            "params": {
+              "negative_ratio": 3,
+              "prob_map_loss_weight": 5,
+              "binary_map_loss_weight": 1,
+              "thresh_map_loss_weight": 10
+            }
+          },
+          "decoder": {
+            "name": "fpn_decoder",
+            "params": {
+              "out_channels": 256,
+              "inner_channels": 256,
+              "output_channels": 256
+            }
+          },
+          "encoder": {
+            "model_name": "resnet18",
+            "pretrained": false,
+            "select_features": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        }
+      },
+      "paths": {
+        "log_dir": "outputs/benchmark_baseline_32bit_no_cache/logs",
+        "output_dir": "outputs/benchmark_baseline_32bit_no_cache",
+        "checkpoint_dir": "outputs/benchmark_baseline_32bit_no_cache/checkpoints",
+        "submission_dir": "outputs/benchmark_baseline_32bit_no_cache/submissions"
+      },
+      "wandb": true,
+      "extras": {
+        "enforce_tags": true,
+        "print_config": true,
+        "ignore_warnings": false
+      },
+      "logger": {
+        "csv": {
+          "name": "csv/",
+          "prefix": "",
+          "_target_": "lightning.pytorch.loggers.csv_logs.CSVLogger",
+          "save_dir": "outputs/benchmark_baseline_32bit_no_cache"
+        },
+        "wandb": {
+          "enabled": true
+        },
+        "settings": {
+          "offline": false,
+          "sync_dir": "outputs/wandb_sync",
+          "save_code": false
+        },
+        "exp_version": "v1.0",
+        "project_name": "receipt-text-recognition-ocr-project",
+        "per_batch_image_logging": {
+          "enabled": false,
+          "image_format": "jpeg",
+          "max_image_side": 640,
+          "recall_threshold": 0.4,
+          "max_images_per_batch": 4,
+          "max_batches_per_epoch": 2,
+          "use_transformed_batch": true
+        }
+      },
+      "resume": null,
+      "metrics": {
+        "eval": {
+          "_target_": "ocr.metrics.cleval_metric.CLEvalMetric",
+          "scale_bins": [
+            0,
+            0.005,
+            0.01,
+            0.015,
+            0.02,
+            0.025,
+            0.1,
+            0.5,
+            1
+          ],
+          "scale_wise": false,
+          "scale_range": [
+            0,
+            1
+          ],
+          "max_polygons": 500,
+          "ap_constraint": 0.3,
+          "case_sensitive": true,
+          "dist_sync_on_step": false,
+          "recall_gran_penalty": 1,
+          "precision_gran_penalty": 1,
+          "vertical_aspect_ratio_thresh": 0.5
+        }
+      },
+      "modules": {
+        "lightning_module": {
+          "_target_": "ocr.lightning_modules.OCRPLModule"
+        },
+        "lightning_data_module": {
+          "_target_": "ocr.lightning_modules.OCRDataPLModule"
+        }
+      },
+      "runtime": {
+        "ddp_strategy": "ddp_find_unused_parameters_false",
+        "auto_gpu_devices": true,
+        "min_auto_devices": 2
+      },
+      "trainer": {
+        "devices": 1,
+        "strategy": "auto",
+        "benchmark": true,
+        "max_steps": -1,
+        "precision": "32-true",
+        "max_epochs": 3,
+        "accelerator": "gpu",
+        "deterministic": true,
+        "gradient_clip_val": 5,
+        "limit_val_batches": 50,
+        "log_every_n_steps": 20,
+        "limit_test_batches": null,
+        "val_check_interval": null,
+        "limit_train_batches": null,
+        "num_sanity_val_steps": 1,
+        "accumulate_grad_batches": 2,
+        "check_val_every_n_epoch": 1
+      },
+      "datasets": {
+        "val_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "load_maps": true,
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images_val_canonical",
+            "cache_config": {
+              "_target_": "ocr.datasets.schemas.CacheConfig",
+              "cache_maps": false,
+              "cache_images": true,
+              "log_statistics_every_n": 100,
+              "cache_transformed_tensors": false
+            },
+            "preload_images": false,
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/val.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "test_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/val",
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/val.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "train_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/train",
+            "annotation_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/jsons/train.json"
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "p": 0.5,
+                "_target_": "albumentations.HorizontalFlip"
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        },
+        "predict_dataset": {
+          "config": {
+            "_target_": "ocr.datasets.schemas.DatasetConfig",
+            "image_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/images/test",
+            "annotation_path": null
+          },
+          "_target_": "ocr.datasets.ValidatedOCRDataset",
+          "transform": {
+            "_target_": "ocr.datasets.DBTransforms",
+            "transforms": [
+              {
+                "p": 1,
+                "_target_": "albumentations.LongestMaxSize",
+                "max_size": 640,
+                "interpolation": 1
+              },
+              {
+                "p": 1,
+                "_target_": "albumentations.PadIfNeeded",
+                "min_width": 640,
+                "min_height": 640,
+                "border_mode": 0
+              },
+              {
+                "std": [
+                  0.229,
+                  0.224,
+                  0.225
+                ],
+                "mean": [
+                  0.485,
+                  0.456,
+                  0.406
+                ],
+                "_target_": "albumentations.Normalize"
+              }
+            ],
+            "keypoint_params": {
+              "format": "xy",
+              "_target_": "albumentations.KeypointParams",
+              "remove_invisible": true
+            }
+          }
+        }
+      },
+      "exp_name": "benchmark_baseline_32bit_no_cache",
+      "callbacks": {
+        "early_stopping": {
+          "mode": "max",
+          "strict": true,
+          "monitor": "val/hmean",
+          "verbose": false,
+          "_target_": "lightning.pytorch.callbacks.EarlyStopping",
+          "patience": 5,
+          "min_delta": 0,
+          "check_finite": true,
+          "stopping_threshold": null,
+          "divergence_threshold": null,
+          "check_on_train_epoch_end": false
+        },
+        "model_checkpoint": {
+          "mode": "max",
+          "dirpath": "outputs/benchmark_baseline_32bit_no_cache/checkpoints",
+          "monitor": "val/hmean",
+          "verbose": true,
+          "_target_": "ocr.lightning_modules.callbacks.unique_checkpoint.UniqueModelCheckpoint",
+          "filename": "{val/hmean:.4f}-best",
+          "save_last": true,
+          "save_top_k": 3,
+          "add_timestamp": true,
+          "every_n_epochs": 1,
+          "save_weights_only": false,
+          "every_n_train_steps": null,
+          "train_time_interval": null,
+          "auto_insert_metric_name": true,
+          "save_on_train_epoch_end": false
+        },
+        "wandb_completion": {
+          "_target_": "ocr.lightning_modules.callbacks.wandb_completion.WandbCompletionCallback"
+        },
+        "rich_progress_bar": {
+          "theme": {
+            "time": "cyan",
+            "metrics": "white",
+            "_target_": "lightning.pytorch.callbacks.progress.rich_progress.RichProgressBarTheme",
+            "description": "bold white",
+            "progress_bar": "red",
+            "processing_speed": "cyan",
+            "progress_bar_pulse": "yellow",
+            "progress_bar_finished": "green"
+          },
+          "_target_": "lightning.pytorch.callbacks.RichProgressBar",
+          "refresh_rate": 2
+        },
+        "wandb_image_logging": {
+          "_target_": "ocr.lightning_modules.callbacks.wandb_image_logging.WandbImageLoggingCallback",
+          "log_every_n_epochs": 1
+        },
+        "performance_profiler": {
+          "enabled": true,
+          "verbose": false,
+          "_target_": "ocr.lightning_modules.callbacks.PerformanceProfilerCallback",
+          "log_interval": 10,
+          "profile_memory": true
+        }
+      },
+      "head_path": "ocr.models.head",
+      "loss_path": "ocr.models.loss",
+      "task_name": "train",
+      "batch_size": 16,
+      "collate_fn": {
+        "_target_": "ocr.datasets.DBCollateFN",
+        "thresh_max": 0.7,
+        "thresh_min": 0.3,
+        "shrink_ratio": 0.4
+      },
+      "model_path": "ocr.models",
+      "transforms": {
+        "val_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "test_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "train_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "p": 0.5,
+              "_target_": "albumentations.HorizontalFlip"
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": {
+            "format": "xy",
+            "_target_": "albumentations.KeypointParams",
+            "remove_invisible": true
+          }
+        },
+        "predict_transform": {
+          "_target_": "ocr.datasets.DBTransforms",
+          "transforms": [
+            {
+              "p": 1,
+              "_target_": "albumentations.LongestMaxSize",
+              "max_size": 640,
+              "interpolation": 1
+            },
+            {
+              "p": 1,
+              "_target_": "albumentations.PadIfNeeded",
+              "min_width": 640,
+              "min_height": 640,
+              "border_mode": 0
+            },
+            {
+              "std": [
+                0.229,
+                0.224,
+                0.225
+              ],
+              "mean": [
+                0.485,
+                0.456,
+                0.406
+              ],
+              "_target_": "albumentations.Normalize"
+            }
+          ],
+          "keypoint_params": null
+        }
+      },
+      "dataloaders": {
+        "val_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 8,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "test_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 4,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "train_dataloader": {
+          "shuffle": true,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 8,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        },
+        "predict_dataloader": {
+          "shuffle": false,
+          "batch_size": 16,
+          "pin_memory": true,
+          "num_workers": 4,
+          "prefetch_factor": 2,
+          "persistent_workers": true
+        }
+      },
+      "dataset_path": "ocr.datasets",
+      "decoder_path": "ocr.models.decoder",
+      "encoder_path": "ocr.models.encoder",
+      "project_name": null,
+      "compile_model": true,
+      "dataset_module": "ocr.datasets",
+      "experiment_tag": null,
+      "lightning_path": "ocr.lightning_modules",
+      "dataset_base_path": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/data/datasets/",
+      "dataset_config_path": "ocr.datasets.schemas",
+      "dataset_config_module": "ocr.datasets.schemas",
+      "default_interpolation": 1
+    },
+    "summary": {
+      "_runtime": 1138,
+      "_step": 313,
+      "_timestamp": 1760376644.944802,
+      "_wandb": {
+        "runtime": 1138
+      },
+      "batch_0/hmean": 0.8727602362632751,
+      "batch_0/precision": 0.9417957067489624,
+      "batch_0/recall": 0.8413964509963989,
+      "batch_1/hmean": 0.8222746849060059,
+      "batch_1/precision": 0.9359586238861084,
+      "batch_1/recall": 0.7705491185188293,
+      "batch_10/hmean": 0.8105231523513794,
+      "batch_10/precision": 0.8748616576194763,
+      "batch_10/recall": 0.7784074544906616,
+      "batch_11/hmean": 0.9181583523750304,
+      "batch_11/precision": 0.9458274245262146,
+      "batch_11/recall": 0.9013121128082277,
+      "batch_12/hmean": 0.9149276614189148,
+      "batch_12/precision": 0.9289253354072572,
+      "batch_12/recall": 0.9034052491188048,
+      "batch_13/hmean": 0.9386999607086182,
+      "batch_13/precision": 0.954809308052063,
+      "batch_13/recall": 0.9264655113220216,
+      "batch_14/hmean": 0.9078408479690552,
+      "batch_14/precision": 0.9411052465438844,
+      "batch_14/recall": 0.8893612623214722,
+      "batch_15/hmean": 0.8776562809944153,
+      "batch_15/precision": 0.9307982325553894,
+      "batch_15/recall": 0.8751692175865173,
+      "batch_16/hmean": 0.9043222665786744,
+      "batch_16/precision": 0.925927996635437,
+      "batch_16/recall": 0.8912323713302612,
+      "batch_17/hmean": 0.9210405349731444,
+      "batch_17/precision": 0.9457287788391112,
+      "batch_17/recall": 0.912897527217865,
+      "batch_18/hmean": 0.9265850782394408,
+      "batch_18/precision": 0.941207230091095,
+      "batch_18/recall": 0.91774719953537,
+      "batch_19/hmean": 0.9438661932945251,
+      "batch_19/precision": 0.9560757875442504,
+      "batch_19/recall": 0.9349490404129028,
+      "batch_2/hmean": 0.8840742707252502,
+      "batch_2/precision": 0.9316988587379456,
+      "batch_2/recall": 0.8621373772621155,
+      "batch_20/hmean": 0.8805597424507141,
+      "batch_20/precision": 0.9171400666236876,
+      "batch_20/recall": 0.8513253927230835,
+      "batch_21/hmean": 0.8787096738815308,
+      "batch_21/precision": 0.94670307636261,
+      "batch_21/recall": 0.8409493565559387,
+      "batch_22/hmean": 0.9213101863861084,
+      "batch_22/precision": 0.9479238986968994,
+      "batch_22/recall": 0.9025675654411316,
+      "batch_23/hmean": 0.9267475605010986,
+      "batch_23/precision": 0.9421859979629515,
+      "batch_23/recall": 0.9157654643058776,
+      "batch_24/hmean": 0.7808950543403625,
+      "batch_24/precision": 0.8474994897842407,
+      "batch_24/recall": 0.7350427508354187,
+      "batch_25/hmean": 0.9405165314674376,
+      "batch_25/precision": 0.9748027324676514,
+      "batch_25/recall": 0.9173963069915771,
+      "batch_3/hmean": 0.7649505138397217,
+      "batch_3/precision": 0.7978482842445374,
+      "batch_3/recall": 0.7372171878814697,
+      "batch_4/hmean": 0.9308097958564758,
+      "batch_4/precision": 0.9626802206039428,
+      "batch_4/recall": 0.910782277584076,
+      "batch_5/hmean": 0.9360381364822388,
+      "batch_5/precision": 0.9571582078933716,
+      "batch_5/recall": 0.9187867045402528,
+      "batch_6/hmean": 0.8750421404838562,
+      "batch_6/precision": 0.9217187166213988,
+      "batch_6/recall": 0.8594333529472351,
+      "batch_7/hmean": 0.91716468334198,
+      "batch_7/precision": 0.9287062883377076,
+      "batch_7/recall": 0.9115692377090454,
+      "batch_8/hmean": 0.8756380677223206,
+      "batch_8/precision": 0.9392439723014832,
+      "batch_8/recall": 0.8573172688484192,
+      "batch_9/hmean": 0.7530736327171326,
+      "batch_9/precision": 0.8085128664970398,
+      "batch_9/recall": 0.7360656261444092,
+      "checkpoint_dir": "/home/vscode/workspace/upstageailab-ocr-recsys-competition-ocr-2/outputs/benchmark_baseline_32bit_no_cache/checkpoints",
+      "epoch": 3,
+      "final_mean_loss": 0,
+      "final_run_name": "wchoi189_dbnet-resnet18-unet-dbhead-dbloss-bs16-lr1e-3_hmean0.705",
+      "final_status": "success",
+      "lr-AdamW": 0.001,
+      "performance/cpu_memory_percent": 16.299999237060547,
+      "performance/gpu_memory_gb": 0.06329488754272461,
+      "performance/gpu_memory_reserved_gb": 5.169921875,
+      "performance/val_batch_idx": 20,
+      "performance/val_batch_mean": 0.6541288495063782,
+      "performance/val_batch_median": 0.5665078163146973,
+      "performance/val_batch_p95": 0.9981602430343628,
+      "performance/val_batch_p99": 1.981655836105347,
+      "performance/val_batch_std": 0.36654070019721985,
+      "performance/val_batch_time": 4.4280617237091064,
+      "performance/val_epoch_time": 19.22642707824707,
+      "performance/val_num_batches": 26,
+      "test/hmean": 0.7045809030532837,
+      "test/precision": 0.7403393983840942,
+      "test/recall": 0.6867000460624695,
+      "train/loss": 2.2133097648620605,
+      "train/loss_binary": 0.26655644178390503,
+      "train/loss_prob": 0.324431836605072,
+      "train/loss_thresh": 0.03245942294597626,
+      "trainer/global_step": 309,
+      "val/hmean": 0.8838756680488586,
+      "val/precision": 0.9233089089393616,
+      "val/recall": 0.8638099431991577,
+      "val_loss": 2.0428011417388916,
+      "val_loss_binary": 0.25292882323265076,
+      "val_loss_prob": 0.30932316184043884,
+      "val_loss_thresh": 0.024325642734766006,
+      "validation_images": {
+        "_type": "images/separated",
+        "captions": [
+          "drp.en_ko.in_house.selectstar_000058.jpg (960x1280) | Ep 2 | GT=115 Pred=132",
+          "drp.en_ko.in_house.selectstar_000032.jpg (959x1280) | Ep 2 | GT=155 Pred=106",
+          "drp.en_ko.in_house.selectstar_000007.jpg (960x1280) | Ep 2 | GT=76 Pred=75",
+          "drp.en_ko.in_house.selectstar_000067.jpg (1006x1280) | Ep 2 | GT=81 Pred=81",
+          "drp.en_ko.in_house.selectstar_000064.jpg (682x1280) | Ep 2 | GT=106 Pred=94",
+          "drp.en_ko.in_house.selectstar_000030.jpg (927x1280) | Ep 2 | GT=127 Pred=91",
+          "drp.en_ko.in_house.selectstar_000046.jpg (920x1280) | Ep 2 | GT=104 Pred=107",
+          "drp.en_ko.in_house.selectstar_000056.jpg (960x1280) | Ep 2 | GT=196 Pred=74"
+        ],
+        "count": 8,
+        "filenames": [
+          "media/images/validation_images_309_ebce2ee937e1a41a7ac8.png",
+          "media/images/validation_images_309_cdfb344be8f5336b52d4.png",
+          "media/images/validation_images_309_a469581039c65d6d4eaf.png",
+          "media/images/validation_images_309_a65ac4d7200a45c07c0a.png",
+          "media/images/validation_images_309_a0b645d637689f4da570.png",
+          "media/images/validation_images_309_e1f667885bb50886436b.png",
+          "media/images/validation_images_309_83fba20aba4777672325.png",
+          "media/images/validation_images_309_9fe56a171df2b86c9c52.png"
+        ],
+        "format": "png",
+        "height": 1280,
+        "width": 1006
+      }
+    },
+    "history": []
+  },
+  "comparison": {
+    "baseline": {
+      "validation_time": {
+        "total_seconds": 17.630338668823242,
+        "batch_mean_ms": 592.4121141433716,
+        "batch_median_ms": 509.57679748535156,
+        "batch_p95_ms": 902.039647102356,
+        "batch_p99_ms": 1852.7259826660156,
+        "batch_std_ms": 349.1477966308594,
+        "num_batches": 26
+      },
+      "memory_usage": {
+        "gpu_memory_gb": 0.062075138092041016,
+        "gpu_memory_reserved_gb": 4.126953125,
+        "cpu_memory_percent": 15.699999809265137
+      },
+      "training_metrics": {
+        "val_hmean": 0.7816186547279358,
+        "val_precision": 0.8746318221092224,
+        "val_recall": 0.7546243667602539,
+        "test_hmean": 0.6194570660591125,
+        "test_precision": 0.6979867815971375,
+        "test_recall": 0.5962907075881958,
+        "train_loss": 2.185105323791504,
+        "val_loss": 2.062822103500366,
+        "epoch": 3,
+        "global_step": 309
+      },
+      "config_summary": {
+        "precision": "16-mixed",
+        "max_epochs": 3,
+        "batch_size": 16,
+        "preload_images": true,
+        "cache_transformed_tensors": true,
+        "cache_images": true,
+        "cache_maps": true
+      },
+      "has_performance_profiling": true
+    },
+    "optimized": {
+      "validation_time": {
+        "total_seconds": 19.22642707824707,
+        "batch_mean_ms": 654.1288495063782,
+        "batch_median_ms": 566.5078163146973,
+        "batch_p95_ms": 998.1602430343628,
+        "batch_p99_ms": 1981.655836105347,
+        "batch_std_ms": 366.54070019721985,
+        "num_batches": 26
+      },
+      "memory_usage": {
+        "gpu_memory_gb": 0.06329488754272461,
+        "gpu_memory_reserved_gb": 5.169921875,
+        "cpu_memory_percent": 16.299999237060547
+      },
+      "training_metrics": {
+        "val_hmean": 0.8838756680488586,
+        "val_precision": 0.9233089089393616,
+        "val_recall": 0.8638099431991577,
+        "test_hmean": 0.7045809030532837,
+        "test_precision": 0.7403393983840942,
+        "test_recall": 0.6867000460624695,
+        "train_loss": 2.2133097648620605,
+        "val_loss": 2.0428011417388916,
+        "epoch": 3,
+        "global_step": 309
+      },
+      "config_summary": {
+        "precision": "32-true",
+        "max_epochs": 3,
+        "batch_size": 16,
+        "preload_images": false,
+        "cache_transformed_tensors": false,
+        "cache_images": true,
+        "cache_maps": false
+      },
+      "has_performance_profiling": true
+    },
+    "differences": {
+      "validation_speedup": {
+        "ratio": 0.9169846585156919,
+        "baseline_seconds": 17.630338668823242,
+        "optimized_seconds": 19.22642707824707,
+        "speedup_description": "Optimized run is 0.9x slower than baseline"
+      },
+      "performance_change": {
+        "ratio": 1.1308272425464516,
+        "baseline_hmean": 0.7816186547279358,
+        "optimized_hmean": 0.8838756680488586,
+        "change_description": "Optimized H-mean is 13.1% higher than baseline"
+      },
+      "memory_usage": {
+        "ratio": 1.0196495648366506,
+        "baseline_gb": 0.062075138092041016,
+        "optimized_gb": 0.06329488754272461,
+        "memory_description": "Optimized uses 2.0% more GPU memory"
+      }
+    }
+  }
+}

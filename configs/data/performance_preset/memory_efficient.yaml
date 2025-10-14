@@ -1,0 +1,30 @@
+# @package _global_.datasets.val_dataset.config
+# Performance Preset: Memory Efficient
+#
+# Use Case: Low RAM systems (< 4 GB available), large datasets
+# Memory: ~2.0 GB (same as minimal, optimized for low overhead)
+# Speed: 1.0x (baseline, optimized for memory not speed)
+# Safe for Training: ✅ YES
+#
+# This preset minimizes memory usage at the cost of speed.
+# All caching disabled, no preloading, conservative settings.
+
+# Image loading - no preloading
+preload_images: false
+preload_maps: false
+prenormalize_images: false
+
+# Map loading - disabled to save memory
+load_maps: false
+
+# Cache configuration - all disabled to save memory
+cache_config:
+  cache_images: false  # No image caching
+  cache_maps: false
+  cache_transformed_tensors: false
+  log_statistics_every_n: null  # No logging overhead
+
+# Image loading configuration
+image_loading_config:
+  use_turbojpeg: true  # Fast loading still helps
+  turbojpeg_fallback: true

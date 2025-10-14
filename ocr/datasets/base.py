@@ -59,6 +59,10 @@ from PIL import Image
 from pydantic import ValidationError
 from torch.utils.data import Dataset
 
+# Module-level set to track warnings that have already been logged
+# This prevents repetitive logging when multiple datasets are created with the same config
+_logged_warnings: set[str] = set()
+
 from ocr.datasets.schemas import DatasetConfig, ImageData, ImageMetadata, PolygonData, TransformInput
 from ocr.utils.orientation import (
     EXIF_ORIENTATION_TAG,
@@ -128,10 +132,30 @@ class ValidatedOCRDataset(Dataset):
         # Load annotations using dedicated helper method
         self._load_annotations()
 
-        # Instantiate CacheManager using configuration from config
+        # Instantiate CacheManager using configuration from config with versioning
         from ocr.utils.cache_manager import CacheManager
 
-        self.cache_manager = CacheManager(config.cache_config)
+        # Generate cache version based on configuration
+        cache_version = config.cache_config.get_cache_version(load_maps=config.load_maps)
+        self.cache_manager = CacheManager(config.cache_config, cache_version=cache_version)
+
+        # Log cache configuration only when caching is actually enabled
+        caching_enabled = (
+            config.cache_config.cache_transformed_tensors or config.cache_config.cache_images or config.cache_config.cache_maps
+        )
+        if caching_enabled:
+            cache_version_msg = f"Cache initialized with version: {cache_version}"
+            if cache_version_msg not in _logged_warnings:
+                self.logger.info(cache_version_msg)
+                _logged_warnings.add(cache_version_msg)
+
+            cache_config_msg = (
+                f"Cache config: tensor={config.cache_config.cache_transformed_tensors}, "
+                f"images={config.cache_config.cache_images}, maps={config.cache_config.cache_maps}, load_maps={config.load_maps}"
+            )
+            if cache_config_msg not in _logged_warnings:
+                self.logger.info(cache_config_msg)
+                _logged_warnings.add(cache_config_msg)
 
         # Dispatch to preloading methods based on config
         if config.preload_images:
@@ -192,18 +216,23 @@ class ValidatedOCRDataset(Dataset):
         # ⚠️ WARNING: Maps features without load_maps
         if self.config.cache_config.cache_maps and not self.config.load_maps:
             # Automatically disable maps caching when load_maps is false
-            self.logger.info("Maps caching disabled because load_maps=false. Maps caching requires load_maps to be enabled.")
+            warning_msg = "Maps caching disabled because load_maps=false. Maps caching requires load_maps to be enabled."
+            if warning_msg not in _logged_warnings:
+                self.logger.info(warning_msg)
+                _logged_warnings.add(warning_msg)
             self.config.cache_config.cache_maps = False
 
         # Log all warnings
         for warning in warnings:
-            self.logger.warning(warning)
+            if warning not in _logged_warnings:
+                self.logger.warning(warning)
+                _logged_warnings.add(warning)
 
         # Log and potentially raise errors
         for error in errors:
-            self.logger.error(error)
-            # For critical safety issues, we could raise an exception:
-            # raise ValueError(error)
+            if error not in _logged_warnings:
+                self.logger.error(error)
+                _logged_warnings.add(error)
 
     def _estimate_memory_usage(self) -> float:
         """

@@ -1,0 +1,30 @@
+# @package _global_.datasets.val_dataset.config
+# Performance Preset: Minimal Overhead (Default)
+#
+# Use Case: Development, debugging, memory-constrained environments
+# Memory: ~2.0 GB (baseline)
+# Speed: 1.0x (baseline)
+# Safe for Training: ✅ YES
+#
+# This is the DEFAULT preset with minimal overhead and maximum compatibility.
+# All optimizations disabled for predictable behavior and easy debugging.
+
+# Image loading - no preloading
+preload_images: false
+preload_maps: false
+prenormalize_images: false
+
+# Map loading - disabled
+load_maps: false
+
+# Cache configuration - all disabled
+cache_config:
+  cache_images: false
+  cache_maps: false
+  cache_transformed_tensors: false
+  log_statistics_every_n: null  # No cache logging
+
+# Image loading configuration
+image_loading_config:
+  use_turbojpeg: true  # Still use fast JPEG loading
+  turbojpeg_fallback: true

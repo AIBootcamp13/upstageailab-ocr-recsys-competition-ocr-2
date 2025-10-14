@@ -1,7 +1,7 @@
 # https://lightning.ai/docs/pytorch/latest/api/lightning.pytorch.callbacks.RichProgressBar.html
 
 rich_progress_bar:
-  _target_: lightning.pytorch.callbacks.RichProgressBar
+  _target_: ocr.lightning_modules.callbacks.multi_line_progress_bar.MultiLineRichProgressBar
   theme:
     _target_: lightning.pytorch.callbacks.progress.rich_progress.RichProgressBarTheme
     progress_bar: red
