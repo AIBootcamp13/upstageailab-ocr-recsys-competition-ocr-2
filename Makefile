@@ -91,7 +91,7 @@ serve-ui:
 serve-eval:
 	uv run streamlit run ui/evaluation_viewer.py --server.port=$(PORT)
 
-serve-infer:
+serve-inference-ui:
 	uv run streamlit run ui/inference_ui.py --server.port=$(PORT)
 
 serve-moni:

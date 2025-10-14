@@ -122,6 +122,13 @@ All documentation files must contain the following sections in order:
 - Follow the same coding standards as the project codebase
 - Test code examples when possible
 
+### Data Contracts & Pydantic Standards
+- **Reference**: See `docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md`
+- **Requirement**: All new preprocessing components must use Pydantic BaseModel for data validation
+- **Contracts**: Follow established data contracts from `docs/pipeline/preprocessing-data-contracts.md`
+- **Validation**: Use `@validate_call` decorators for public API methods
+- **Consistency**: Maintain type safety and contract compliance across all preprocessing modules
+
 ## AI Cue Markers
 
 All documentation files must include AI cue markers in the following format:
