@@ -1,64 +1,73 @@
 ## 🐛 Bug Report Template
 
-**Bug ID:** BUG-2025-001
-**Date:** October 10, 2025
+**Bug ID:** BUG-2025-011
+**Date:** October 14, 2025
 **Reporter:** Development Team
-**Severity:** High
+**Severity:** Medium
 **Status:** Fixed
 
 ### Summary
-`canonical_size` attribute access fails during validation with `AttributeError: 'int' object is not iterable` when pre-normalization and RAM caching are both enabled.
+WandB step logging violates monotonic step requirement, causing warnings: "Tried to log to step 817 that is less than the current step 821".
 
 ### Environment
-- **Pipeline Version:** Phase 6C
-- **Components:** Dataset loader, Lightning validation
-- **Configuration:** `prenormalize_images=True`, RAM caching enabled
+- **Pipeline Version:** Performance optimization phase
+- **Components:** PerformanceProfilerCallback, WandB logging
+- **Configuration:** WandB enabled, performance profiling active
 
 ### Steps to Reproduce
-1. Enable Phase 6B RAM caching
-2. Set `prenormalize_images=True` in Phase 6C
-3. Run validation step
-4. Observe crash in Lightning module
+1. Enable WandB logging
+2. Enable performance profiling callback
+3. Run training with validation
+4. Observe WandB warnings during validation phase
 
 ### Expected Behavior
-Validation should complete successfully with `canonical_size` returning `(width, height)` tuple.
+WandB logs should use monotonically increasing step values.
 
 ### Actual Behavior
 ```python
-TypeError: 'int' object is not iterable
-# Occurs when: tuple(image.size) where image.size = 150528 (int)
+wandb: WARNING Tried to log to step 817 that is less than the current step 821. Steps must be monotonically increasing, so this data will be ignored.
 ```
 
 ### Root Cause Analysis
-**Type Confusion:** PIL Images cached as numpy arrays lose `.size` property semantics:
-- PIL Image: `.size` → `(224, 224)` tuple
-- Numpy Array: `.size` → `150528` integer (total elements)
+**Step Counter Issue:** The performance profiler uses `trainer.fit_loop.epoch_loop.total_batch_idx` which can decrease during validation phases, violating WandB's monotonic step requirement.
 
 **Code Path:**
 ```
-Phase 6B: PIL → numpy (caching)
-Phase 6C: numpy.size accessed as tuple
-Lightning: tuple(int) → crash
+PerformanceProfilerCallback.on_validation_batch_end()
+├── total_batch_idx = trainer.fit_loop.epoch_loop.total_batch_idx
+├── step = max(0, total_batch_idx)
+└── wandb.log(metrics, step=step)  # Can be non-monotonic
 ```
 
 ### Resolution
 ```python
-# Fixed in dataset.py line 847
-if isinstance(image, np.ndarray):
-    org_shape = (image.shape[1], image.shape[0])  # (W, H)
-else:
-    org_shape = image.size  # PIL format
+# Added monotonic step tracking in PerformanceProfilerCallback
+class PerformanceProfilerCallback(Callback):
+    def __init__(self, ...):
+        # ...
+        self._last_wandb_step: int = -1
+
+    def _get_monotonic_step(self, trainer: Trainer) -> int:
+        """Get monotonic step for WandB logging."""
+        current_step = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
+        if current_step < 0:
+            current_step = trainer.global_step
+
+        # Ensure monotonic increase
+        step = max(self._last_wandb_step + 1, current_step)
+        self._last_wandb_step = step
+        return step
 ```
 
 ### Testing
-- [x] Unit tests pass
-- [x] Validation pipeline completes
-- [x] Performance regression test (10.8% speedup maintained)
+- [x] WandB warnings eliminated
+- [x] Performance metrics still logged correctly
+- [x] Step values remain monotonic across training/validation
 
 ### Prevention
-- Add type checking for image objects
-- Implement integration tests for phase combinations
-- Document data type contracts between pipeline phases
+- Implement monotonic step counters for all WandB logging
+- Add validation for step monotonicity in logging utilities
+- Document WandB step requirements in logging guidelines
 
 ---
 

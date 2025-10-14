@@ -4,7 +4,7 @@ ui_metadata:
     decoder: craft_decoder
     head: craft_head
     loss: craft_loss
-  default_backbone: vgg16_bn
+  default_backbone: resnet18
   recommended_data: craft
   default_optimizer: adam
   default_learning_rate: 0.0005
@@ -14,6 +14,11 @@ ui_metadata:
   compatible_decoders:
     - craft_decoder
   compatible_backbones:
+    - resnet18
+    - resnet34
+    - resnet50
+    - mobilenetv3_small_050
+    - efficientnet_b0
     - vgg16_bn
     - vgg19_bn
   compatible_heads:
@@ -22,14 +27,14 @@ ui_metadata:
     - craft_loss
   recommended_optimizers:
     - adam
-  notes: "CRAFT is optimized for high-resolution text detection with VGG-style encoders."
+  notes: "CRAFT supports both VGG-style and modern backbones for flexible text detection."
   use_cases:
     - id: documents_high_resolution
       title: "Scanned documents · High resolution"
       description: "Classic CRAFT pipeline for 300dpi scans with detailed glyph structure."
       recommendations:
         architecture: craft
-        encoder: vgg19_bn
+        encoder: resnet50
         decoder: craft_decoder
         head: craft_head
         loss: craft_loss
@@ -39,10 +44,10 @@ ui_metadata:
         preprocessing_profile: none
     - id: documents_speed
       title: "Scanned documents · Faster training"
-      description: "VGG16 backbone with reduced batch size for limited GPU memory."
+      description: "ResNet18 backbone with reduced batch size for limited GPU memory."
       recommendations:
         architecture: craft
-        encoder: vgg16_bn
+        encoder: resnet18
         decoder: craft_decoder
         head: craft_head
         loss: craft_loss

@@ -118,6 +118,51 @@ def preprocess(cfg: DictConfig, dataset_key: str):
                 continue
             valid_polygons = [poly for poly in polygons if isinstance(poly, np.ndarray) and poly.ndim == 3 and poly.shape[1] >= 3]
 
+            # Transform polygons if perspective correction was applied during preprocessing
+            preprocessing_applied = metadata.get("processing_steps") and any(
+                step in metadata["processing_steps"] for step in ["document_detection", "perspective_correction"]
+            )
+
+            if valid_polygons and preprocessing_applied:
+                if metadata.get("perspective_matrix") is not None:
+                    perspective_matrix = np.array(metadata["perspective_matrix"])
+                    if perspective_matrix.shape == (3, 3):
+                        transformed_polygons = []
+                        for poly in valid_polygons:
+                            try:
+                                # Apply perspective transformation to polygon points
+                                poly_points = poly[0]  # Remove batch dimension (1, N, 2) -> (N, 2)
+                                # Convert to homogeneous coordinates
+                                ones = np.ones((poly_points.shape[0], 1))
+                                homogeneous_points = np.hstack([poly_points, ones])
+                                # Apply transformation
+                                transformed_points = perspective_matrix @ homogeneous_points.T
+                                # Convert back to cartesian coordinates
+                                transformed_points = transformed_points[:2] / transformed_points[2]
+                                transformed_points = transformed_points.T
+                                # Reshape back to (1, N, 2)
+                                transformed_polygons.append(transformed_points.reshape(1, -1, 2))
+                            except Exception as e:
+                                logging.warning(f"Failed to transform polygon for {image_filename_str}: {e}")
+                                continue
+                        if transformed_polygons:
+                            valid_polygons = transformed_polygons
+                            logging.debug(f"Applied perspective transformation to {len(valid_polygons)} polygons for {image_filename_str}")
+                        else:
+                            logging.warning(f"All polygons failed transformation for {image_filename_str}, skipping sample")
+                            continue
+                    else:
+                        logging.warning(
+                            f"Invalid perspective matrix shape {perspective_matrix.shape} for {image_filename_str}, skipping sample"
+                        )
+                        continue
+                else:
+                    # Preprocessing was applied but no transformation matrix available
+                    logging.warning(
+                        f"Preprocessing applied to {image_filename_str} but no transformation matrix available, skipping sample"
+                    )
+                    continue
+
             if len(valid_polygons) == 0:
                 continue
 

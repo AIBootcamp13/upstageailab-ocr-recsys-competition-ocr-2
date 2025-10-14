@@ -148,6 +148,9 @@ class OCRPLModule(pl.LightningModule):
         # Store predictions for wandb image logging callback
         for idx, prediction_entry in enumerate(predictions):
             filename = batch["image_filename"][idx]
+            # Store transformed image for WandB logging (only for first few samples to minimize memory)
+            if batch_idx < 2 and idx < 8:  # Limit to first 2 batches, 8 images each
+                prediction_entry["transformed_image"] = batch["images"][idx].detach().cpu()
             self.validation_step_outputs[filename] = prediction_entry
 
         if self.valid_evaluator is not None:

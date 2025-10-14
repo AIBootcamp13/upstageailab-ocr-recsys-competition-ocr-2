@@ -53,34 +53,54 @@ class WandbImageLoggingCallback(pl.Callback):
             orientation_hint = entry.get("orientation", 1)
             raw_size_hint = entry.get("raw_size")
             metadata = self._normalize_metadata(entry.get("metadata"))
-            if metadata:
-                if "orientation" in metadata and metadata["orientation"] is not None:
-                    orientation_hint = int(metadata["orientation"])
-                if "raw_size" in metadata and metadata["raw_size"] is not None:
-                    raw_size_hint = metadata["raw_size"]
-            if not hasattr(val_dataset, "anns") or filename not in val_dataset.anns:  # type: ignore
-                continue
 
             # Get ground truth boxes
             gt_boxes = val_dataset.anns[filename]  # type: ignore
             gt_quads = self._normalise_polygons(gt_boxes)
             pred_quads = self._normalise_polygons(pred_boxes)
 
-            # Get image directly from filesystem (similar to dataset loading)
-            try:
-                image_path = self._resolve_image_path(entry, metadata, val_dataset, filename)
-                pil_image = Image.open(image_path)
-                raw_width, raw_height = pil_image.size
-                normalized_image, orientation = normalize_pil_image(pil_image)
+            # Check if we have the transformed image stored
+            transformed_image = entry.get("transformed_image")
+            if transformed_image is not None:
+                # Use the exact transformed image from training
+                try:
+                    # Convert tensor back to PIL Image
+                    pil_image = self._tensor_to_pil(transformed_image)
+                    image = pil_image
+                    raw_width, raw_height = pil_image.size
+                    normalized_image = pil_image  # Already transformed
+                except Exception as e:
+                    print(f"Warning: Failed to convert transformed image for {filename}: {e}")
+                    continue
+            else:
+                # Fallback to original method (load from disk and transform)
+                if metadata:
+                    if "orientation" in metadata and metadata["orientation"] is not None:
+                        orientation_hint = int(metadata["orientation"])
+                    if "raw_size" in metadata and metadata["raw_size"] is not None:
+                        raw_size_hint = metadata["raw_size"]
+                if not hasattr(val_dataset, "anns") or filename not in val_dataset.anns:  # type: ignore
+                    continue
 
-                if normalized_image.mode != "RGB":
-                    image = normalized_image.convert("RGB")
-                else:
-                    image = normalized_image.copy()
+                # Get image directly from filesystem (similar to dataset loading)
+                try:
+                    image_path = self._resolve_image_path(entry, metadata, val_dataset, filename)
+                    pil_image = Image.open(image_path)
+                    raw_width, raw_height = pil_image.size
+                    normalized_image, orientation = normalize_pil_image(pil_image)
 
-                if normalized_image is not image:
-                    normalized_image.close()
-                pil_image.close()
+                    if normalized_image.mode != "RGB":
+                        image = normalized_image.convert("RGB")
+                    else:
+                        image = normalized_image.copy()
+
+                    if normalized_image is not image:
+                        normalized_image.close()
+                    pil_image.close()
+                except Exception as e:
+                    # If we can't get the image, skip this sample
+                    print(f"Warning: Failed to load image {filename}: {e}")
+                    continue
 
                 polygon_frame = metadata.get("polygon_frame") if metadata else None
                 if gt_quads:
@@ -103,10 +123,6 @@ class WandbImageLoggingCallback(pl.Callback):
 
                 if count >= self.max_images:
                     break
-            except Exception as e:
-                # If we can't get the image, skip this sample
-                print(f"Warning: Failed to load image {filename}: {e}")
-                continue
 
         # Log images with bounding boxes if we have data
         if images and gt_bboxes and pred_bboxes:
@@ -213,6 +229,44 @@ class WandbImageLoggingCallback(pl.Callback):
             return int(width), int(height)
         except Exception:  # noqa: BLE001
             return None
+
+    @staticmethod
+    def _tensor_to_pil(tensor):
+        """Convert a normalized tensor (C, H, W) back to PIL Image."""
+        import numpy as np
+        import torch
+        from PIL import Image
+
+        # Convert to numpy and transpose to HWC
+        if torch.is_tensor(tensor):
+            arr = tensor.detach().cpu().numpy()
+        else:
+            arr = np.array(tensor)
+
+        # Handle different tensor shapes
+        if arr.shape[0] == 3:  # CHW format
+            arr = np.transpose(arr, (1, 2, 0))  # HWC
+        elif arr.shape[-1] == 3:  # HWC format already
+            pass
+        else:  # Grayscale or other
+            arr = arr.squeeze()
+
+        # Un-normalize from [-1, 1] or [0, 1] to [0, 255]
+        if arr.max() <= 1.0:
+            if arr.min() < 0:  # Likely in [-1, 1] range
+                arr = (arr + 1) * 127.5
+            else:  # Likely in [0, 1] range
+                arr = arr * 255.0
+
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+
+        # Convert to PIL Image
+        if arr.ndim == 3 and arr.shape[-1] == 3:
+            return Image.fromarray(arr, mode="RGB")
+        elif arr.ndim == 2:
+            return Image.fromarray(arr, mode="L")
+        else:
+            raise ValueError(f"Unsupported tensor shape: {arr.shape}")
 
     @staticmethod
     def _resolve_image_path(entry: dict[str, Any], metadata: dict[str, Any] | None, dataset: Any, filename: str) -> Path:

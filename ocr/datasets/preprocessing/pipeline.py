@@ -261,17 +261,23 @@ if TYPE_CHECKING or (ALBUMENTATIONS_AVAILABLE and A is not None and ImageOnlyTra
     assert A is not None  # For mypy
     assert ImageOnlyTransform is not None  # For mypy
 
-    class LensStylePreprocessorAlbumentations(ImageOnlyTransform):
+    class LensStylePreprocessorAlbumentations(A.DualTransform):  # type: ignore[misc,name-defined]
         """Albumentations-compatible wrapper for the document preprocessor.
 
-        BUG FIX (BUG-2025-003): Properly inherits from A.ImageOnlyTransform to comply with
-        Albumentations transform contract. Previous implementation returned numpy array directly
-        in __call__, causing IndexError in Albumentations internal validation.
+        BUG FIX (BUG-2025-003): Properly inherits from A.DualTransform to handle both
+        images and keypoints. Previous implementation only transformed images, causing
+        coordinate space mismatches with polygons.
+
+        This transform applies geometric preprocessing (document detection, perspective
+        correction) to both images and keypoints simultaneously to maintain coordinate
+        space consistency.
         """
 
         def __init__(self, preprocessor: DocumentPreprocessor, always_apply: bool = False, p: float = 1.0):
             super().__init__(always_apply=always_apply, p=p)
             self.preprocessor = preprocessor
+            # Store preprocessing result for keypoint transformation
+            self._last_preprocessing_result: dict[str, Any] | None = None
 
         def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:  # type: ignore[override]
             """Apply document preprocessing to the image.
@@ -281,13 +287,71 @@ if TYPE_CHECKING or (ALBUMENTATIONS_AVAILABLE and A is not None and ImageOnlyTra
                 **params: Additional parameters from Albumentations
 
             Returns:
-                Processed image as numpy array (Albumentations wraps this in dict automatically)
+                Processed image as numpy array
             """
             result = self.preprocessor(img)
+            # Store the full result for keypoint transformation
+            self._last_preprocessing_result = result
             # Return just the processed image; Albumentations handles dict wrapping
             processed_image = result["image"]
             assert isinstance(processed_image, np.ndarray), "Preprocessor must return numpy array"
             return processed_image
+
+        def apply_to_keypoints(self, keypoints: list[tuple[float, ...]], **params: Any) -> list[tuple[float, ...]]:  # type: ignore[override]
+            """Apply geometric transformations to keypoints using preprocessing matrices.
+
+            Args:
+                keypoints: List of keypoints as (x, y, ...) tuples
+                **params: Additional parameters from Albumentations
+
+            Returns:
+                Transformed keypoints as list of tuples
+            """
+            # Use the stored preprocessing result
+            result = self._last_preprocessing_result
+            if result is None:
+                # No preprocessing result available, return keypoints unchanged
+                return keypoints
+
+            # Check if geometric transformations were applied
+            metadata = result.get("metadata", {})
+            processing_steps = metadata.get("processing_steps", [])
+            has_geometric_transform = any(step in processing_steps for step in ["document_detection", "perspective_correction"])
+
+            if not has_geometric_transform:
+                # No geometric transformations applied, return keypoints unchanged
+                return keypoints
+
+            # Get the perspective matrix
+            perspective_matrix = metadata.get("perspective_matrix")
+            if perspective_matrix is None or not isinstance(perspective_matrix, list | np.ndarray):
+                # No transformation matrix available, return keypoints unchanged
+                return keypoints
+
+            perspective_matrix = np.array(perspective_matrix)
+            if perspective_matrix.shape != (3, 3):
+                # Invalid matrix shape, return keypoints unchanged
+                return keypoints
+
+            # Transform keypoints using the perspective matrix
+            transformed_keypoints = []
+            for kp in keypoints:
+                x, y = kp[0], kp[1]
+
+                # Convert to homogeneous coordinates
+                homogeneous_point = np.array([x, y, 1.0])
+
+                # Apply transformation
+                transformed_point = perspective_matrix @ homogeneous_point
+
+                # Convert back to cartesian coordinates
+                transformed_x = transformed_point[0] / transformed_point[2]
+                transformed_y = transformed_point[1] / transformed_point[2]
+
+                # Keep additional keypoint parameters (angle, scale, etc.)
+                transformed_keypoints.append((transformed_x, transformed_y) + tuple(kp[2:]))
+
+            return transformed_keypoints
 
         def get_transform_init_args_names(self) -> tuple[str, ...]:
             return ("preprocessor",)

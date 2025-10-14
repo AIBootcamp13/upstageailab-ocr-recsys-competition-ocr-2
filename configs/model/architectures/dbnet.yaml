@@ -1,6 +1,6 @@
 # @package model
 
-architecture_name: dbnet
+architectures: dbnet
 
 component_overrides:
   encoder:

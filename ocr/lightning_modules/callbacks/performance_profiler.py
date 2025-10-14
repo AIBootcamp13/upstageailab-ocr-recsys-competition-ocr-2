@@ -55,6 +55,11 @@ class PerformanceProfilerCallback(Callback):
         self.gpu_memory_allocated: list[float] = []
         self.cpu_memory_percent: list[float] = []
 
+        # Monotonic step tracking for WandB
+        self._last_wandb_step: int = -1
+        # Separate counter for testing phase
+        self._last_test_wandb_step: int = -1
+
     def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Record validation epoch start time and memory."""
         if not self.enabled:
@@ -74,6 +79,10 @@ class PerformanceProfilerCallback(Callback):
         """Record test epoch start time and memory."""
         # Use the same logic as validation
         self.on_validation_epoch_start(trainer, pl_module)
+
+        # Reset monotonic step counter for testing phase
+        # This prevents conflicts with training step numbers
+        self._last_wandb_step = -1
 
     def on_validation_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
@@ -110,19 +119,43 @@ class PerformanceProfilerCallback(Callback):
             if self.verbose:
                 print(f"Validation batch {batch_idx}: {batch_time:.3f}s")
 
-            # Use trainer.fit_loop.epoch_loop.total_batch_idx for monotonic step
-            # This ensures step is always increasing, even during validation
-            # Fallback to global_step if total_batch_idx is invalid, and ensure >= 0
-            total_batch_idx = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
-            step = max(0, total_batch_idx if total_batch_idx >= 0 else trainer.global_step)
+            # Use monotonic step counter for WandB logging
+            # Get the current step from trainer, but ensure it's >= last logged step
+            current_step = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
+            if current_step < 0:
+                current_step = trainer.global_step
+
+            # Ensure monotonic increase
+            step = max(self._last_wandb_step + 1, current_step)
+            self._last_wandb_step = step
+
             wandb.log(metrics, step=step)  # type: ignore
 
     def on_test_batch_end(
         self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
         """Record test batch end time and log metrics."""
-        # Use the same logic as validation
-        self.on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        if not self.enabled or self.batch_start_time is None:
+            return
+
+        batch_time = time.time() - self.batch_start_time
+        self.validation_batch_times.append(batch_time)
+
+        # Log per-batch metrics at intervals
+        if batch_idx % self.log_interval == 0:
+            metrics = {
+                "performance/test_batch_time": batch_time,
+                "performance/test_batch_idx": batch_idx,
+            }
+
+            if self.verbose:
+                print(f"Test batch {batch_idx}: {batch_time:.3f}s")
+
+            # Use separate monotonic step counter for testing
+            step = self._last_test_wandb_step + 1
+            self._last_test_wandb_step = step
+
+            wandb.log(metrics, step=step)  # type: ignore
 
     def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Compute and log summary statistics."""
@@ -165,8 +198,15 @@ class PerformanceProfilerCallback(Callback):
 
         # Log to WandB with monotonic step
         if WANDB_AVAILABLE and wandb.run is not None:  # type: ignore
-            total_batch_idx = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
-            step = max(0, total_batch_idx if total_batch_idx >= 0 else trainer.global_step)
+            # Use monotonic step counter for WandB logging
+            current_step = getattr(trainer.fit_loop.epoch_loop, "total_batch_idx", trainer.global_step)
+            if current_step < 0:
+                current_step = trainer.global_step
+
+            # Ensure monotonic increase
+            step = max(self._last_wandb_step + 1, current_step)
+            self._last_wandb_step = step
+
             wandb.log(metrics, step=step)  # type: ignore
 
         # Log to Lightning logger as well
@@ -174,5 +214,49 @@ class PerformanceProfilerCallback(Callback):
 
     def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Compute and log test summary statistics."""
-        # Use the same logic as validation
-        self.on_validation_epoch_end(trainer, pl_module)
+        if not self.enabled or not self.validation_batch_times:
+            return
+
+        import numpy as np
+
+        epoch_time = time.time() - self.epoch_start_time if self.epoch_start_time else 0
+        batch_times = np.array(self.validation_batch_times)
+
+        metrics = {
+            "performance/test_epoch_time": epoch_time,
+            "performance/test_batch_mean": float(np.mean(batch_times)),
+            "performance/test_batch_median": float(np.median(batch_times)),
+            "performance/test_batch_p95": float(np.percentile(batch_times, 95)),
+            "performance/test_batch_p99": float(np.percentile(batch_times, 99)),
+            "performance/test_batch_std": float(np.std(batch_times)),
+            "performance/test_num_batches": len(batch_times),
+        }
+
+        if self.profile_memory:
+            if torch.cuda.is_available():
+                metrics["performance/test_gpu_memory_gb"] = torch.cuda.memory_allocated() / 1024**3
+                metrics["performance/test_gpu_memory_reserved_gb"] = torch.cuda.memory_reserved() / 1024**3
+            metrics["performance/test_cpu_memory_percent"] = psutil.virtual_memory().percent
+
+        # Log to console
+        if self.verbose:
+            print("\n=== Test Performance Summary ===")
+            print(f"Epoch time: {epoch_time:.2f}s")
+            print(
+                f"Batch times: mean={metrics['performance/test_batch_mean']:.3f}s, "
+                f"median={metrics['performance/test_batch_median']:.3f}s, "
+                f"p95={metrics['performance/test_batch_p95']:.3f}s"
+            )
+            if self.profile_memory and torch.cuda.is_available():
+                print(f"GPU memory: {metrics['performance/test_gpu_memory_gb']:.2f}GB")
+            print("=" * 40 + "\n")
+
+        # Log to WandB with separate test step counter
+        if WANDB_AVAILABLE and wandb.run is not None:  # type: ignore
+            step = self._last_test_wandb_step + 1
+            self._last_test_wandb_step = step
+
+            wandb.log(metrics, step=step)  # type: ignore
+
+        # Log to Lightning logger as well
+        pl_module.log_dict(metrics, on_epoch=True, sync_dist=True)

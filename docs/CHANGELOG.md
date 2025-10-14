@@ -423,6 +423,33 @@ Completed a comprehensive modular refactor of the OCR dataset base, extracting m
 - `tests/unit/test_polygon_utils.py` (comprehensive test suite)
 - `docs/ai_handbook/05_changelog/2025-10/14_ocr_dataset_modular_refactor.md`
 
+#### WandB Image Logging Enhancement - Exact Transformed Images
+
+**Description**
+
+Enhanced WandB image logging to capture and display exact transformed images as seen by the model during validation, eliminating preprocessing overhead and ensuring logged images match what the model actually processes.
+
+**Performance Optimization:**
+- Eliminated re-processing overhead by storing transformed images during validation_step
+- Reduced memory usage by avoiding duplicate image transformations for logging
+- Maintained validation performance while providing accurate visual feedback
+
+**New Features:**
+- Exact transformed image capture in OCRPLModule.validation_step
+- Enhanced WandbImageLoggingCallback with _tensor_to_pil conversion method
+- Automatic fallback to original images if transformed images unavailable
+- Improved image logging accuracy for debugging and monitoring
+
+**API Changes:**
+- WandbImageLoggingCallback now prioritizes stored transformed images over re-processing
+- OCRPLModule stores transformed_image in prediction entries for callback access
+- Backward compatibility maintained with existing logging behavior
+
+**Related Files:**
+- `ocr/lightning_modules/ocr_pl.py`
+- `ocr/lightning_modules/callbacks/wandb_image_logging.py`
+- `docs/ai_handbook/05_changelog/2025-10/14_wandb_image_logging_enhancement.md`
+
 ### Added - 2025-10-12
 
 #### Data Contract for OCRPLModule Completion

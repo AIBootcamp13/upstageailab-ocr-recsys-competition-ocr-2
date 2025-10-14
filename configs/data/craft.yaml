@@ -1,6 +1,16 @@
 # @package _global_
 
-# Derived from data/default.yaml but configured for the CRAFT architecture
+# Standalone CRAFT data configuration
+
+defaults:
+  - /transforms/base
+
+batch_size: 16
+
+data:
+  train_num_samples: null
+  val_num_samples: null
+  test_num_samples: null
 
 dataset_base_path: "${hydra:runtime.cwd}/data/datasets/"   # Relative to current working directory
 

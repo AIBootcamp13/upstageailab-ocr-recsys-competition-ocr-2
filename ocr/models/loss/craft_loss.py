@@ -29,8 +29,14 @@ class CraftLoss(BaseLoss):
         gt_thresh: torch.Tensor,
         region_mask: torch.Tensor | None = None,
         affinity_mask: torch.Tensor | None = None,
+        prob_mask: torch.Tensor | None = None,
+        thresh_mask: torch.Tensor | None = None,
         **_: dict,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        # Support both parameter naming conventions
+        region_mask = region_mask if region_mask is not None else prob_mask
+        affinity_mask = affinity_mask if affinity_mask is not None else thresh_mask
+
         region_pred = self._resolve_prediction(pred, "region_score", "region_logits")
         affinity_pred = self._resolve_prediction(pred, "affinity_score", "affinity_logits")
 

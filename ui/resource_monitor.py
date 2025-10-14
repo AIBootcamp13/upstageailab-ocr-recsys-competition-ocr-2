@@ -5,6 +5,22 @@ A comprehensive monitoring interface for system resources, training processes,
 and GPU utilization during OCR model training.
 """
 
+import warnings
+
+# Suppress known wandb Pydantic compatibility warnings
+# This is a known issue where wandb uses incorrect Field() syntax in Annotated types
+# The warnings come from Pydantic when processing wandb's type annotations
+warnings.filterwarnings("ignore", message=r"The '(repr|frozen)' attribute.*Field.*function.*no effect", category=UserWarning)
+warnings.filterwarnings("ignore", message=r".*(repr|frozen).*Field.*function.*no effect", category=UserWarning)
+
+# Also suppress by category for more reliable filtering
+try:
+    from pydantic.warnings import UnsupportedFieldAttributeWarning
+
+    warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
+except ImportError:
+    pass  # In case the warning class is not available in future pydantic versions
+
 import contextlib
 import subprocess
 import sys

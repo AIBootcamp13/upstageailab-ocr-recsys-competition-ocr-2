@@ -15,7 +15,7 @@ class OCRModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
-        self.architecture_name = getattr(cfg, "architecture_name", None)
+        self.architecture_name = getattr(cfg, "architectures", None)
 
         if self.architecture_name:
             self._init_from_registry(cfg)
@@ -83,7 +83,34 @@ class OCRModel(nn.Module):
         self.loss = get_loss_by_cfg(cfg.loss)
 
     def _prepare_component_configs(self, cfg) -> dict:
-        overrides = getattr(cfg, "component_overrides", None)
+        # Check if architecture config has component_overrides and use those instead
+        arch_overrides = None
+        if hasattr(cfg, "component_overrides") and cfg.component_overrides is not None:
+            arch_overrides = cfg.component_overrides
+
+        # If using craft architecture, use craft-specific component overrides
+        if self.architecture_name == "craft":
+            arch_overrides = {
+                "encoder": {
+                    "model_name": "vgg16_bn",
+                    "pretrained": True,
+                    "output_indices": [1, 2, 3, 4],
+                    "extra_channels": 512,
+                    "freeze_backbone": False,
+                },
+                "decoder": {"name": "craft_decoder", "params": {"inner_channels": 256, "out_channels": 256}},
+                "head": {"name": "craft_head", "params": {"hidden_channels": 128}},
+                "loss": {"name": "craft_loss", "params": {"region_weight": 1.0, "affinity_weight": 1.0}},
+            }
+
+        # Fallback to main config component_overrides
+        main_overrides = getattr(cfg, "component_overrides", None)
+        if main_overrides is not None and arch_overrides is None:
+            pass  # Use main config overrides
+
+        # Use architecture overrides if available, otherwise main config overrides
+        overrides = arch_overrides if arch_overrides is not None else main_overrides
+
         component_configs: dict[str, Any] = {}
         if overrides is not None:
             for name in ("encoder", "decoder", "head", "loss"):

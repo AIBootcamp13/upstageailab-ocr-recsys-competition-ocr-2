@@ -46,6 +46,8 @@ class CraftDecoder(BaseDecoder):
             nn.Conv2d(inner_channels * len(in_channels), out_channels, kernel_size=3, padding=1, bias=False),
             norm_layer(out_channels),
             nn.ReLU(inplace=True),
+            # Upsample to 2x resolution for better character-level precision
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False),
         )
 
         self._output_channels = out_channels

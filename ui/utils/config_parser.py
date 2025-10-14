@@ -94,6 +94,8 @@ class ConfigParser:
                     "resnet50",
                     "mobilenetv3_small_050",
                     "efficientnet_b0",
+                    "vgg16_bn",
+                    "vgg19_bn",
                 ]
             except Exception:
                 models["backbones"] = ["resnet18"]  # fallback

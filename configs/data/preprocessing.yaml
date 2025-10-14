@@ -15,7 +15,7 @@ datasets:
     _target_: ${dataset_path}.ValidatedOCRDataset
     config:
       _target_: ${dataset_config_path}.DatasetConfig
-      image_path: ${dataset_base_path}images/val  # Using canonical (rotation-corrected) data
+      image_path: ${dataset_base_path}images/val
       annotation_path: ${dataset_base_path}jsons/val.json
     transform: ${enhanced_transforms.val_transform}
   test_dataset:

@@ -6,6 +6,11 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+try:
+    from omegaconf import ListConfig
+except ImportError:
+    ListConfig = None
+
 
 class EnhancementMethod(str, Enum):
     """Valid enhancement methods for document preprocessing."""
@@ -71,6 +76,9 @@ class DocumentPreprocessorConfig(BaseModel):
         """Validate target_size as tuple of positive integers or None."""
         if v is None:
             return None
+        # Handle OmegaConf ListConfig
+        if ListConfig is not None and isinstance(v, ListConfig):
+            v = list(v)
         if isinstance(v, list | tuple) and len(v) == 2:
             width, height = v
             if isinstance(width, int | float) and isinstance(height, int | float):

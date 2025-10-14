@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import cv2
 import numpy as np
 
 
 class CraftPostProcessor:
     """Convert CRAFT score maps into polygons."""
+
+    _ALIASES = {
+        "thresh": "text_threshold",
+        "box_thresh": "link_threshold",
+    }
 
     def __init__(
         self,
@@ -16,7 +23,22 @@ class CraftPostProcessor:
         low_text: float = 0.3,
         min_area: int = 16,
         expand_ratio: float = 1.5,
+        **extra_kwargs: Any,
     ) -> None:
+        # Fold common aliases produced by generic UI forms into canonical names.
+        if "thresh" in extra_kwargs and text_threshold == 0.7:
+            text_threshold = float(extra_kwargs.pop("thresh"))
+        if "box_thresh" in extra_kwargs and link_threshold == 0.4:
+            link_threshold = float(extra_kwargs.pop("box_thresh"))
+
+        # Drop any remaining unknown overrides to keep the post-processor robust
+        # to UI forms designed for other architectures.
+        for key in list(extra_kwargs):
+            if key in self._ALIASES:
+                extra_kwargs.pop(key)
+        if extra_kwargs:
+            extra_kwargs.clear()
+
         self.text_threshold = text_threshold
         self.link_threshold = link_threshold
         self.low_text = low_text
