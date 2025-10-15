@@ -48,6 +48,9 @@ def build_catalog(options: CatalogOptions, schema: ModelCompatibilitySchema | No
         metadata = schema.validate(metadata)
         checkpoints.append(metadata)
 
+    # Filter out checkpoints with 0 or None epochs (untrained models)
+    checkpoints = [meta for meta in checkpoints if meta.epochs and meta.epochs > 0]
+
     checkpoints.sort(key=lambda meta: (meta.architecture, meta.backbone, meta.epochs or 0, meta.checkpoint_path.name))
     return checkpoints
 

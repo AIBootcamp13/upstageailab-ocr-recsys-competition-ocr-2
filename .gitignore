@@ -163,3 +163,13 @@ offline-*/
 # notepad-train-cli.md
 debug_empty_predictions/
 submission_*.csv
+demo_brightness_adjustment.py
+demo_document_flattening.py
+demo_images/
+generate_demo_images.py
+preprocessing-plan/
+real_dataset_demo.py
+real_demo_simple/
+real_noise_elimination_demo/
+test_cleaned.jpg
+test_original.jpg

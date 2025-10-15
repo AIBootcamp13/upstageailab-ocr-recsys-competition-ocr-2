@@ -1,7 +1,3 @@
-Here is the latest version of our "Living Refactor Blueprint". Please execute the `[COMMAND]` at the end.
-
----
-
 # Living Refactor Blueprint: OCR Dataset Base
 
 ## Progress Tracker

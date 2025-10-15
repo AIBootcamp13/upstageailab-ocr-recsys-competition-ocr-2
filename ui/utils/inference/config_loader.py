@@ -68,8 +68,16 @@ def resolve_config_path(checkpoint_path: str | Path, explicit_config: str | Path
             if candidate.exists():
                 return candidate
 
-    hydra_candidate = checkpoint_parent.parent / ".hydra" / "config.yaml"
-    return hydra_candidate if hydra_candidate.exists() else None
+    # Check .hydra directories at different levels
+    hydra_candidates = [
+        checkpoint_parent.parent / ".hydra" / "config.yaml",  # checkpoints/.hydra/config.yaml
+        checkpoint_parent.parent.parent / ".hydra" / "config.yaml",  # experiment/.hydra/config.yaml
+    ]
+    for candidate in hydra_candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
 
 
 def load_model_config(config_path: str | Path) -> ModelConfigBundle:

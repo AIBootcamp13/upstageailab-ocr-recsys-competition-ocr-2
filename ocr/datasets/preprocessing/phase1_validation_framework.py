@@ -177,11 +177,11 @@ class Phase1ValidationFramework:
         shadow_mask = np.zeros((height, width), dtype=np.uint8)
         shadow_corners = corners + [shadow_offset, shadow_offset]
         cv2.fillPoly(shadow_mask, [shadow_corners], (255,))
-        shadow_mask = cv2.bitwise_and(shadow_mask, cv2.bitwise_not(mask))
+        shadow_mask = np.array(cv2.bitwise_and(shadow_mask, cv2.bitwise_not(mask)))
 
         # Apply effects
-        image[shadow_mask > 0] = [240, 240, 240]  # Light gray shadow
-        image[mask > 0] = [250, 250, 250]  # Slightly off-white document
+        image[shadow_mask.astype(bool)] = [240, 240, 240]  # Light gray shadow
+        image[mask.astype(bool)] = [250, 250, 250]  # Slightly off-white document
 
         # Add subtle border
         cv2.polylines(image, [corners], True, (200, 200, 200), 2)

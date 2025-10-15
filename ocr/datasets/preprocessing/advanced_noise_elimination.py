@@ -44,7 +44,7 @@ class NoiseEliminationConfig(BaseModel):
     text_region_dilation: int = Field(default=3, ge=1, description="Dilation kernel size for text region protection")
 
     # Morphological operations parameters
-    morph_kernel_size: int = Field(default=3, ge=1, description="Kernel size for morphological operations")
+    morph_kernel_size: int = Field(default=2, ge=1, description="Kernel size for morphological operations")  # Reduced from 3
     morph_iterations: int = Field(default=1, ge=1, description="Number of morphological operation iterations")
 
     # Content awareness parameters
@@ -188,8 +188,8 @@ class AdvancedNoiseEliminator:
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, self.config.adaptive_block_size, self.config.adaptive_c
         )
 
-        # Estimate background
-        kernel_size = max(31, self.config.adaptive_block_size * 2 + 1)
+        # Estimate background with smaller blur kernel to preserve text details
+        kernel_size = min(15, self.config.adaptive_block_size * 2 + 1)  # Reduced from max(31, ...) to min(15, ...)
         if kernel_size % 2 == 0:
             kernel_size += 1
 
@@ -203,7 +203,7 @@ class AdvancedNoiseEliminator:
 
         # Clean the image by removing noise
         cleaned = gray.copy()
-        cleaned[noise_mask > 0] = background[noise_mask > 0]
+        cleaned[noise_mask == 255] = background[noise_mask == 255]
 
         return cleaned, noise_mask
 
@@ -242,7 +242,7 @@ class AdvancedNoiseEliminator:
 
         if np.any(shadow_mask > 0):
             # Calculate correction factor
-            shadow_regions = cleaned[shadow_mask > 0]
+            shadow_regions = cleaned[shadow_mask == 255]
             non_shadow_regions = cleaned[shadow_mask == 0]
 
             if len(non_shadow_regions) > 0:
@@ -255,7 +255,7 @@ class AdvancedNoiseEliminator:
 
                     # Apply correction with strength parameter
                     strength = self.config.shadow_removal_strength
-                    cleaned[shadow_mask > 0] *= 1 + (correction - 1) * strength
+                    cleaned[shadow_mask == 255] *= 1 + (correction - 1) * strength
 
         cleaned = np.clip(cleaned, 0, 255).astype(np.uint8)
 
@@ -307,13 +307,14 @@ class AdvancedNoiseEliminator:
         Returns:
             Cleaned image
         """
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (self.config.morph_kernel_size, self.config.morph_kernel_size))
+        # Use very small kernel to only remove tiny noise particles
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # Fixed small kernel
 
-        # Apply opening (erosion followed by dilation) to remove noise
-        cleaned = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel, iterations=self.config.morph_iterations)
+        # Apply minimal opening to remove isolated noise pixels
+        cleaned = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel, iterations=1)
 
-        # Apply closing (dilation followed by erosion) to fill small holes
-        cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel, iterations=self.config.morph_iterations)
+        # Skip closing to avoid filling legitimate gaps in text
+        # cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel, iterations=self.config.morph_iterations)
 
         return cleaned
 
@@ -332,7 +333,7 @@ class AdvancedNoiseEliminator:
         cleaned = self._morphological_cleaning(gray)
 
         # Restore text regions from original
-        cleaned[text_mask > 0] = gray[text_mask > 0]
+        cleaned[text_mask == 255] = gray[text_mask == 255]
 
         return cleaned
 
@@ -347,26 +348,22 @@ class AdvancedNoiseEliminator:
         Returns:
             Effectiveness score (0-1)
         """
-        # Calculate noise reduction using variance
-        np.var(original.astype(np.float32))
-        np.var(cleaned.astype(np.float32))
+        # Calculate noise reduction using Laplacian variance
+        original_laplacian = cv2.Laplacian(original.astype(np.float32), -1)
+        cleaned_laplacian = cv2.Laplacian(cleaned.astype(np.float32), -1)
 
-        # Calculate smoothness improvement
-        original_laplacian = cv2.Laplacian(original, cv2.CV_64F)
-        cleaned_laplacian = cv2.Laplacian(cleaned, cv2.CV_64F)
-
-        original_noise = np.var(original_laplacian)
-        cleaned_noise = np.var(cleaned_laplacian)
+        original_noise = float(np.var(original_laplacian.astype(np.float32)))
+        cleaned_noise = float(np.var(cleaned_laplacian.astype(np.float32)))
 
         # Combine metrics
         if original_noise > 0:
-            noise_reduction = max(0, 1 - (cleaned_noise / original_noise))
+            noise_reduction = max(0.0, 1.0 - (cleaned_noise / original_noise))
         else:
             noise_reduction = 0.0
 
         # Calculate contrast preservation
-        original_contrast = np.std(original.astype(np.float32))
-        cleaned_contrast = np.std(cleaned.astype(np.float32))
+        original_contrast = float(np.std(original.astype(np.float32)))
+        cleaned_contrast = float(np.std(cleaned.astype(np.float32)))
 
         if original_contrast > 0:
             contrast_preservation = min(1.0, cleaned_contrast / original_contrast)
