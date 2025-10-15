@@ -178,3 +178,5 @@ logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv
 debug_empty_predictions/eda_results/correlation_matrix.png (867 KB) exceeds 500 KB.
 logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv (9351 KB) exceeds 500 KB.
 preprocessing-plan/preprocessing_viewer_references.md (1071 KB) exceeds 500 KB.
+
+phase1_validation_results/
