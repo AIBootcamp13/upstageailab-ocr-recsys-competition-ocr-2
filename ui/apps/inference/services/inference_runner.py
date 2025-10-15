@@ -38,7 +38,7 @@ LOGGER = logging.getLogger(__name__)
 try:
     from ui.utils.inference import run_inference_on_image
 except ImportError:  # pragma: no cover - mocked in dev environments
-    run_inference_on_image = None
+    run_inference_on_image = None  # type: ignore[assignment]
 
 ENGINE_AVAILABLE = run_inference_on_image is not None
 
@@ -49,7 +49,7 @@ try:
     )
 except ImportError:  # pragma: no cover - optional dependency guard
     DOCTR_AVAILABLE = False
-    DocumentPreprocessor = None  # type: ignore[assignment]
+    DocumentPreprocessor = None  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:
     from ocr.datasets.preprocessing import (
@@ -166,31 +166,36 @@ class InferenceService:
                     inference_target_path = image_path
 
             predictions = None
-            if ENGINE_AVAILABLE and run_inference_on_image:
+            if ENGINE_AVAILABLE:
                 inference_fn = run_inference_on_image
+                assert inference_fn is not None  # Guaranteed by ENGINE_AVAILABLE
                 try:
-                    predictions = inference_fn(
+                    max_candidates_val = hyperparams.get("max_candidates")
+                    min_detection_size_val = hyperparams.get("min_detection_size")
+                    raw_predictions = inference_fn(
                         str(inference_target_path),
                         str(model_path),
                         hyperparams.get("binarization_thresh"),
                         hyperparams.get("box_thresh"),
-                        int(hyperparams.get("max_candidates", 300)),
-                        int(hyperparams.get("min_detection_size", 5)),
+                        int(max_candidates_val) if max_candidates_val is not None else None,
+                        int(min_detection_size_val) if min_detection_size_val is not None else None,
                     )
-                    if predictions is None:
+                    if raw_predictions is None:
                         raise ValueError("Inference engine returned no results.")
-                    LOGGER.info(f"Inference engine returned predictions: {predictions}")
-                    if not self._are_predictions_valid(predictions, inference_rgb.shape):
-                        LOGGER.warning(f"Predictions failed validation: {predictions}")
+                    LOGGER.info(f"Inference engine returned predictions: {raw_predictions}")
+                    if not self._are_predictions_valid(raw_predictions, inference_rgb.shape):
+                        LOGGER.warning(f"Predictions failed validation: {raw_predictions}")
                         raise ValueError("Inference engine returned invalid predictions.")
-                    predictions = Predictions(**predictions)
+                    predictions = Predictions(**raw_predictions)
                 except Exception as exc:  # noqa: BLE001
                     LOGGER.exception("Real inference failed; using mock predictions fallback: %s", exc)
-                    st.warning(f"⚠️ Real inference failed ({exc}), using mock predictions as a fallback.")
+                    st.error(f"❌ Inference failed: {exc}")
                     predictions = None
 
             if predictions is None:
                 predictions = self._generate_mock_predictions(inference_rgb.shape)
+
+            assert predictions is not None  # Should always be set by now
 
             # Create and validate the result data contract
             result = InferenceResult(
@@ -232,7 +237,7 @@ class InferenceService:
         height, width, _ = image_shape
         box1 = [int(width * 0.1), int(height * 0.1), int(width * 0.4), int(height * 0.2)]
         box2 = [int(width * 0.5), int(height * 0.4), int(width * 0.9), int(height * 0.5)]
-        box3 = [int(width * 0.2), int(height * 0.7), int(width * 0.7), int(height * 0.8)]
+        box3 = [int(width * 0.2), int(height * 0.3), int(width * 0.7), int(height * 0.4)]  # Moved up from bottom
         mock_boxes = [box1, box2, box3]
 
         return Predictions(
@@ -262,21 +267,55 @@ class InferenceService:
 
     @staticmethod
     def _are_predictions_valid(predictions: dict[str, Any], image_shape: tuple[int, ...]) -> bool:
-        polygons_text = predictions.get("polygons", "")
-        if not polygons_text:
-            LOGGER.warning("Predictions missing polygons field or empty")
+        """Validate prediction format and bounds."""
+        if not isinstance(predictions, dict):
+            LOGGER.warning(f"Predictions is not a dict: {type(predictions)}")
             return False
+
+        polygons_text = predictions.get("polygons", "")
+        if polygons_text is None:
+            LOGGER.warning(f"Predictions missing polygons field. Keys: {list(predictions.keys())}")
+            return False
+
+        if not isinstance(polygons_text, str):
+            LOGGER.warning(f"Polygons field is not a string: {type(polygons_text)}")
+            return False
+
         height, width = image_shape[:2]
-        LOGGER.debug(f"Validating predictions for image {width}x{height}, polygons: {polygons_text[:100]}...")
+        LOGGER.debug(f"Validating predictions for image {width}x{height}, polygons length: {len(polygons_text)}")
+
+        if not polygons_text.strip():
+            LOGGER.debug("Polygons string is empty - this is valid (no text detected)")
+            return True
+
         for polygon_str in polygons_text.split("|"):
-            coords = [int(float(value)) for value in polygon_str.split(",") if value]
-            if len(coords) < 8 or len(coords) % 2 != 0:
-                LOGGER.warning(f"Invalid polygon format: {polygon_str} (coords: {coords})")
+            if not polygon_str.strip():
+                continue  # Skip empty polygons
+
+            coords = []
+            for value in polygon_str.split(","):
+                value = value.strip()
+                if not value:
+                    continue
+                try:
+                    coords.append(int(float(value)))
+                except (ValueError, TypeError) as e:
+                    LOGGER.warning(f"Invalid coordinate value '{value}' in polygon '{polygon_str}': {e}")
+                    return False
+
+            if len(coords) < 8:
+                LOGGER.warning(f"Polygon has too few coordinates: {len(coords)} < 8 in '{polygon_str}'")
                 return False
+
+            if len(coords) % 2 != 0:
+                LOGGER.warning(f"Polygon has odd number of coordinates: {len(coords)} in '{polygon_str}'")
+                return False
+
             for i in range(0, len(coords), 2):
                 x, y = coords[i], coords[i + 1]
                 # Allow polygons to extend reasonably outside image bounds
                 if x < -width or x > 2 * width or y < -height or y > 2 * height:
                     LOGGER.warning(f"Polygon coordinate out of bounds: ({x}, {y}) for image {width}x{height}")
                     return False
+
         return True

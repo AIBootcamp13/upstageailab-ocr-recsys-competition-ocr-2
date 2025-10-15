@@ -69,7 +69,7 @@ results:
   expand_first_result: true
   show_summary: true
   show_raw_predictions: true
-  image_width: "stretch"
+  image_width: "content"
 
 preprocessing:
   enable_label: "Enable docTR preprocessing"

@@ -16,18 +16,16 @@ import streamlit as st
 
 from .components import results as results_component
 from .components import sidebar as sidebar_component
-from .models.checkpoint import CheckpointMetadata
-from .services.checkpoint_catalog import CatalogOptions, build_catalog
+from .models.checkpoint import CheckpointInfo
+from .services.checkpoint_catalog import CatalogOptions, build_lightweight_catalog
 from .services.config_loader import load_ui_config
 from .services.inference_runner import InferenceService
-from .services.schema_validator import load_schema
 from .state import InferenceState
 
 
 @st.cache_data(show_spinner=False)
-def _load_catalog(options: CatalogOptions) -> list[CheckpointMetadata]:
-    schema = load_schema()
-    return build_catalog(options, schema)
+def _load_catalog(options: CatalogOptions) -> list[CheckpointInfo]:
+    return build_lightweight_catalog(options)
 
 
 def run() -> None:

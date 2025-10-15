@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize quick-fix-log
 
 # Default target
 help:
@@ -25,6 +25,7 @@ help:
 	@echo "  serve-resource-monitor - Start Resource Monitor UI"
 	@echo "  context-log-start   - Create a new context log JSONL file"
 	@echo "  context-log-summarize - Summarize a context log into Markdown"
+	@echo "  quick-fix-log       - Log a quick fix to QUICK_FIXES.md"
 	@echo "  pre-commit          - Install and run pre-commit hooks"
 
 # Installation
@@ -106,6 +107,16 @@ context-log-summarize:
 		exit 1; \
 	fi
 	uv run python scripts/agent_tools/context_log.py summarize --log-file $(LOG)
+
+# Quick Fix Logging for agents
+quick-fix-log:
+	@if [ -z "$(TYPE)" ] || [ -z "$(TITLE)" ] || [ -z "$(ISSUE)" ] || [ -z "$(FIX)" ] || [ -z "$(FILES)" ]; then \
+		echo "Usage: make quick-fix-log TYPE=<type> TITLE=\"<title>\" ISSUE=\"<issue>\" FIX=\"<fix>\" FILES=\"<files>\" [IMPACT=<impact>] [TEST=<test>]"; \
+		echo "Types: bug, compat, config, dep, doc, perf, sec, ui"; \
+		echo "Example: make quick-fix-log TYPE=bug TITLE=\"Pydantic compatibility\" ISSUE=\"replace() error\" FIX=\"Use model_copy\" FILES=\"ui/state.py\""; \
+		exit 1; \
+	fi
+	uv run python scripts/agent_tools/quick_fix_log.py $(TYPE) "$(TITLE)" --issue "$(ISSUE)" --fix "$(FIX)" --files "$(FILES)" $(if $(IMPACT),--impact $(IMPACT)) $(if $(TEST),--test $(TEST))
 
 # Development workflow
 setup-dev: dev-install pre-commit

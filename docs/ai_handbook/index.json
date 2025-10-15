@@ -467,6 +467,23 @@
       "bundles": []
     },
     {
+      "id": "11_quick_fixes_protocol",
+      "title": "filename: docs/ai_handbook/02_protocols/development/11_quick_fixes_protocol.md",
+      "path": "./02_protocols/development/11_quick_fixes_protocol.md",
+      "section": "Protocols (How-To Guides)",
+      "tags": [
+        "protocols",
+        "bug_fixes",
+        "hotfixes",
+        "patches"
+      ],
+      "priority": "medium",
+      "summary": "Minimal protocol for logging quick fixes, patches, and hotfixes with structured format",
+      "last_reviewed": "2025-10-15",
+      "owner": "core-team",
+      "bundles": []
+    },
+    {
       "id": "plan_task_delegation_table",
       "title": "Plan Task Delegation Table",
       "path": "./03_references/workflows/plan-task-delegation-table.md",
@@ -2252,7 +2269,8 @@
         "02_command_registry",
         "06_context_logging",
         "05_modular_refactor",
-        "21_feature_implementation_protocol"
+        "21_feature_implementation_protocol",
+        "11_quick_fixes_protocol"
       ]
     },
     "ui": {

@@ -14,7 +14,7 @@ from collections.abc import Sequence
 import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-from ..models.checkpoint import CheckpointMetadata
+from ..models.checkpoint import CheckpointInfo, CheckpointMetadata
 from ..models.config import SliderConfig, UIConfig
 from ..models.ui_events import InferenceRequest
 from ..state import InferenceState, init_hyperparameters, init_preprocessing
@@ -23,7 +23,7 @@ from ..state import InferenceState, init_hyperparameters, init_preprocessing
 def render_controls(
     state: InferenceState,
     config: UIConfig,
-    checkpoints: Sequence[CheckpointMetadata],
+    checkpoints: Sequence[CheckpointInfo],
 ) -> InferenceRequest | None:
     init_hyperparameters(config.hyperparameters)
     init_preprocessing(config.preprocessing)
@@ -42,7 +42,7 @@ def render_controls(
 def _render_model_selector(
     state: InferenceState,
     config: UIConfig,
-    checkpoints: Sequence[CheckpointMetadata],
+    checkpoints: Sequence[CheckpointInfo],
 ) -> CheckpointMetadata | None:
     st.subheader("Model Selection")
 
@@ -55,27 +55,38 @@ def _render_model_selector(
         help="Choose a trained OCR model for inference. Models are organized using metadata derived from checkpoints.",
     )
 
-    metadata = mapping.get(selected_label)
-    selected_model_path = metadata.checkpoint_path if metadata else selected_label
-    state.reset_for_model(str(selected_model_path) if metadata else selected_label)
+    info = mapping.get(selected_label)
+    if info is None:
+        state.reset_for_model(selected_label)
+        return None
+
+    # Load full metadata for the selected checkpoint
+    with st.spinner("Loading model metadata..."):
+        from ..services.schema_validator import load_schema
+
+        schema = load_schema()
+        metadata = info.load_full_metadata(schema)
+
+    selected_model_path = metadata.checkpoint_path
+    state.reset_for_model(str(selected_model_path))
 
     return metadata
 
 
 def _build_display_mapping(
-    checkpoints: Sequence[CheckpointMetadata],
+    checkpoints: Sequence[CheckpointInfo],
     config: UIConfig,
-) -> tuple[list[str], dict[str, CheckpointMetadata | None]]:
+) -> tuple[list[str], dict[str, CheckpointInfo | None]]:
     if not checkpoints:
         return [config.model_selector.demo_label], {config.model_selector.demo_label: None}
 
     options: list[str] = []
-    mapping: dict[str, CheckpointMetadata | None] = {}
+    mapping: dict[str, CheckpointInfo | None] = {}
 
-    for meta in checkpoints:
-        label = meta.to_display_option()
+    for info in checkpoints:
+        label = info.to_display_option()
         options.append(label)
-        mapping[label] = meta
+        mapping[label] = info
 
     return options, mapping
 
@@ -253,7 +264,7 @@ def _slider(slider_cfg: SliderConfig, default_value: float | int) -> float:
         "step": int(slider_cfg.step) if slider_cfg.is_integer_domain() else float(slider_cfg.step),
         "help": slider_cfg.help,
     }
-    value = st.slider(slider_cfg.label, **kwargs)
+    value = st.slider(slider_cfg.label, **kwargs)  # type: ignore[call-overload]
     return float(value)
 
 
@@ -269,7 +280,7 @@ def _render_upload_section(
         type=config.upload.enabled_file_types,
         accept_multiple_files=config.upload.multi_file_selection,
         help="Upload one or more images for OCR inference.",
-    )
+    )  # type: ignore[call-overload]
 
     if isinstance(uploaded_raw, UploadedFile):
         uploaded_files: list[UploadedFile] = [uploaded_raw]

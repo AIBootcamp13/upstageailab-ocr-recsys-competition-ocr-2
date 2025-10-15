@@ -38,6 +38,18 @@ model_families:
     head:
       class: ocr.models.head.DBHead
       in_channels: 256
+  - id: dbnet_resnet18_pan
+    description: "DBNet architecture trained with ResNet18 backbone and PAN decoder."
+    encoder:
+      model_names: ["resnet18"]
+    decoder:
+      class: ocr.models.decoder.pan_decoder.PANDecoder
+      inner_channels: 256
+      output_channels: 256
+      in_channels: [64, 128, 256, 512]
+    head:
+      class: ocr.models.head.DBHead
+      in_channels: 256
   - id: dbnet_mobilenetv3_small_unet256
     description: "DBNet architecture trained with MobileNetV3 Small backbone and widened UNet decoder."
     encoder:
@@ -71,6 +83,18 @@ model_families:
       inner_channels: 256
       output_channels: 128
       in_channels: [256, 512, 1024, 2048]
+    head:
+      class: ocr.models.head.db_head.DBHead
+      in_channels: 128
+  - id: dbnetpp_resnet18
+    description: "DBNet++ architecture trained with ResNet18 backbone and DBPP decoder."
+    encoder:
+      model_names: ["resnet18"]
+    decoder:
+      class: ocr.models.decoder.dbpp_decoder.DBPPDecoder
+      inner_channels: 256
+      output_channels: 128
+      in_channels: [64, 128, 256, 512]
     head:
       class: ocr.models.head.db_head.DBHead
       in_channels: 128

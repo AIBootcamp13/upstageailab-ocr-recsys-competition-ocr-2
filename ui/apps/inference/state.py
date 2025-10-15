@@ -7,7 +7,8 @@ and the guidance in ``docs/ai_handbook/02_protocols``. Update those sources
 first, then reflect changes here to avoid divergent behaviour across apps.
 """
 
-from dataclasses import dataclass, field, replace
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 import streamlit as st
@@ -15,7 +16,7 @@ import streamlit as st
 from .models.config import PreprocessingConfig, SliderConfig
 from .models.data_contracts import InferenceResult
 
-SESSION_KEYS = {
+SESSION_KEYS: dict[str, Callable[[], Any]] = {
     "inference_results": list,
     "selected_images": set,
     "processed_images": dict,
@@ -92,7 +93,7 @@ class InferenceState:
     def build_preprocessing_config(self, base: PreprocessingConfig) -> PreprocessingConfig:
         if not self.preprocessing_overrides:
             return base
-        return replace(base, **self.preprocessing_overrides)
+        return base.model_copy(update=self.preprocessing_overrides)
 
 
 def ensure_session_defaults() -> None:

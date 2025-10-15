@@ -57,12 +57,19 @@ def load_state_dict(model, checkpoint: dict[str, Any]) -> bool:  # type: ignore[
 
     model_state = model.state_dict()
     filtered_state = {}
+    prefixes = ("model._orig_mod.", "model.")
+    original_to_new: dict[str, str] = {}
     for name, value in state_dict.items():
-        new_name = name[len("model.") :] if name.startswith("model.") else name
+        new_name = name
+        for prefix in prefixes:
+            if new_name.startswith(prefix):
+                new_name = new_name[len(prefix) :]
+                break
+        original_to_new[name] = new_name
         if new_name in model_state:
             filtered_state[new_name] = value
 
-    dropped = {name for name in state_dict if name.startswith("model.")} - {f"model.{name}" for name in filtered_state}
+    dropped = {orig for orig, renamed in original_to_new.items() if renamed not in filtered_state}
     missing = set(model_state) - set(filtered_state)
 
     if dropped:

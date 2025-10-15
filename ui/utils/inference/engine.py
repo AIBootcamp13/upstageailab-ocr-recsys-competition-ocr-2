@@ -76,6 +76,7 @@ class InferenceEngine:
             return False
 
         self.model = model.to(self.device)
+        assert self.model is not None  # Model loading succeeded
         self.model.eval()
         self.config = bundle.raw_config
         return True

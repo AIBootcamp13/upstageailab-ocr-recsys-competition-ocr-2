@@ -145,6 +145,8 @@ class DocumentPreprocessor:
                 if corners is not None:
                     state.metadata.document_corners = corners
                     state.metadata.processing_steps.append("document_detection")
+                    # Store intermediate image for debugging
+                    state.metadata.image_after_document_detection = state.image.copy()
                 else:
                     self.logger.warning("Document boundaries not detected; geometric corrections skipped")
             else:
@@ -168,6 +170,8 @@ class DocumentPreprocessor:
                 if orientation_meta is not None:
                     state.metadata.orientation = orientation_meta
                     state.metadata.processing_steps.append("orientation_correction")
+                    # Store intermediate image for debugging
+                    state.metadata.image_after_orientation_correction = state.image.copy()
 
             if self.config.enable_perspective_correction and state.corners is not None:
                 corrected, matrix, method = self.perspective_corrector.correct(state.image, state.corners)
@@ -175,6 +179,8 @@ class DocumentPreprocessor:
                 state.metadata.perspective_matrix = matrix
                 state.metadata.perspective_method = method
                 state.metadata.processing_steps.append("perspective_correction")
+                # Store intermediate image for debugging
+                state.metadata.image_after_perspective_correction = state.image.copy()
 
             if self.config.enable_padding_cleanup:
                 cleaned = self.padding_cleanup.cleanup(state.image)
@@ -187,6 +193,8 @@ class DocumentPreprocessor:
                 state.image = enhanced
                 state.metadata.enhancement_applied.extend(applied)
                 state.metadata.processing_steps.append("image_enhancement")
+                # Store intermediate image for debugging
+                state.metadata.image_after_enhancement = state.image.copy()
 
             if self.config.enable_final_resize and self.config.target_size is not None:
                 state.image = self.final_resizer.resize(state.image, self.config.target_size)

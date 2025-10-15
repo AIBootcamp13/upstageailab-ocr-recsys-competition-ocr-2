@@ -1,7 +1,7 @@
 # # **AI Agent Handbook: OCR Project**
 
-Version: 1.12 (2025-10-14)
-Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10/14_performance_system_critical_fixes.md).
+Version: 1.13 (2025-10-15)
+Status: This handbook is the single source of truth for AI agents. The latest project status can be found in [our most recent changelog entry](./05_changelog/2025-10/15_checkpoint_naming_implementation.md).
 
 ## **1. Project Overview**
 
@@ -98,6 +98,7 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 #### Component Protocols
 * [Training & Experimentation](./02_protocols/components/13_training_protocol.md)
 * [Template Adoption & Best Practices](./02_protocols/components/16_template_adoption_protocol.md)
+* [Checkpoint Migration Protocol](./02_protocols/components/18_checkpoint_migration_protocol.md)
 
 #### Configuration Protocols
 * [Command Builder Testing Guide](./02_protocols/configuration/20_command_builder_testing_guide.md)
@@ -113,10 +114,12 @@ For safe, autonomous execution of tasks, refer to the [**Command Registry**](./0
 * [Hydra & Component Registry](./03_references/architecture/02_hydra_and_registry.md)
 * [Utility Functions](./03_references/architecture/03_utility_functions.md)
 * [Evaluation Metrics](./03_references/architecture/04_evaluation_metrics.md)
+* [Checkpoint Naming Scheme](./03_references/architecture/07_checkpoint_naming_scheme.md)
 
 #### Guides
 * [Performance Monitoring Callbacks](./03_references/guides/performance_monitoring_callbacks_usage.md)
 * [Performance Profiler Usage](./03_references/guides/performance_profiler_usage.md)
+* [UI Inference Compatibility Schema](./03_references/guides/ui_inference_compatibility_schema.md)
 
 #### Integrations
 * [Qwen Coder Integration](./03_references/integrations/qwen_coder_integration.md)

@@ -173,7 +173,7 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: Predic
         st.image(
             pil_image,
             caption="OCR Predictions",
-            width=width_setting,
+            width=width_setting,  # type: ignore[arg-type]
         )
     except Exception as exc:  # noqa: BLE001
         st.error("Could not render predictions on the image. Displaying original image instead.")
@@ -181,7 +181,7 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: Predic
         st.image(
             image_array,
             caption="Original Image",
-            width=width_setting,
+            width=width_setting,  # type: ignore[arg-type]
         )
         raise exc from exc
 
@@ -218,6 +218,9 @@ def _render_preprocessing_section(preprocessing: PreprocessingInfo, config: UICo
         prepared = _prepare_metadata(metadata)
         with st.expander("📋 Preprocessing Metadata", expanded=False):
             st.json(prepared)
+
+            # Show intermediate images for debugging
+            _display_intermediate_images(metadata, config)
 
 
 def _draw_document_overlay(image_array: np.ndarray, metadata: dict[str, Any], show_overlay: bool) -> Image.Image:
@@ -266,3 +269,53 @@ def _prepare_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         return value
 
     return {key: convert(val) for key, val in metadata.items()}
+
+
+def _display_intermediate_images(metadata: dict[str, Any], config: UIConfig) -> None:
+    """Display intermediate preprocessing images for debugging."""
+    intermediate_images = [
+        ("image_after_document_detection", "After Document Detection"),
+        ("image_after_orientation_correction", "After Orientation Correction"),
+        ("image_after_perspective_correction", "After Perspective Correction"),
+        ("image_after_enhancement", "After Enhancement"),
+    ]
+
+    displayed_any = False
+    for image_key, caption in intermediate_images:
+        if image_key in metadata and metadata[image_key] is not None:
+            if not displayed_any:
+                st.markdown("#### 🔍 Intermediate Processing Steps")
+                displayed_any = True
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(metadata[image_key], caption=caption, width="stretch")
+
+            # Show processing steps up to this point
+            step_mapping = {
+                "image_after_document_detection": ["document_detection"],
+                "image_after_orientation_correction": ["document_detection", "orientation_correction"],
+                "image_after_perspective_correction": ["document_detection", "orientation_correction", "perspective_correction"],
+                "image_after_enhancement": ["document_detection", "orientation_correction", "perspective_correction", "image_enhancement"],
+            }
+
+            if image_key in step_mapping:
+                processing_steps = metadata.get("processing_steps", [])
+                completed_steps = [step for step in step_mapping[image_key] if step in processing_steps]
+                with col2:
+                    st.markdown(f"**Completed steps:** {', '.join(completed_steps)}")
+
+                    # Add specific metadata for perspective correction
+                    if image_key == "image_after_perspective_correction":
+                        if "perspective_matrix" in metadata:
+                            st.markdown("**Perspective matrix applied** ✅")
+                        if "document_corners" in metadata:
+                            corners = metadata["document_corners"]
+                            if hasattr(corners, "shape"):
+                                st.markdown(f"**Document corners detected:** {corners.shape[0]} corners")
+
+    if displayed_any:
+        st.markdown("---")
+        st.markdown(
+            "💡 **Debug Tip:** Check the 'After Perspective Correction' image. If it looks distorted or only shows part of the document, that's likely causing the OCR predictions to be clustered at the bottom."
+        )

@@ -37,6 +37,7 @@ def render_predict_page(state: CommandBuilderState, command_builder: CommandBuil
             "Or upload JSON file", type=["json"], help="Upload a prediction JSON file directly", key="predict_json_upload"
         )
         # Handle uploaded file
+        json_file: Path | None = None
         if uploaded_json is not None:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 data = json.load(uploaded_json)
@@ -150,6 +151,7 @@ def render_submission_export_panel(page: CommandPageData, values: dict, json_fil
                     json_file = Path(selected_json_option)
 
     # Use provided json_file, or fall back to finding latest
+    selected_json: Path | None = None
     if json_file and json_file.exists():
         selected_json = json_file
         st.success(f"✅ Using selected file: `{selected_json}`")
@@ -161,6 +163,8 @@ def render_submission_export_panel(page: CommandPageData, values: dict, json_fil
         else:
             st.warning("⚠️ No JSON file available. Select an experiment above or upload a file in the sidebar.")
             return
+
+    assert selected_json is not None  # At this point selected_json is guaranteed to be not None
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col1:

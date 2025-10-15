@@ -55,17 +55,17 @@ def display_model_comparison_stats(df_a: pd.DataFrame, df_b: pd.DataFrame) -> No
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        delta = metrics_b.total_predictions - metrics_a.total_predictions
-        st.metric("Total Predictions", metrics_b.total_predictions, delta=delta)
+        delta1 = metrics_b.total_predictions - metrics_a.total_predictions
+        st.metric("Total Predictions", metrics_b.total_predictions, delta=delta1)
     with col2:
-        delta = metrics_b.avg_predictions - metrics_a.avg_predictions
-        st.metric("Avg per Image", f"{metrics_b.avg_predictions:.1f}", delta=f"{delta:.1f}")
+        delta2 = metrics_b.avg_predictions - metrics_a.avg_predictions
+        st.metric("Avg per Image", f"{metrics_b.avg_predictions:.1f}", delta=f"{delta2:.1f}")
     with col3:
-        delta = metrics_b.images_with_predictions - metrics_a.images_with_predictions
-        st.metric("Images w/ Preds", metrics_b.images_with_predictions, delta=delta)
+        delta3 = metrics_b.images_with_predictions - metrics_a.images_with_predictions
+        st.metric("Images w/ Preds", metrics_b.images_with_predictions, delta=delta3)
     with col4:
-        delta = metrics_a.empty_predictions - metrics_b.empty_predictions
-        st.metric("Empty Preds", metrics_b.empty_predictions, delta=-delta)
+        delta4 = int(metrics_a.empty_predictions - metrics_b.empty_predictions)
+        st.metric("Empty Preds", metrics_b.empty_predictions, delta=-delta4)
 
 
 def display_visual_comparison(df_a: pd.DataFrame, df_b: pd.DataFrame, image_dir: str) -> None:

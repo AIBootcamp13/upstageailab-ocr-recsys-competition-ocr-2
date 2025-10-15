@@ -15,7 +15,8 @@ class OCRModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
-        self.architecture_name = getattr(cfg, "architectures", None)
+        # Hydra moved from "architectures" -> "architecture_name"; honour both for backwards compatibility.
+        self.architecture_name = getattr(cfg, "architecture_name", None) or getattr(cfg, "architectures", None)
 
         if self.architecture_name:
             self._init_from_registry(cfg)

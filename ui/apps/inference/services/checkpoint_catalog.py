@@ -11,7 +11,7 @@ from pathlib import Path
 import torch
 import yaml
 
-from ..models.checkpoint import CheckpointMetadata, DecoderSignature, HeadSignature
+from ..models.checkpoint import CheckpointInfo, CheckpointMetadata, DecoderSignature, HeadSignature
 from ..models.config import PathConfig
 from .schema_validator import ModelCompatibilitySchema, load_schema
 
@@ -53,6 +53,24 @@ def build_catalog(options: CatalogOptions, schema: ModelCompatibilitySchema | No
 
     checkpoints.sort(key=lambda meta: (meta.architecture, meta.backbone, meta.epochs or 0, meta.checkpoint_path.name))
     return checkpoints
+
+
+def build_lightweight_catalog(options: CatalogOptions) -> list[CheckpointInfo]:
+    """Build a lightweight catalog with basic checkpoint info, no expensive loading."""
+    if not options.outputs_dir.exists():
+        LOGGER.info("Outputs directory not found at %s", options.outputs_dir)
+        return []
+
+    checkpoint_infos = []
+    for ckpt_path in options.outputs_dir.rglob("*.ckpt"):
+        info = _collect_basic_info(ckpt_path, options)
+        checkpoint_infos.append(info)
+
+    # Filter out checkpoints with 0 or None epochs (untrained models)
+    checkpoint_infos = [info for info in checkpoint_infos if info.epochs and info.epochs > 0]
+
+    checkpoint_infos.sort(key=lambda info: (info.checkpoint_path.name))
+    return checkpoint_infos
 
 
 def _discover_outputs_path(relative_path: Path) -> Path:
@@ -135,6 +153,37 @@ def _collect_metadata(checkpoint_path: Path, options: CatalogOptions) -> Checkpo
     metadata.hmean = _extract_hmean(checkpoint_path)
     metadata.precision = _extract_precision(checkpoint_path)
     return metadata
+
+
+def _collect_basic_info(checkpoint_path: Path, options: CatalogOptions) -> CheckpointInfo:
+    """Collect basic checkpoint information without loading the checkpoint file."""
+    info = CheckpointInfo(checkpoint_path=checkpoint_path)
+
+    # Extract experiment name from the correct parent directory
+    checkpoints_parent = None
+    for parent in checkpoint_path.parents:
+        if parent.name == "checkpoints":
+            checkpoints_parent = parent
+            break
+
+    if checkpoints_parent and len(checkpoints_parent.parents) > 0:
+        info.exp_name = checkpoints_parent.parents[0].name
+    else:
+        info.exp_name = None
+
+    info.display_name = checkpoint_path.stem
+    info.epochs = _parse_epoch(checkpoint_path.name)
+
+    config_path = _find_config_path(checkpoint_path, options.hydra_config_filenames)
+    info.config_path = config_path
+
+    # Extract creation timestamp from experiment directory
+    info.created_timestamp = _extract_creation_timestamp(checkpoint_path)
+
+    # Extract hmean score from checkpoint (lightweight extraction)
+    info.hmean = _extract_hmean(checkpoint_path)
+
+    return info
 
 
 def _parse_epoch(filename: str) -> int | None:
@@ -309,9 +358,12 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
 
     state_dict = checkpoint.get("state_dict") or checkpoint.get("model_state_dict") or checkpoint
 
+    # Handle _orig_mod prefix from JIT-compiled models
+    prefix = "model._orig_mod." if any(key.startswith("model._orig_mod.") for key in state_dict.keys()) else "model."
+
     # Try UNet-style decoder first (most common)
     decoder_found = False
-    for key in ("model.decoder.outers.0.0.weight", "model.decoder.outers.0.weight"):
+    for key in (f"{prefix}decoder.outers.0.0.weight", f"{prefix}decoder.outers.0.weight"):
         if key in state_dict:
             weight = state_dict[key]
             decoder_sig.output_channels = int(weight.shape[0])
@@ -320,23 +372,46 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
             break
 
     if not decoder_found:
-        # Try PAN decoder structure
-        pan_key = "model.decoder.bottom_up.0.0.weight"
-        if pan_key in state_dict:
-            weight = state_dict[pan_key]
-            decoder_sig.output_channels = int(weight.shape[0])
-            decoder_sig.inner_channels = int(weight.shape[1])
-            decoder_found = True
+        # Try PAN decoder structure (bottom_up layers)
+        pan_keys = [
+            f"{prefix}decoder.bottom_up.0.depthwise.weight",
+            f"{prefix}decoder.bottom_up.0.pointwise.weight",
+            f"{prefix}decoder.bottom_up.0.0.weight",
+        ]
+        for pan_key in pan_keys:
+            if pan_key in state_dict:
+                weight = state_dict[pan_key]
+                # For depthwise conv, input channels are output channels
+                # For pointwise conv, input channels are from weight.shape[1]
+                if "depthwise" in pan_key:
+                    decoder_sig.output_channels = int(weight.shape[0])
+                    decoder_sig.inner_channels = int(weight.shape[0])  # Same for depthwise
+                else:
+                    decoder_sig.output_channels = int(weight.shape[0])
+                    decoder_sig.inner_channels = int(weight.shape[1])
+                decoder_found = True
+                # For PAN decoders, extract in_channels from lateral convs
+                in_channels: list[int] = []
+                index = 0
+                while True:
+                    lateral_key = f"{prefix}decoder.lateral_convs.{index}.0.weight"
+                    if lateral_key not in state_dict:
+                        break
+                    lateral_weight = state_dict[lateral_key]
+                    in_channels.append(int(lateral_weight.shape[1]))  # Input channels to lateral conv
+                    index += 1
+                decoder_sig.in_channels = in_channels
+                break
 
     if not decoder_found:
-        # Try FPN decoder structure (used by mobilenetv3_small_050 checkpoints)
-        fpn_fusion_key = "model.decoder.fusion.0.weight"
+        # Try FPN decoder structure (used by mobilenetv3_small_050 and dbnetpp checkpoints)
+        fpn_fusion_key = f"{prefix}decoder.fusion.0.weight"
         if fpn_fusion_key in state_dict:
             fusion_weight = state_dict[fpn_fusion_key]
             decoder_sig.output_channels = int(fusion_weight.shape[0])  # Output channels from fusion
             # For FPN, inner_channels is the output channels of lateral convs (typically 256)
             # Check first lateral conv output channels
-            first_lateral_key = "model.decoder.lateral_convs.0.0.weight"
+            first_lateral_key = f"{prefix}decoder.lateral_convs.0.0.weight"
             if first_lateral_key in state_dict:
                 lateral_weight = state_dict[first_lateral_key]
                 decoder_sig.inner_channels = int(lateral_weight.shape[0])  # Output channels of lateral conv
@@ -348,7 +423,7 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
             in_channels: list[int] = []
             index = 0
             while True:
-                lateral_key = f"model.decoder.lateral_convs.{index}.0.weight"
+                lateral_key = f"{prefix}decoder.lateral_convs.{index}.0.weight"
                 if lateral_key not in state_dict:
                     break
                 lateral_weight = state_dict[lateral_key]
@@ -361,7 +436,7 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
         unet_in_channels: list[int] = []
         index = 0
         while True:
-            weight_key = f"model.decoder.inners.{index}.weight"
+            weight_key = f"{prefix}decoder.inners.{index}.weight"
             if weight_key not in state_dict:
                 break
             weight = state_dict[weight_key]
@@ -371,8 +446,8 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
 
     # Head signature - try multiple possible head structures
     head_keys = [
-        "model.head.binarize.0.weight",  # DBHead
-        "model.head.0.weight",  # Other head types
+        f"{prefix}head.binarize.0.weight",  # DBHead
+        f"{prefix}head.0.weight",  # Other head types
     ]
     for head_key in head_keys:
         if head_key in state_dict:

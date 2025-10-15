@@ -2,7 +2,71 @@
 
 This directory contains various utility scripts and tools for the OCR project.
 
+## Quick Reference
+
+### Checkpoint Migration
+Migrate existing checkpoints to the new naming scheme:
+```bash
+# Dry run (preview changes)
+python scripts/migrate_checkpoints.py --dry-run --verbose
+
+# Migrate and cleanup (delete early epochs)
+python scripts/migrate_checkpoints.py --delete-old
+```
+
+See `docs/CHECKPOINT_MIGRATION_GUIDE.md` for details.
+
+### UI Schema Validation
+Validate the UI inference compatibility schema:
+```bash
+# Validate schema correctness
+python scripts/validate_ui_schema.py
+```
+
+See `docs/UI_INFERENCE_COMPATIBILITY_SCHEMA.md` for details.
+
+---
+
 ## Organization
+
+### Root Scripts
+
+#### `migrate_checkpoints.py` ⭐ NEW
+Migrate checkpoints to the new hierarchical naming scheme.
+
+**Features:**
+- Rename checkpoints: `epoch_epoch_XX_...` → `epoch-XX_step-XXXXXX.ckpt`
+- Delete early-epoch checkpoints (configurable threshold)
+- Dry-run mode for safe preview
+- Detailed reporting and statistics
+
+**Usage:**
+```bash
+# Preview changes
+python migrate_checkpoints.py --dry-run
+
+# Apply changes
+python migrate_checkpoints.py --delete-old --keep-min-epoch 10
+```
+
+See `docs/CHECKPOINT_MIGRATION_GUIDE.md` for full documentation.
+
+#### `validate_ui_schema.py` ⭐ NEW
+Validate the UI inference compatibility schema.
+
+**Features:**
+- Validate schema YAML syntax
+- Check for required fields in each model family
+- Verify encoder, decoder, and head configurations
+- Report errors and warnings
+
+**Usage:**
+```bash
+# Validate schema
+python validate_ui_schema.py
+```
+
+See `docs/UI_INFERENCE_COMPATIBILITY_SCHEMA.md` for full documentation.
 
 ### `agent_tools/`
 Scripts and tools for AI agent integration and automation.

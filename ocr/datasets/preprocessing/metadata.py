@@ -53,6 +53,12 @@ class DocumentMetadata(BaseModel):
     orientation: dict[str, Any] | None = Field(default=None, description="Orientation detection results and metadata")
     error: str | None = Field(default=None, description="Error message if processing failed")
 
+    # Intermediate images for debugging
+    image_after_document_detection: np.ndarray | None = Field(default=None, description="Image after document detection")
+    image_after_orientation_correction: np.ndarray | None = Field(default=None, description="Image after orientation correction")
+    image_after_perspective_correction: np.ndarray | None = Field(default=None, description="Image after perspective correction")
+    image_after_enhancement: np.ndarray | None = Field(default=None, description="Image after enhancement")
+
     @field_validator("original_shape", mode="before")
     @classmethod
     def validate_original_shape(cls, v: Any) -> ImageShape | tuple[int, ...]:
@@ -131,6 +137,16 @@ class DocumentMetadata(BaseModel):
             data["error"] = self.error
         if self.final_shape is not None:
             data["final_shape"] = self.final_shape
+
+        # Add intermediate images for debugging
+        if self.image_after_document_detection is not None:
+            data["image_after_document_detection"] = self.image_after_document_detection
+        if self.image_after_orientation_correction is not None:
+            data["image_after_orientation_correction"] = self.image_after_orientation_correction
+        if self.image_after_perspective_correction is not None:
+            data["image_after_perspective_correction"] = self.image_after_perspective_correction
+        if self.image_after_enhancement is not None:
+            data["image_after_enhancement"] = self.image_after_enhancement
 
         return data
 

@@ -1,20 +1,38 @@
 # https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html
+#
+# Enhanced checkpoint naming scheme for better organization and clarity
+# Structure: <experiment_tag>-<model>_<phase>_<timestamp>/checkpoints/<type>-<epoch>_<step>_<metric>.ckpt
+#
+# Example checkpoint names:
+#   - Epoch: epoch-03_step-000103.ckpt
+#   - Last:  last.ckpt
+#   - Best:  best-hmean-0.8920.ckpt
+#
+# Directory structure:
+#   outputs/ocr_pl_refactor_phase1-resnet18_training_20251015_120000/checkpoints/
 
 model_checkpoint:
   _target_: ocr.lightning_modules.callbacks.unique_checkpoint.UniqueModelCheckpoint
   dirpath: ${paths.checkpoint_dir} # directory to save the model file
-  # The `filename` template is now primarily used to identify "best" checkpoints.
-  # Our custom code handles the actual naming structure.
-  filename: "{val/hmean:.4f}-best"
+
+  # Experiment identification
+  experiment_tag: ${oc.env:EXPERIMENT_TAG,${exp_name}} # Unique experiment identifier
+  training_phase: "training" # Stage: training, validation, finetuning, etc.
+  add_timestamp: true # Add timestamp to directory structure for uniqueness
+
+  # Checkpoint naming template (used for type determination)
+  # The actual naming is handled by the callback using the hierarchical scheme
+  filename: "best" # Template for best checkpoints
+
+  # Monitoring and saving configuration
   monitor: "val/hmean" # name of the logged metric which determines when model is improving
   verbose: True # verbosity mode - set to True to see when checkpoints are saved
   save_last: true # additionally always save an exact copy of the last checkpoint to a file last.ckpt
   save_top_k: 3 # save k best models (determined by above metric) - increased to keep more best models
   mode: "max" # "max" means higher metric value is better, can be also "min"
-  auto_insert_metric_name: True # Our new code uses this flag to add the metric
+  auto_insert_metric_name: True # Add metric name and value to checkpoint filename
   save_weights_only: False # if True, then only the model's weights will be saved
   every_n_train_steps: null # number of training steps between checkpoints
   train_time_interval: null # checkpoints are monitored at the specified time interval
   every_n_epochs: 1 # number of epochs between checkpoints - ensure we save checkpoints every epoch
   save_on_train_epoch_end: False # whether to run checkpointing at the end of the training epoch or the end of validation
-  add_timestamp: true

@@ -29,7 +29,7 @@ class ConfigParser:
         else:
             self.config_dir = Path(config_dir)
 
-        self._cache = {}
+        self._cache: dict[str, Any] = {}
 
     def get_available_models(self) -> dict[str, list[str]]:
         """Get available model components (encoders, decoders, heads, losses).
@@ -40,7 +40,7 @@ class ConfigParser:
         if "models" in self._cache:
             return self._cache["models"]
 
-        models = {
+        models: dict[str, list[str]] = {
             "encoders": [],
             "decoders": [],
             "heads": [],
@@ -309,7 +309,7 @@ class ConfigParser:
         if "datasets" in self._cache:
             return self._cache["datasets"]
 
-        datasets = []
+        datasets: list[str] = []
         dataset_dir = self.config_dir / "data"
 
         if dataset_dir.exists():

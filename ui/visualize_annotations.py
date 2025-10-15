@@ -74,7 +74,7 @@ def draw_bounding_boxes(image_path: str, annotations: dict, max_boxes: int = 20)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
     except OSError:
-        font = ImageFont.load_default()
+        font = ImageFont.load_default()  # type: ignore[assignment]
 
     colors = [
         (255, 0, 0),
