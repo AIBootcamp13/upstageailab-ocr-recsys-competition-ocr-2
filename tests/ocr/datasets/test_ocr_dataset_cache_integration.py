@@ -660,7 +660,7 @@ class TestPerformanceBenchmarks:
             # Second access should be significantly faster due to caching
             print(f"First access time: {first_access_time:.4f}s")
             print(f"Second access time: {second_access_time:.4f}s")
-            print(f"Speedup: {first_access_time/second_access_time:.2f}x" if second_access_time > 0 else "N/A")
+            print(f"Speedup: {first_access_time / second_access_time:.2f}x" if second_access_time > 0 else "N/A")
 
             # Verify that caching actually happened
             assert len(dataset_with_caching.cache_manager.tensor_cache) == len(dataset_with_caching)

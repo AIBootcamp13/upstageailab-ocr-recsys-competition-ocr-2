@@ -25,9 +25,9 @@ def demo_flattening_on_image(image_path: str, output_dir: str = "/tmp/flattening
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # Load image
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"Processing: {Path(image_path).name}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     image = cv2.imread(image_path)
     if image is None:

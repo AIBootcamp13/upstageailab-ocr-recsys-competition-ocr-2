@@ -176,9 +176,9 @@ class TestValidationPerformance:
         else:
             # Use absolute threshold
             max_time = thresholds["validation"]["max_time_seconds"]
-            assert (
-                actual_time <= max_time
-            ), f"Validation time exceeds absolute limit!\n  Current: {actual_time:.2f}s\n  Limit:   {max_time:.2f}s"
+            assert actual_time <= max_time, (
+                f"Validation time exceeds absolute limit!\n  Current: {actual_time:.2f}s\n  Limit:   {max_time:.2f}s"
+            )
 
     def test_batch_time_variance(self, dummy_model, dummy_dataloader, thresholds, tmp_path):
         """Test that batch time variance is acceptable."""
@@ -247,9 +247,9 @@ class TestMemoryUsage:
         max_pct = thresholds["memory"]["max_gpu_memory_pct"]
         max_gb = thresholds["memory"]["max_gpu_memory_gb"]
 
-        assert (
-            gpu_memory_pct <= max_pct
-        ), f"GPU memory usage exceeds limit!\n  Current: {gpu_memory_pct:.1f}% ({gpu_memory_gb:.2f}GB)\n  Limit:   {max_pct}% ({max_gb}GB)"
+        assert gpu_memory_pct <= max_pct, (
+            f"GPU memory usage exceeds limit!\n  Current: {gpu_memory_pct:.1f}% ({gpu_memory_gb:.2f}GB)\n  Limit:   {max_pct}% ({max_gb}GB)"
+        )
 
     def test_cpu_memory_within_limit(self, dummy_model, dummy_dataloader, thresholds, tmp_path):
         """Test that CPU memory usage stays within limits."""

@@ -234,7 +234,7 @@ def generate_comparison_report(run1_metrics, run2_metrics, run3_metrics, compari
     )
 
     # Performance comparison
-    if any(analyses[f"run{i+1}"]["has_performance_profiling"] for i in range(3)):
+    if any(analyses[f"run{i + 1}"]["has_performance_profiling"] for i in range(3)):
         report_lines.extend(
             [
                 "## Validation Performance Comparison",

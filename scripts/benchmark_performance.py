@@ -151,7 +151,7 @@ def print_results(results: list):
         print(f"{'=' * 80}")
         print(f"  Baseline Time:   {baseline['elapsed_time']:.2f}s")
         print(f"  Optimized Time:  {optimized['elapsed_time']:.2f}s")
-        print(f"  Time Saved:      {time_saved:.2f}s ({time_saved/baseline['elapsed_time']*100:.1f}%)")
+        print(f"  Time Saved:      {time_saved:.2f}s ({time_saved / baseline['elapsed_time'] * 100:.1f}%)")
         print(f"  Speedup:         {speedup:.2f}x")
         print(f"{'=' * 80}\n")
 

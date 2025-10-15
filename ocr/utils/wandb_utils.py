@@ -12,9 +12,8 @@ from typing import Any
 import cv2
 import numpy as np
 import torch
-from omegaconf import DictConfig
-
 import wandb
+from omegaconf import DictConfig
 
 
 def load_env_variables():

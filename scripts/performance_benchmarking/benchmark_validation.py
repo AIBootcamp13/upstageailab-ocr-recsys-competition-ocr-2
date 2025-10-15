@@ -20,9 +20,9 @@ def run_validation(with_preload=True):
         config_override,
     ]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running validation with preload_maps={with_preload}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     start = time.time()
     result = subprocess.run(cmd, capture_output=False)
@@ -52,13 +52,13 @@ def main():
     # Results
     if time_no_preload and time_with_preload:
         speedup = time_no_preload / time_with_preload
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("BENCHMARK RESULTS")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Without RAM preloading: {time_no_preload:.2f}s")
         print(f"With RAM preloading:    {time_with_preload:.2f}s")
         print(f"Speedup:                {speedup:.2f}x")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         if speedup < 1.5:
             print("⚠️  Speedup is less than 1.5x. The bottleneck may be elsewhere.")

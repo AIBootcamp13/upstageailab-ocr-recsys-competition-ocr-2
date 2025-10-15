@@ -27,9 +27,9 @@ from typing import Any
 
 import hydra
 import lightning.pytorch as pl
+import wandb
 from omegaconf import DictConfig, OmegaConf
 
-import wandb
 from ocr.lightning_modules import get_pl_modules_by_cfg
 from ocr.utils.path_utils import get_path_resolver
 
