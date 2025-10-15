@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 
 def test_cache_statistics():
     """Test that the cache statistics tracking is implemented correctly."""
-    from ocr.datasets.base import OCRDataset
+    from ocr.datasets.base import Dataset as OCRDataset
 
     # Check that the class has the new methods and attributes
     assert hasattr(OCRDataset, "log_cache_statistics"), "Missing log_cache_statistics method"

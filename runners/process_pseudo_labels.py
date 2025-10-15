@@ -96,7 +96,7 @@ class CLEvalAnnotationConverter:
     @staticmethod
     def convert_response_to_cleval(api_response: dict, image_filename: str) -> dict:
         """Convert Upstage API response to CLEval annotation format"""
-        annotations = []
+        annotations: list[dict] = []
 
         if "elements" not in api_response:
             logger.warning(f"No elements found in API response for {image_filename}")

@@ -40,7 +40,7 @@ def inspect_dataset_pipeline():
     """Inspect the actual dataset pipeline to see what types are being used"""
     print("\n=== Inspecting Dataset Pipeline ===")
 
-    from ocr.datasets.base import OCRDataset
+    from ocr.datasets.base import Dataset as OCRDataset
 
     # Mock image loading config
     image_loading_config = {"use_turbojpeg": False, "turbojpeg_fallback": True}

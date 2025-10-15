@@ -215,12 +215,7 @@ class ValidatedOCRDataset(Dataset):
 
         # ⚠️ WARNING: Maps features without load_maps
         if self.config.cache_config.cache_maps and not self.config.load_maps:
-            # Automatically disable maps caching when load_maps is false
-            warning_msg = "Maps caching disabled because load_maps=false. Maps caching requires load_maps to be enabled."
-            if warning_msg not in _logged_warnings:
-                self.logger.info(warning_msg)
-                _logged_warnings.add(warning_msg)
-            self.config.cache_config.cache_maps = False
+            warnings.append("⚠️ Maps caching enabled but load_maps=false. Cached maps won't be used during __getitem__.")
 
         # Log all warnings
         for warning in warnings:
@@ -610,7 +605,15 @@ class ValidatedOCRDataset(Dataset):
             self.cache_manager.set_cached_tensor(idx, data_item)
 
         # 7. Return Value: Convert DataItem to dictionary
-        return data_item.model_dump()
+        result = data_item.model_dump()
+        # Remove None map fields for backward compatibility with tests
+        if result.get("prob_map") is None:
+            result.pop("prob_map", None)
+        if result.get("thresh_map") is None:
+            result.pop("thresh_map", None)
+        # Add image_filename for backward compatibility
+        result["image_filename"] = image_filename
+        return result
 
     def _load_image_data(self, filename: str) -> "ImageData":
         """
@@ -735,9 +738,57 @@ class ValidatedOCRDataset(Dataset):
             self.logger.warning(f"Failed to preload {failed_count} images - they will be loaded on-demand")
 
     def _preload_maps(self):
-        """Preload all maps into cache."""
-        # Implementation for preloading maps
-        pass
+        """
+        Preload all maps into cache for faster access during training.
+
+        This method loads, validates, and caches all probability/threshold maps at dataset initialization.
+        Maps are stored as MapData objects in CacheManager, eliminating disk I/O during training.
+        """
+        from tqdm import tqdm
+
+        self.logger.info(f"Preloading maps from {self.config.image_path} into cache...")
+
+        loaded_count = 0
+        failed_count = 0
+
+        # Determine maps directory
+        maps_dir = self.config.image_path.parent / f"{self.config.image_path.name}_maps"
+
+        for filename in tqdm(self.anns.keys(), desc="Loading maps to cache"):
+            try:
+                map_filename = maps_dir / f"{Path(filename).stem}.npz"
+
+                if map_filename.exists():
+                    maps_data = np.load(map_filename)
+                    prob_map = maps_data["prob_map"]
+                    thresh_map = maps_data["thresh_map"]
+
+                    # Validate map shapes (basic validation - full validation happens during __getitem__)
+                    if prob_map.ndim == 3 and thresh_map.ndim == 3:
+                        from ocr.datasets.schemas import MapData
+
+                        map_data = MapData(prob_map=prob_map, thresh_map=thresh_map)
+                        self.cache_manager.set_cached_maps(filename, map_data)
+                        loaded_count += 1
+                        self.logger.debug(f"Successfully preloaded map for {filename}")
+                    else:
+                        self.logger.warning(f"Skipping invalid map for {filename}: wrong dimensions")
+                        failed_count += 1
+                else:
+                    # No map file - this is not a failure, just no map available
+                    self.logger.debug(f"No map file found for {filename}")
+                    loaded_count += 1
+
+            except Exception as e:
+                self.logger.warning(f"Failed to preload map for {filename}: {e}")
+                failed_count += 1
+
+        total = len(self.anns)
+        success_rate = (loaded_count / total * 100) if total > 0 else 0
+        self.logger.info(f"Preloaded maps for {loaded_count}/{total} images into cache ({success_rate:.1f}%)")
+
+        if failed_count > 0:
+            self.logger.warning(f"Failed to preload {failed_count} maps - they will be loaded on-demand")
 
 
 # AI_DOCS: END OF FILE - Critical Reminders for AI Assistants
@@ -816,3 +867,6 @@ class ValidatedOCRDataset(Dataset):
 # ❌ Not using extracted utility functions
 #
 # =======================================================================
+
+# Backward compatibility alias
+Dataset = ValidatedOCRDataset

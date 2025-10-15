@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets.base import Dataset as OCRDataset
+from ocr.datasets.schemas import DatasetConfig
 
 
 class TestOCRDataset:
@@ -57,7 +58,8 @@ class TestOCRDataset:
 
         # Create dataset
         transform = Mock()
-        dataset = OCRDataset(temp_dir, annotation_path, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=annotation_path)
+        dataset = OCRDataset(config, transform)
 
         # Verify dataset properties
         assert len(dataset) == 2  # image1.jpg and image2.jpg
@@ -67,6 +69,7 @@ class TestOCRDataset:
 
         # Verify polygons for image1
         polygons = dataset.anns["image1.jpg"]
+        assert polygons is not None
         assert len(polygons) == 2
         assert isinstance(polygons[0], np.ndarray)
         # Raw annotations are stored as (N, 2) arrays, batch dimension added during processing
@@ -78,7 +81,8 @@ class TestOCRDataset:
     def test_dataset_without_annotations(self, temp_dir, create_sample_images):
         """Test dataset loading without annotation file."""
         transform = Mock()
-        dataset = OCRDataset(temp_dir, None, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=None)
+        dataset = OCRDataset(config, transform)
 
         # Should include all images
         assert len(dataset) == 3
@@ -100,7 +104,8 @@ class TestOCRDataset:
             "inverse_matrix": np.eye(3),
         }
 
-        dataset = OCRDataset(temp_dir, annotation_path, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=annotation_path)
+        dataset = OCRDataset(config, transform)
 
         # Get first item
         result = dataset[0]
@@ -128,7 +133,8 @@ class TestOCRDataset:
             json.dump(annotations, f)
 
         transform = Mock()
-        dataset = OCRDataset(temp_dir, annotation_path, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=annotation_path)
+        dataset = OCRDataset(config, transform)
 
         # Should be empty since image doesn't exist
         assert len(dataset) == 0
@@ -152,10 +158,12 @@ class TestOCRDataset:
             json.dump(annotations, f)
 
         transform = Mock()
-        dataset = OCRDataset(temp_dir, annotation_path, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=annotation_path)
+        dataset = OCRDataset(config, transform)
 
         # Should have only one polygon (word2)
         polygons = dataset.anns["image1.jpg"]
+        assert polygons is not None
         assert len(polygons) == 1
 
     def test_image_extensions(self, temp_dir):
@@ -168,7 +176,8 @@ class TestOCRDataset:
             img.save(img_path)
 
         transform = Mock()
-        dataset = OCRDataset(temp_dir, None, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=None)
+        dataset = OCRDataset(config, transform)
 
         # Should find all three images
         assert len(dataset) == 3
@@ -183,7 +192,8 @@ class TestOCRDataset:
         img.save(img_path)
 
         transform = Mock()
-        dataset = OCRDataset(temp_dir, None, transform)
+        config = DatasetConfig(image_path=temp_dir, annotation_path=None)
+        dataset = OCRDataset(config, transform)
 
         # Should find the image
         assert len(dataset) == 1

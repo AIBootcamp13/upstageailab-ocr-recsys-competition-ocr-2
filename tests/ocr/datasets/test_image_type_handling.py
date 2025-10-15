@@ -11,7 +11,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets.base import Dataset as OCRDataset
+from ocr.datasets.schemas import DatasetConfig
 
 
 class TestImageTypeHandling:
@@ -34,11 +35,8 @@ class TestImageTypeHandling:
         annotation_path = tmp_path / "annotations.json"
         annotation_path.write_text('{"images": [], "annotations": []}')
 
-        return OCRDataset(
-            image_path=str(tmp_path),
-            annotation_path=str(annotation_path),
-            transform=mock_transform,
-        )
+        config = DatasetConfig(image_path=tmp_path, annotation_path=annotation_path)
+        return OCRDataset(config, mock_transform)
 
     def test_pil_image_size_extraction(self):
         """Test that PIL Image.size returns (width, height)."""

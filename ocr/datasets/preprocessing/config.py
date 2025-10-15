@@ -8,8 +8,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 try:
     from omegaconf import ListConfig
+
+    _list_config_type = ListConfig
 except ImportError:
-    ListConfig = None
+    _list_config_type = None
 
 
 class EnhancementMethod(str, Enum):
@@ -77,7 +79,7 @@ class DocumentPreprocessorConfig(BaseModel):
         if v is None:
             return None
         # Handle OmegaConf ListConfig
-        if ListConfig is not None and isinstance(v, ListConfig):
+        if _list_config_type is not None and isinstance(v, _list_config_type):
             v = list(v)
         if isinstance(v, list | tuple) and len(v) == 2:
             width, height = v

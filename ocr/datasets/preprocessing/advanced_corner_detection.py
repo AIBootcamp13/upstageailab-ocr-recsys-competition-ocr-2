@@ -180,7 +180,9 @@ class AdvancedCornerDetector:
 
         # Calculate confidence as ratio of strong corners
         strong_corners = harris_response[corner_mask]
-        confidence = float(len(strong_corners) / max(1, np.prod(gray.shape) * 0.001))  # Normalize
+        total_pixels = float(np.prod(gray.shape))
+        denom = max(1.0, total_pixels * 0.001)
+        confidence = float(len(strong_corners) / denom)  # Normalize
 
         return corner_coords[:, ::-1], min(confidence, 1.0)  # Flip to (x, y)
 

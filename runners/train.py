@@ -156,6 +156,10 @@ def train(config: DictConfig):
     except Exception as e:
         print(f"Warning: failed to ensure output directories exist: {e}")
 
+    from lightning.pytorch.loggers import Logger
+
+    logger: Logger
+
     if config.logger.wandb:
         from lightning.pytorch.loggers import WandbLogger as Logger  # noqa: E402
         from omegaconf import OmegaConf  # noqa: E402

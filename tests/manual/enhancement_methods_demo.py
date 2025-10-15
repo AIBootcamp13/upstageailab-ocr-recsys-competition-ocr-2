@@ -41,7 +41,6 @@ def test_enhancement_methods_on_image(image_path):
         enable_document_detection=False,
         enable_perspective_correction=False,
         enable_enhancement=True,
-        enable_text_enhancement=False,
         enhancement_method="conservative",
         target_size=(640, 640),
     )
@@ -54,7 +53,6 @@ def test_enhancement_methods_on_image(image_path):
         enable_document_detection=False,
         enable_perspective_correction=False,
         enable_enhancement=True,
-        enable_text_enhancement=False,
         enhancement_method="office_lens",
         target_size=(640, 640),
     )

@@ -102,9 +102,10 @@ class OCRPLModule(pl.LightningModule):
             # Silently ignore if we can't determine the preset
             pass
 
-    def load_state_dict(self, state_dict, strict: bool = True):
+    def load_state_dict(self, state_dict, strict: bool = True, assign: bool = False):
         """Load state dict with fallback handling for different checkpoint formats."""
-        return load_state_dict_with_fallback(self, state_dict, strict=strict)
+        missing, unexpected = load_state_dict_with_fallback(self, state_dict, strict=strict)
+        return missing
 
     def forward(self, x):
         return self.model(return_loss=False, **x)

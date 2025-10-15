@@ -49,7 +49,7 @@ def run_override_tests() -> dict[str, list[tuple[str, bool, str]]]:
     Returns:
         Dictionary mapping test categories to list of (description, success, error) tuples
     """
-    test_results = {}
+    test_results: dict[str, list[tuple[str, bool, str]]] = {}
 
     # Test basic overrides
     basic_tests = [

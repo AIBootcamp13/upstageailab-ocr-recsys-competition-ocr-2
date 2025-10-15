@@ -16,7 +16,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets.base import Dataset as OCRDataset
 from ocr.datasets.db_collate_fn import DBCollateFN
 from ocr.models.head.db_head import DBHead
 from ocr.models.loss.db_loss import DBLoss

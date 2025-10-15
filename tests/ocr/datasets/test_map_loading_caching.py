@@ -17,7 +17,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets.base import Dataset as OCRDataset
+from ocr.datasets.schemas import DatasetConfig, MapData
 
 
 class TestMapLoadingCaching:
@@ -52,8 +53,11 @@ class TestMapLoadingCaching:
     def simple_transform(self):
         """Create a simple transform for testing."""
 
-        def transform(image, polygons):
+        def transform(transform_input):
             import torch
+
+            image = transform_input.image
+            polygons = transform_input.polygons
 
             if isinstance(image, Image.Image):
                 image = np.array(image)
@@ -66,7 +70,13 @@ class TestMapLoadingCaching:
             if len(image.shape) == 3:
                 image = image.permute(2, 0, 1)
 
-            return {"image": image, "polygons": polygons, "inverse_matrix": np.eye(3)}
+            # Extract polygon points if polygons exist
+            polygon_points = []
+            if polygons:
+                for poly in polygons:
+                    polygon_points.append(poly.points)
+
+            return {"image": image, "polygons": polygon_points, "inverse_matrix": np.eye(3)}
 
         return transform
 
@@ -78,9 +88,8 @@ class TestMapLoadingCaching:
         maps_dir.rmdir()
 
         # Create dataset with preload_maps=True
-        dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=True, load_maps=False
-        )
+        config = DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=True, load_maps=False)
+        dataset = OCRDataset(config=config, transform=simple_transform)
 
         # Should not crash, should log warning and continue
         assert len(dataset.maps_cache) == 0
@@ -95,9 +104,8 @@ class TestMapLoadingCaching:
             f.write("This is not a valid npz file")
 
         # Create dataset with preload_maps=True
-        dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=True, load_maps=False
-        )
+        config = DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=True, load_maps=False)
+        dataset = OCRDataset(config=config, transform=simple_transform)
 
         # Should handle corruption gracefully - corrupted file should not be in cache
         assert "test.jpg" not in dataset.maps_cache
@@ -131,9 +139,13 @@ class TestMapLoadingCaching:
             json.dump(annotations, f)
 
         # Create dataset with preload_maps=True
-        dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=True, load_maps=False
+        from ocr.datasets.schemas import CacheConfig
+
+        cache_config = CacheConfig(cache_maps=True)
+        config = DatasetConfig(
+            image_path=images_dir, annotation_path=anno_file, preload_maps=True, load_maps=False, cache_config=cache_config
         )
+        dataset = OCRDataset(config=config, transform=simple_transform)
 
         # Should load valid map but skip corrupted one
         assert "test.jpg" in dataset.maps_cache
@@ -147,9 +159,8 @@ class TestMapLoadingCaching:
         # Don't create any map files
 
         # Create dataset with load_maps=True
-        dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
-        )
+        config = DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True)
+        dataset = OCRDataset(config=config, transform=simple_transform)
 
         # Get item - should not crash even though map file is missing
         item = dataset[0]
@@ -168,9 +179,8 @@ class TestMapLoadingCaching:
             f.write("corrupted data")
 
         # Create dataset with load_maps=True
-        dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
-        )
+        config = DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True)
+        dataset = OCRDataset(config=config, transform=simple_transform)
 
         # Get item - should handle corruption gracefully
         item = dataset[0]
@@ -190,7 +200,8 @@ class TestMapLoadingCaching:
 
         # Create dataset with load_maps=True
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Get item
@@ -213,13 +224,15 @@ class TestMapLoadingCaching:
 
         # Create dataset and manually set cache to different values
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Manually set cache to different values
         cache_prob_map = np.zeros((1, 100, 100), dtype=np.float32)
         cache_thresh_map = np.zeros((1, 100, 100), dtype=np.float32)
-        dataset.maps_cache["test.jpg"] = {"prob_map": cache_prob_map, "thresh_map": cache_thresh_map}
+        map_data = MapData(prob_map=cache_prob_map, thresh_map=cache_thresh_map)
+        dataset.maps_cache["test.jpg"] = map_data
 
         # Get item - should use cached version, not disk version
         item = dataset[0]
@@ -244,7 +257,8 @@ class TestMapLoadingCaching:
 
         # Create dataset with load_maps=True
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Get item - should handle the exception gracefully
@@ -265,7 +279,8 @@ class TestMapLoadingCaching:
 
         # Create dataset with load_maps=True
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Get item - should reject invalid map
@@ -286,7 +301,8 @@ class TestMapLoadingCaching:
 
         # Create dataset with load_maps=True
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Get item - should reject map with wrong dimensions
@@ -307,7 +323,8 @@ class TestMapLoadingCaching:
 
         # Create dataset with load_maps=True
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Get item - should accept valid map
@@ -333,7 +350,8 @@ class TestMapLoadingCaching:
 
         # Create dataset and get the sample
         dataset = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=False
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=False),
+            transform=simple_transform,
         )
 
         sample = dataset[0]
@@ -353,7 +371,8 @@ class TestMapLoadingCaching:
 
         # Create new dataset that loads maps
         dataset_with_maps = OCRDataset(
-            image_path=str(images_dir), annotation_path=str(anno_file), transform=simple_transform, preload_maps=False, load_maps=True
+            config=DatasetConfig(image_path=images_dir, annotation_path=anno_file, preload_maps=False, load_maps=True),
+            transform=simple_transform,
         )
 
         # Load the cached maps

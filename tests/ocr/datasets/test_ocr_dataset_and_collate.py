@@ -1,14 +1,16 @@
 import os
 import tempfile
 from collections import OrderedDict
+from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
 import torch
 from PIL import Image
 
-from ocr.datasets.base import OCRDataset
+from ocr.datasets.base import Dataset as OCRDataset
 from ocr.datasets.db_collate_fn import DBCollateFN
+from ocr.datasets.schemas import DatasetConfig
 
 
 def test_ocr_dataset_initialization():
@@ -24,7 +26,8 @@ def test_ocr_dataset_initialization():
         transform.return_value = {"image": torch.rand(3, 100, 100), "polygons": [], "inverse_matrix": np.eye(3)}
 
         # Test initialization without annotations
-        dataset = OCRDataset(image_path=temp_dir, annotation_path=None, transform=transform)
+        config = DatasetConfig(image_path=Path(temp_dir), annotation_path=None)
+        dataset = OCRDataset(config, transform)
         assert len(dataset) == 1
         assert list(dataset.anns.keys())[0] == "test.jpg"
 
@@ -33,7 +36,7 @@ def test_ocr_dataset_initialization():
         with open(ann_path, "w") as f:
             f.write('{"images": {"test.jpg": {"words": {"word1": {"points": [[10, 10], [20, 10], [20, 20], [10, 20]]}}}}}')
 
-        dataset_with_anns = OCRDataset(image_path=temp_dir, annotation_path=ann_path, transform=transform)
+        dataset_with_anns = OCRDataset(DatasetConfig(image_path=Path(temp_dir), annotation_path=Path(ann_path)), transform)
         assert len(dataset_with_anns) == 1
 
 
@@ -64,7 +67,8 @@ def test_ocr_dataset_getitem_map_loading():
         transform.return_value = {"image": torch.rand(3, 100, 200), "polygons": [], "inverse_matrix": np.eye(3)}
 
         # Create dataset with image path that contains maps
-        dataset = OCRDataset(image_path=sub_dir, annotation_path=None, transform=transform, load_maps=True)
+        config = DatasetConfig(image_path=Path(sub_dir), annotation_path=None, load_maps=True)
+        dataset = OCRDataset(config, transform)
 
         # Get item and check if maps were loaded
         item = dataset[0]
@@ -87,7 +91,8 @@ def test_ocr_dataset_getitem_fallback():
         transform.return_value = {"image": torch.rand(3, 100, 100), "polygons": [], "inverse_matrix": np.eye(3)}
 
         # Create dataset with image path that does not contain maps
-        dataset = OCRDataset(image_path=temp_dir, annotation_path=None, transform=transform)
+        config = DatasetConfig(image_path=Path(temp_dir), annotation_path=None)
+        dataset = OCRDataset(config, transform)
 
         # Get item and check that maps are not loaded
         item = dataset[0]

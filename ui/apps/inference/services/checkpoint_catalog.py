@@ -420,16 +420,16 @@ def _extract_state_signatures(checkpoint_path: Path) -> tuple[DecoderSignature, 
             decoder_found = True
 
             # Extract in_channels from lateral convs
-            in_channels: list[int] = []
+            fpn_in_channels: list[int] = []
             index = 0
             while True:
                 lateral_key = f"{prefix}decoder.lateral_convs.{index}.0.weight"
                 if lateral_key not in state_dict:
                     break
                 lateral_weight = state_dict[lateral_key]
-                in_channels.append(int(lateral_weight.shape[1]))  # Input channels to lateral conv
+                fpn_in_channels.append(int(lateral_weight.shape[1]))  # Input channels to lateral conv
                 index += 1
-            decoder_sig.in_channels = in_channels
+            decoder_sig.in_channels = fpn_in_channels
 
     # Extract in_channels for UNet-style decoders (if not already set by FPN)
     if not decoder_sig.in_channels:

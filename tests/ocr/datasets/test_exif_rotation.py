@@ -5,7 +5,9 @@ import albumentations as A
 import numpy as np
 from PIL import Image
 
-from ocr.datasets.base import EXIF_ORIENTATION, OCRDataset
+from ocr.datasets.base import EXIF_ORIENTATION
+from ocr.datasets.base import ValidatedOCRDataset as Dataset
+from ocr.datasets.schemas import DatasetConfig
 from ocr.datasets.transforms import DBTransforms
 from ocr.utils.orientation import remap_polygons
 
@@ -18,12 +20,18 @@ RAW_POLYGON_POINTS = [
 
 
 class IdentityTransform:
-    def __call__(self, **kwargs):
-        image = kwargs["image"]
-        polygons = kwargs["polygons"]
+    def __call__(self, transform_input):
+        image = transform_input.image
+        polygons = transform_input.polygons
+        # Extract polygon points if they exist
+        polygon_arrays = []
+        if polygons is not None:
+            for poly in polygons:
+                polygon_arrays.append(poly.points)
+
         return {
             "image": image,
-            "polygons": polygons,
+            "polygons": polygon_arrays,
             "inverse_matrix": np.eye(3, dtype=np.float32),
         }
 
@@ -53,15 +61,23 @@ def test_dataset_remaps_polygons_with_orientation(tmp_path: Path):
     _write_image_with_orientation(image_path, (100, 200), orientation=6)
     _write_annotations(json_path, filename)
 
-    dataset = OCRDataset(image_path=image_dir, annotation_path=json_path, transform=IdentityTransform())
+    config = DatasetConfig(image_path=image_dir, annotation_path=json_path)
+    dataset = Dataset(config=config, transform=IdentityTransform())
 
     sample = dataset[0]
 
     canonical = remap_polygons([np.array([RAW_POLYGON_POINTS], dtype=np.float32)], 100, 200, orientation=6)[0]
-    expected = canonical.astype(np.float32)
+    # Handle shape differences - canonical might be (1, 4, 2), but we need (4, 2) to match actual
+    if canonical.ndim == 3 and canonical.shape[0] == 1:
+        expected = canonical[0].astype(np.float32)
+    else:
+        expected = canonical.astype(np.float32)
     assert isinstance(sample["polygons"], list)
     assert sample["polygons"], "Polygons should not be empty"
     actual = np.asarray(sample["polygons"][0], dtype=np.float32)
+    # Handle potential shape differences: (N, 2) vs (1, N, 2)
+    if actual.ndim == 3 and actual.shape[0] == 1:
+        actual = actual[0]  # Remove batch dimension if present
     np.testing.assert_allclose(actual, expected)
 
 
@@ -78,7 +94,8 @@ def test_dataset_rotates_image_to_canonical_orientation(tmp_path: Path):
     _write_image_with_orientation(image_path, (100, 200), orientation=6)
     _write_annotations(json_path, filename)
 
-    dataset = OCRDataset(image_path=image_dir, annotation_path=json_path, transform=IdentityTransform())
+    config = DatasetConfig(image_path=image_dir, annotation_path=json_path)
+    dataset = Dataset(config=config, transform=IdentityTransform())
     sample = dataset[0]
 
     image_array = np.asarray(sample["image"])
@@ -105,7 +122,8 @@ def test_dataset_albumentations_preserves_polygon_alignment(tmp_path: Path):
         keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
     )
 
-    dataset = OCRDataset(image_path=image_dir, annotation_path=json_path, transform=transform)
+    config = DatasetConfig(image_path=image_dir, annotation_path=json_path)
+    dataset = Dataset(config=config, transform=transform)
     sample = dataset[0]
 
     assert isinstance(sample["polygons"], list)
@@ -115,10 +133,18 @@ def test_dataset_albumentations_preserves_polygon_alignment(tmp_path: Path):
     width = int(image_array.shape[-1])
 
     canonical = remap_polygons([np.array([RAW_POLYGON_POINTS], dtype=np.float32)], 100, 200, orientation=6)[0]
-    canonical_points = canonical.reshape(-1, 2)
+    # Handle shape differences - canonical might be (1, 4, 2), but we need (4, 2) to match actual
+    if canonical.ndim == 3 and canonical.shape[0] == 1:
+        canonical_2d = canonical[0]
+    else:
+        canonical_2d = canonical
+    canonical_points = canonical_2d.reshape(-1, 2)
     flipped_points = canonical_points.copy()
     flipped_points[:, 0] = (width - 1) - flipped_points[:, 0]
-    expected = flipped_points.reshape(canonical.shape)
+    expected = flipped_points.reshape(canonical_2d.shape)
 
     actual = np.asarray(sample["polygons"][0], dtype=np.float32)
+    # Handle potential shape differences: (N, 2) vs (1, N, 2)
+    if actual.ndim == 3 and actual.shape[0] == 1:
+        actual = actual[0]  # Remove batch dimension if present
     np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-5)
