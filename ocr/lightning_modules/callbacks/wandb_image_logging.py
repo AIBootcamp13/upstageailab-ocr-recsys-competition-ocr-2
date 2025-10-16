@@ -17,27 +17,48 @@ class WandbImageLoggingCallback(pl.Callback):
     """Callback to log validation images with bounding boxes to Weights & Biases."""
 
     def __init__(self, log_every_n_epochs: int = 1, max_images: int = 8):
+        print(f"[WANDB_DEBUG] WandbImageLoggingCallback.__init__ called with log_every_n_epochs={log_every_n_epochs}")
         self.log_every_n_epochs = log_every_n_epochs
         self.max_images = max_images
 
     def on_validation_epoch_end(self, trainer, pl_module):
+        print(f"[WANDB_DEBUG] WandbImageLoggingCallback.on_validation_epoch_end called for epoch {trainer.current_epoch}")
+
         # Only log every N epochs to avoid too much data
         if trainer.current_epoch % self.log_every_n_epochs != 0:
+            print(f"[WANDB_DEBUG] Skipping logging (epoch {trainer.current_epoch} % {self.log_every_n_epochs} != 0)")
             return
 
+        print(f"[WANDB_DEBUG] Proceeding with logging for epoch {trainer.current_epoch}")
+
         # Collect validation images, ground truth, and predictions for logging
-        if not hasattr(pl_module, "validation_step_outputs") or not pl_module.validation_step_outputs:
+        if not hasattr(pl_module, "validation_step_outputs"):
+            print("[DEBUG] No validation_step_outputs attribute found")
             return
+
+        if not pl_module.validation_step_outputs:
+            print("[DEBUG] validation_step_outputs is empty")
+            return
+
+        print("[DEBUG] Found non-empty validation_step_outputs")
 
         # Get the validation dataset for ground truth
         if not hasattr(pl_module, "dataset") or not isinstance(pl_module.dataset, dict) or "val" not in pl_module.dataset:
+            print(
+                f"[DEBUG] Dataset validation failed: hasattr={hasattr(pl_module, 'dataset')}, isinstance={isinstance(pl_module.dataset, dict) if hasattr(pl_module, 'dataset') else 'N/A'}, has_val={pl_module.dataset.get('val') if hasattr(pl_module, 'dataset') and isinstance(pl_module.dataset, dict) else 'N/A'}"
+            )
             return
 
         val_dataset = pl_module.dataset["val"]  # type: ignore
+        print(f"[DEBUG] Got val_dataset: {type(val_dataset)}")
 
         # Handle Subset datasets - get the underlying dataset
         if hasattr(val_dataset, "dataset"):
+            print("[DEBUG] val_dataset is a Subset, getting underlying dataset")
             val_dataset = val_dataset.dataset  # type: ignore
+
+        print(f"[DEBUG] Final val_dataset type: {type(val_dataset)}")
+        print(f"[DEBUG] Has anns attribute: {hasattr(val_dataset, 'anns')}")
 
         # Prepare data for logging
         images = []

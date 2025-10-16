@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ocr.utils.orientation import remap_polygons_to_original
+
 
 class SubmissionWriter:
     """Handles formatting and saving OCR predictions to submission files.
@@ -55,12 +57,22 @@ class SubmissionWriter:
         include_confidence = getattr(self.config, "include_confidence", False)
 
         for filename, pred_data in predict_outputs.items():
-            if include_confidence and isinstance(pred_data, dict):
+            if isinstance(pred_data, dict) and "boxes" in pred_data:
                 boxes = pred_data["boxes"]
-                scores = pred_data["scores"]
+                scores = pred_data.get("scores")
+                orientation = pred_data.get("orientation", 1)
+                raw_size = pred_data.get("raw_size")
             else:
+                # Backward compatibility: pred_data is directly the boxes
                 boxes = pred_data
                 scores = None
+                orientation = 1
+                raw_size = None
+
+            # Remap polygons back to original coordinates if we have the metadata
+            if raw_size is not None and all(dim for dim in raw_size):
+                width, height = map(int, raw_size)
+                boxes = remap_polygons_to_original(boxes, width, height, orientation)
 
             # Format each word/box
             words = OrderedDict()

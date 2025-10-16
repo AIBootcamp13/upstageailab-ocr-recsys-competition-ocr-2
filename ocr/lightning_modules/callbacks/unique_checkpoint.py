@@ -26,7 +26,7 @@ class UniqueModelCheckpoint(ModelCheckpoint):
     Example checkpoint names:
     - Epoch checkpoint: epoch-03_step-000103.ckpt
     - Last checkpoint: last.ckpt
-    - Best checkpoint: best-hmean-0.8920.ckpt
+    - Best checkpoint: best-hmean(0.8920).ckpt
     """
 
     def __init__(
@@ -96,14 +96,14 @@ class UniqueModelCheckpoint(ModelCheckpoint):
             # Last checkpoint: simply "last.ckpt"
             stem = "last"
         elif is_best_checkpoint:
-            # Best checkpoint: best-<metric_name>-<value>.ckpt
+            # Best checkpoint: best-<metric_name>(<value>).ckpt
             stem = "best"
             if self.monitor and metrics:
                 metric_val = metrics.get(self.monitor)
                 if isinstance(metric_val, torch.Tensor):
                     # Clean up the metric name (e.g., "val/hmean" -> "hmean")
                     metric_name_clean = self.monitor.split("/")[-1]
-                    stem = f"best-{metric_name_clean}-{metric_val.item():.4f}"
+                    stem = f"best-{metric_name_clean}({metric_val.item():.4f})"
         else:
             # Epoch checkpoint: epoch-<epoch>_step-<step>.ckpt
             stem = f"epoch-{epoch:02d}_step-{step:06d}"

@@ -175,6 +175,18 @@ test_cleaned.jpg
 test_original.jpg
 preprocessing-plan/
 logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv
-debug_empty_predictions/eda_results/correlation_matrix.png (867 KB) exceeds 500 KB.
-logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv (9351 KB) exceeds 500 KB.
-preprocessing-plan/preprocessing_viewer_references.md (1071 KB) exceeds 500 KB.
+debug_empty_predictions/eda_results/correlation_matrix.png
+logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv
+preprocessing-plan/preprocessing_viewer_references.md
+test_corrected/
+test_corrected_gray/
+test_gray/
+test_gray_epoch22/
+test_gray_new/
+test_high_contrast/
+test_shadow_removal/
+data.tar.gz
+datasets/
+filter_samples/
+output (13).csv
+powerpoimt_slide_notes.md

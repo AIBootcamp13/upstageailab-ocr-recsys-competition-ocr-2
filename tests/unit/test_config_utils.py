@@ -75,15 +75,15 @@ class TestExtractNormalizeStats:
                 "transforms": {
                     "train_transform": {
                         "transforms": [
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]}
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -106,15 +106,15 @@ class TestExtractNormalizeStats:
                     "train_transform": {
                         "transforms": [
                             {"_target_": "albumentations.Resize", "height": 224, "width": 224},
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]},
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -127,23 +127,23 @@ class TestExtractNormalizeStats:
                         "transforms": [
                             {
                                 "_target_": "albumentations.Normalize",
-                                "mean": [0.485, 0.456, 0.406],
+                                "mean": [0.5900, 0.5610, 0.5292],
                                 # Missing std
                             },
                             {
                                 "_target_": "albumentations.Normalize",
-                                "std": [0.229, 0.224, 0.225],
+                                "std": [0.2136, 0.2290, 0.2511],
                                 # Missing mean
                             },
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]},
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -157,17 +157,17 @@ class TestExtractNormalizeStats:
                             {
                                 "_target_": "albumentations.Normalize",
                                 "mean": [0.485, 0.456],  # 2 elements
-                                "std": [0.229, 0.224, 0.225],  # 3 elements
+                                "std": [0.2136, 0.2290, 0.2511],  # 3 elements
                             },
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]},
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -178,16 +178,16 @@ class TestExtractNormalizeStats:
                 "transforms": {
                     "train_transform": {
                         "transforms": [
-                            {"_target_": "albumentations.Normalize", "mean": ["invalid", "values"], "std": [0.229, 0.224, 0.225]},
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+                            {"_target_": "albumentations.Normalize", "mean": ["invalid", "values"], "std": [0.2136, 0.2290, 0.2511]},
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]},
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -203,15 +203,15 @@ class TestExtractNormalizeStats:
                                 "mean": [0.485, 0.456, 0.406, 0.5],  # 4 channels
                                 "std": [0.229, 0.224, 0.225, 0.5],  # 4 channels
                             },
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]},
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]},
                         ]
                     }
                 }
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -224,7 +224,7 @@ class TestExtractNormalizeStats:
                     "val_transform": {"transforms": []},
                     "test_transform": {
                         "transforms": [
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]}
                         ]
                     },
                     "predict_transform": {"transforms": []},
@@ -232,8 +232,8 @@ class TestExtractNormalizeStats:
             }
         )
         result = extract_normalize_stats(config)
-        expected_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        expected_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        expected_mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+        expected_std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
         assert np.array_equal(result[0], expected_mean)
         assert np.array_equal(result[1], expected_std)
 
@@ -247,7 +247,7 @@ class TestExtractNormalizeStats:
                     },
                     "val_transform": {
                         "transforms": [
-                            {"_target_": "albumentations.Normalize", "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
+                            {"_target_": "albumentations.Normalize", "mean": [0.5900, 0.5610, 0.5292], "std": [0.2136, 0.2290, 0.2511]}
                         ]
                     },
                 }

@@ -132,23 +132,23 @@ def pil_to_numpy(image: Image.Image) -> np.ndarray:
 
 def prenormalize_imagenet(image_array: np.ndarray) -> np.ndarray:
     """
-    AI_DOCS: ImageNet Normalization
+    AI_DOCS: Dataset Normalization
 
-    Applies ImageNet-style normalization to image array.
+    Applies dataset-specific normalization to image array.
 
     CRITICAL CONSTRAINTS:
-    - USE standard ImageNet mean/std values
+    - USE standard dataset mean/std values
     - CONVERT to float32 dtype
     - APPLY per-channel normalization
     - RETURN normalized array (0-1 range → normalized)
 
-    Output: float32 array with ImageNet normalization applied
+    Output: float32 array with dataset normalization applied
     """
     if image_array.dtype != np.float32:
         image_array = image_array.astype(np.float32)
     image_array /= 255.0
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    mean = np.array([0.5900, 0.5610, 0.5292], dtype=np.float32)
+    std = np.array([0.2136, 0.2290, 0.2511], dtype=np.float32)
     return (image_array - mean) / std
 
 

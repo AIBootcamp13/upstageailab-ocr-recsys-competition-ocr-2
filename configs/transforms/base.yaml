@@ -20,8 +20,8 @@ transforms:
       - _target_: albumentations.HorizontalFlip
         p: 0.5
       - _target_: albumentations.Normalize
-        mean: [0.485, 0.456, 0.406]
-        std: [0.229, 0.224, 0.225]
+        mean: [0.5602, 0.5602, 0.5602]
+        std: [0.2539, 0.2539, 0.2539]
     keypoint_params:
       _target_: albumentations.KeypointParams
       format: 'xy'
@@ -39,8 +39,8 @@ transforms:
         border_mode: 0
         p: 1.0
       - _target_: albumentations.Normalize
-        mean: [0.485, 0.456, 0.406]
-        std: [0.229, 0.224, 0.225]
+        mean: [0.5602, 0.5602, 0.5602]
+        std: [0.2539, 0.2539, 0.2539]
     keypoint_params:
       _target_: albumentations.KeypointParams
       format: 'xy'
@@ -58,8 +58,8 @@ transforms:
         border_mode: 0
         p: 1.0
       - _target_: albumentations.Normalize
-        mean: [0.485, 0.456, 0.406]
-        std: [0.229, 0.224, 0.225]
+        mean: [0.5602, 0.5602, 0.5602]
+        std: [0.2539, 0.2539, 0.2539]
     keypoint_params:
       _target_: albumentations.KeypointParams
       format: 'xy'
@@ -69,7 +69,7 @@ transforms:
     transforms:
       - _target_: albumentations.LongestMaxSize
         max_size: 640
-        interpolation: 1  # cv2.INTER_LINEAR for faster processing
+        interpolation: ${default_interpolation}
         p: 1.0
       - _target_: albumentations.PadIfNeeded
         min_width: 640
@@ -77,6 +77,6 @@ transforms:
         border_mode: 0
         p: 1.0
       - _target_: albumentations.Normalize
-        mean: [0.485, 0.456, 0.406]
-        std: [0.229, 0.224, 0.225]
+        mean: [0.5602, 0.5602, 0.5602]
+        std: [0.2539, 0.2539, 0.2539]
     keypoint_params: null

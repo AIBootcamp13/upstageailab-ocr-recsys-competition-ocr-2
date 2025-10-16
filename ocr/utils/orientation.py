@@ -270,6 +270,29 @@ def polygons_in_canonical_frame(
     return within_canonical
 
 
+def remap_polygons_to_original(
+    polygons: Iterable[np.ndarray | Sequence[Sequence[float]]],
+    width: float,
+    height: float,
+    orientation: int,
+) -> list[np.ndarray]:
+    """Transform polygon coordinates from canonical frame back to original sensor frame."""
+    if not orientation_requires_rotation(orientation):
+        return [np.array(poly, copy=True, dtype=np.float32) for poly in polygons]
+
+    # Determine canonical dimensions
+    if orientation in {5, 6, 7, 8}:
+        canonical_width, canonical_height = height, width
+    else:
+        canonical_width, canonical_height = width, height
+
+    # Get inverse orientation
+    inverse_orientation = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 8, 7: 7, 8: 6}[orientation]
+
+    # Apply remap_polygons with canonical dimensions and inverse orientation
+    return remap_polygons(polygons, canonical_width, canonical_height, inverse_orientation)
+
+
 __all__ = [
     "EXIF_ORIENTATION_TAG",
     "apply_affine_transform_to_polygons",
@@ -280,4 +303,5 @@ __all__ = [
     "orientation_requires_rotation",
     "polygons_in_canonical_frame",
     "remap_polygons",
+    "remap_polygons_to_original",
 ]

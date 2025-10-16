@@ -104,7 +104,15 @@ class OCRPLModule(pl.LightningModule):
 
     def load_state_dict(self, state_dict, strict: bool = True):
         """Load state dict with fallback handling for different checkpoint formats."""
-        return load_state_dict_with_fallback(self, state_dict, strict=strict)
+        # Handle checkpoints saved with torch.compile that have "_orig_mod." prefix
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("model._orig_mod."):
+                new_key = k.replace("model._orig_mod.", "model.", 1)
+                new_state_dict[new_key] = v
+            else:
+                new_state_dict[k] = v
+        return load_state_dict_with_fallback(self.model, new_state_dict, strict=strict)
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -254,11 +262,16 @@ class OCRPLModule(pl.LightningModule):
             List of predictions with polygon coordinates for each image in batch,
             following the model output format from #file:data_contracts.md
         """
-        # Validate input batch against data contract
-        try:
-            CollateOutput(**batch)
-        except Exception as e:
-            raise ValueError(f"Batch validation failed: {e}") from e
+        # Skip validation for inference mode (raw images without ground truth)
+        if not ("polygons" in batch and "prob_maps" in batch and "thresh_maps" in batch):
+            # Inference mode: batch contains raw images
+            pass
+        else:
+            # Validation mode: batch contains training data with ground truth
+            try:
+                CollateOutput(**batch)
+            except Exception as e:
+                raise ValueError(f"Batch validation failed: {e}") from e
 
         pred = self.model(return_loss=False, **batch)
         boxes_batch, scores_batch = self.model.get_polygons_from_maps(batch, pred)
@@ -267,10 +280,15 @@ class OCRPLModule(pl.LightningModule):
 
         for idx, (boxes, scores) in enumerate(zip(boxes_batch, scores_batch, strict=True)):
             normalized_boxes = [np.asarray(box, dtype=np.float32).reshape(-1, 2) for box in boxes]
+            filename = batch["image_filename"][idx]
+            entry = {
+                "boxes": normalized_boxes,
+                "orientation": batch.get("orientation", [1])[idx] if "orientation" in batch else 1,
+                "raw_size": tuple(batch.get("raw_size", [(0, 0)])[idx]) if "raw_size" in batch else None,
+            }
             if include_confidence:
-                self.predict_step_outputs[batch["image_filename"][idx]] = {"boxes": normalized_boxes, "scores": scores}
-            else:
-                self.predict_step_outputs[batch["image_filename"][idx]] = normalized_boxes
+                entry["scores"] = scores
+            self.predict_step_outputs[filename] = entry
         return pred
 
     def on_predict_epoch_end(self):

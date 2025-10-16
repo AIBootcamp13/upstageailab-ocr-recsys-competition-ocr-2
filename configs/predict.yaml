@@ -30,8 +30,11 @@ save_dir: "outputs/prediction_visualization"
 minified_json: False
 include_confidence: False
 
-# Optional overrides for DB postprocessor thresholds
-postprocess_thresh: null
-postprocess_box_thresh: null
-postprocess_max_candidates: null
-postprocess_use_polygon: null
+datasets:
+  predict_dataset:
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${image_dir}
+      annotation_path: null
+    transform: ${transforms.test_transform}

@@ -6,12 +6,8 @@ defaults:
   - model_checkpoint
   - early_stopping
   - rich_progress_bar
-  - performance_profiler
+  - wandb_image_logging
   - _self_
 
 wandb_completion:
   _target_: ocr.lightning_modules.callbacks.wandb_completion.WandbCompletionCallback
-
-wandb_image_logging:
-  _target_: ocr.lightning_modules.callbacks.wandb_image_logging.WandbImageLoggingCallback
-  log_every_n_epochs: 1

@@ -246,8 +246,8 @@ class TransformOutput(BaseModel):
 class TransformConfig(BaseModel):
     """Configuration for image normalization and transform probabilities."""
 
-    mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
-    std: tuple[float, float, float] = (0.229, 0.224, 0.225)
+    mean: tuple[float, float, float] = (0.5900, 0.5610, 0.5292)
+    std: tuple[float, float, float] = (0.2136, 0.2290, 0.2511)
     always_apply: bool = False
     p: float = 1.0
 

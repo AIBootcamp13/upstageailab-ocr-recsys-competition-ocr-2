@@ -89,7 +89,7 @@ docs-deploy:
 serve-ui:
 	uv run streamlit run ui/command_builder.py --server.port=$(PORT)
 
-serve-eval:
+serve-evaluation-ui:
 	uv run streamlit run ui/evaluation_viewer.py --server.port=$(PORT)
 
 serve-inference-ui:

@@ -85,7 +85,7 @@ class ConditionalNormalize(A.ImageOnlyTransform):
     - The dtype checking logic (affects normalization decisions)
     """
 
-    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), always_apply=False, p=1.0):
+    def __init__(self, mean=(0.5900, 0.5610, 0.5292), std=(0.2136, 0.2290, 0.2511), always_apply=False, p=1.0):
         super().__init__(always_apply, p)
         self.mean = np.array(mean, dtype=np.float32)
         self.std = np.array(std, dtype=np.float32)
