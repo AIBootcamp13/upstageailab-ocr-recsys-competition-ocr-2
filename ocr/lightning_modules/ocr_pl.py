@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader
 from ocr.evaluation import CLEvalEvaluator
 from ocr.lightning_modules.loggers import WandbProblemLogger
 from ocr.lightning_modules.utils import CheckpointHandler, extract_metric_kwargs, extract_normalize_stats, format_predictions
-from ocr.lightning_modules.utils.model_utils import load_state_dict_with_fallback
 from ocr.metrics import CLEvalMetric
 from ocr.utils.submission import SubmissionWriter
 from ocr.validation.models import CollateOutput
@@ -104,8 +103,8 @@ class OCRPLModule(pl.LightningModule):
 
     def load_state_dict(self, state_dict, strict: bool = True, assign: bool = False):
         """Load state dict with fallback handling for different checkpoint formats."""
-        missing, unexpected = load_state_dict_with_fallback(self, state_dict, strict=strict)
-        return missing
+        # Call parent class load_state_dict directly to avoid recursion
+        return super().load_state_dict(state_dict, strict=strict, assign=assign)
 
     def forward(self, x):
         return self.model(return_loss=False, **x)
@@ -255,9 +254,16 @@ class OCRPLModule(pl.LightningModule):
             List of predictions with polygon coordinates for each image in batch,
             following the model output format from #file:data_contracts.md
         """
-        # Validate input batch against data contract
+        # Validate input batch against data contract (skip for prediction mode)
         try:
-            CollateOutput(**batch)
+            # For prediction, ground truth fields (polygons, prob_maps, thresh_maps) are not present
+            # Check if we're in prediction mode by seeing if these fields are missing
+            if "polygons" not in batch or "prob_maps" not in batch or "thresh_maps" not in batch:
+                # Prediction mode - skip validation as ground truth fields are not available
+                pass
+            else:
+                # Training/validation mode - validate full batch
+                CollateOutput(**batch)
         except Exception as e:
             raise ValueError(f"Batch validation failed: {e}") from e
 
