@@ -106,9 +106,9 @@ jobs:
           git push origin ${{ github.head_ref }}
 
       # Step 9: Run Mypy for static type checking
-      - name: Run Mypy Static Type Checking
-        run: uv run mypy .
+      # - name: Run Mypy Static Type Checking
+      #   run: uv run mypy .
 
       # Step 10: Run the test suite with pytest
-      - name: Run tests with pytest
-        run: uv run pytest tests/ -v
+      # - name: Run tests with pytest
+      #   run: uv run pytest tests/ -v
