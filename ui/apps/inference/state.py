@@ -26,6 +26,14 @@ SESSION_KEYS: dict[str, Callable[[], Any]] = {
     "preprocessing_enabled": lambda: False,
     "preprocessing_default_initialized": lambda: False,
     "preprocessing_overrides": dict,
+    "batch_mode": lambda: False,
+    "batch_input_dir": str,
+    "batch_output_dir": lambda: "submissions",
+    "batch_filename_prefix": lambda: "batch_prediction",
+    "batch_save_json": lambda: True,
+    "batch_save_csv": lambda: True,
+    "batch_include_confidence": lambda: False,
+    "batch_output_files": dict,
 }
 
 
@@ -38,6 +46,14 @@ class InferenceState:
     hyperparams: dict[str, float] = field(default_factory=dict)
     preprocessing_enabled: bool = False
     preprocessing_overrides: dict[str, Any] = field(default_factory=dict)
+    batch_mode: bool = False
+    batch_input_dir: str = ""
+    batch_output_dir: str = "submissions"
+    batch_filename_prefix: str = "batch_prediction"
+    batch_save_json: bool = True
+    batch_save_csv: bool = True
+    batch_include_confidence: bool = False
+    batch_output_files: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_session(cls) -> InferenceState:
@@ -52,6 +68,7 @@ class InferenceState:
             else:
                 processed_images[model_key] = {}
         preprocessing_enabled = state.preprocessing_enabled if isinstance(state.preprocessing_enabled, bool) else False
+        batch_mode = state.batch_mode if isinstance(state.batch_mode, bool) else False
         return cls(
             inference_results=list(state.inference_results),
             selected_images=set(state.selected_images),
@@ -60,6 +77,14 @@ class InferenceState:
             hyperparams=dict(state.hyperparams or {}),
             preprocessing_enabled=preprocessing_enabled,
             preprocessing_overrides=dict(state.preprocessing_overrides or {}),
+            batch_mode=batch_mode,
+            batch_input_dir=str(state.batch_input_dir or ""),
+            batch_output_dir=str(state.batch_output_dir or "submissions"),
+            batch_filename_prefix=str(state.batch_filename_prefix or "batch_prediction"),
+            batch_save_json=bool(state.batch_save_json if isinstance(state.batch_save_json, bool) else True),
+            batch_save_csv=bool(state.batch_save_csv if isinstance(state.batch_save_csv, bool) else True),
+            batch_include_confidence=bool(state.batch_include_confidence if isinstance(state.batch_include_confidence, bool) else False),
+            batch_output_files=dict(state.batch_output_files or {}),
         )
 
     def persist(self) -> None:
@@ -72,6 +97,14 @@ class InferenceState:
         st.session_state.hyperparams = dict(self.hyperparams)
         st.session_state.preprocessing_enabled = bool(self.preprocessing_enabled)
         st.session_state.preprocessing_overrides = dict(self.preprocessing_overrides)
+        st.session_state.batch_mode = bool(self.batch_mode)
+        st.session_state.batch_input_dir = str(self.batch_input_dir)
+        st.session_state.batch_output_dir = str(self.batch_output_dir)
+        st.session_state.batch_filename_prefix = str(self.batch_filename_prefix)
+        st.session_state.batch_save_json = bool(self.batch_save_json)
+        st.session_state.batch_save_csv = bool(self.batch_save_csv)
+        st.session_state.batch_include_confidence = bool(self.batch_include_confidence)
+        st.session_state.batch_output_files = dict(self.batch_output_files)
 
     def update_hyperparameter(self, key: str, value: float) -> None:
         self.hyperparams[key] = value

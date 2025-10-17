@@ -180,3 +180,18 @@ logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv (9351 KB) exceeds 500 K
 preprocessing-plan/preprocessing_viewer_references.md (1071 KB) exceeds 500 KB.
 
 phase1_validation_results/
+configs/train_debug.yaml
+data.tar.gz
+datasets/
+download_wandb_checkpoint.py
+filter_samples/
+output (13).csv
+powerpoimt_slide_notes.md
+shadow_removal_preprocessing.py
+streamlit-preprocessing-plan/
+submissions_filtered/
+test_corrected/
+test_corrected_gray/
+test_gray/
+test_gray_new/
+test_shadow_removal/

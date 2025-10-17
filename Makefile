@@ -22,6 +22,7 @@ help:
 	@echo "  serve-ui            - Start Command Builder UI"
 	@echo "  serve-evaluation-ui - Start Evaluation Results Viewer"
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
+	@echo "  serve-preprocessing-viewer - Start Preprocessing Pipeline Viewer"
 	@echo "  serve-resource-monitor - Start Resource Monitor UI"
 	@echo "  context-log-start   - Create a new context log JSONL file"
 	@echo "  context-log-summarize - Summarize a context log into Markdown"
@@ -94,6 +95,9 @@ serve-evaluation-ui:
 
 serve-inference-ui:
 	uv run streamlit run ui/inference_ui.py --server.port=$(PORT)
+
+serve-preprocessing-viewer:
+	uv run streamlit run ui/preprocessing_viewer_app.py --server.port=$(PORT)
 
 serve-moni:
 	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)

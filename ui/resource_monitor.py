@@ -35,7 +35,7 @@ import streamlit as st
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-from scripts.process_monitor import get_training_processes, get_worker_processes, terminate_processes
+from scripts.monitoring.process_monitor import get_training_processes, get_worker_processes, terminate_processes
 
 
 def get_system_resources() -> dict[str, float]:

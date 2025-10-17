@@ -34,20 +34,25 @@ def run_inference_ui():
     subprocess.run(cmd)
 
 
+def run_preprocessing_viewer():
+    """Run the preprocessing viewer UI."""
+    ui_path = get_path_resolver().config.project_root / "ui" / "preprocessing_viewer_app.py"
+    cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
+    subprocess.run(cmd)
+
+
 def run_resource_monitor():
     """Run the resource monitor UI."""
     ui_path = get_path_resolver().config.project_root / "ui" / "resource_monitor.py"
     cmd = ["uv", "run", "streamlit", "run", str(ui_path)]
     subprocess.run(cmd)
-
-
-if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python run_ui.py <command>")
         print("Commands:")
         print("  command_builder  - Run the CLI command builder UI")
         print("  evaluation_viewer - Run the evaluation results viewer UI")
         print("  inference        - Run the real-time inference UI")
+        print("  preprocessing_viewer - Run the preprocessing pipeline viewer UI")
         print("  resource_monitor - Run the system resource monitor UI")
         sys.exit(1)
 
@@ -59,9 +64,11 @@ if __name__ == "__main__":
         run_evaluation_viewer()
     elif command == "inference":
         run_inference_ui()
+    elif command == "preprocessing_viewer":
+        run_preprocessing_viewer()
     elif command == "resource_monitor":
         run_resource_monitor()
     else:
         print(f"Unknown command: {command}")
-        print("Available commands: command_builder, evaluation_viewer, inference, resource_monitor")
+        print("Available commands: command_builder, evaluation_viewer, inference, preprocessing_viewer, resource_monitor")
         sys.exit(1)

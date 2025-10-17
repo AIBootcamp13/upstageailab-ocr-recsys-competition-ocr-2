@@ -77,6 +77,12 @@ uv run python scripts/agent_tools/validate_manifest.py
 - **Schema Mismatches**: Update compatibility schemas and add new families as needed
 - **Configuration Drift**: Sync YAML configs with schemas and UI metadata
 - **Dependency Issues**: Regenerate lockfile and run pre-commit hooks
+- **Model Architecture Mismatch**:
+  - **Symptom**: Checkpoint loads but shows "Dropped N keys" and "Missing N keys" warnings
+  - **Cause**: Checkpoint trained with older model architecture (e.g., `decoder.bottom_up`) vs current architecture (e.g., `decoder.fusion`)
+  - **Solution**: Either retrain with current architecture or temporarily revert code to match checkpoint architecture
+  - **Detection**: Check [model_loader.py:76-78](ui/utils/inference/model_loader.py#L76-L78) warnings for dropped/missing keys
+  - **Note**: The `_orig_mod` prefix from `torch.compile` is automatically handled by the loader
 
 ### **Escalation Path**
 1. Consult UI maintainer for immediate issues
@@ -92,4 +98,22 @@ uv run python scripts/agent_tools/validate_manifest.py
 
 ---
 
-*This document follows the governance protocol template. Last updated: October 13, 2025*
+*This document follows the governance protocol template. Last updated: October 18, 2025*
+
+## **Appendix A: Output Format Requirements**
+
+### **Competition CSV Format**
+The competition requires **space-separated** coordinates (not comma-separated):
+
+```csv
+filename,polygons
+image001.jpg,10 50 100 50 100 150 10 150|110 150 200 150 200 250 110 250
+```
+
+**Implementation locations:**
+- [engine.py:260](ui/utils/inference/engine.py#L260) - Main coordinate serialization (uses `" ".join()`)
+- [inference_runner.py:247](ui/apps/inference/services/inference_runner.py#L247) - Mock predictions
+- [data_contracts.py:65](ui/apps/inference/models/data_contracts.py#L65) - Pydantic validator (uses `.split()` for spaces)
+
+**Testing:**
+- [test_submission_writer.py](tests/unit/test_submission_writer.py) - Validates output format compliance

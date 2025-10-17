@@ -23,8 +23,9 @@ def get_available_checkpoints() -> list[str]:
 
 def generate_mock_predictions() -> dict[str, object]:
     LOGGER.info("Generating mock predictions.")
+    # Competition format uses space-separated coordinates
     return {
-        "polygons": "100,100,300,100,300,180,100,180|350,250,600,250,600,300,350,300",
+        "polygons": "100 100 300 100 300 180 100 180|350 250 600 250 600 300 350 300",
         "texts": ["Mock Text 1", "Mock Text 2"],
         "confidences": [0.98, 0.95],
     }
@@ -37,4 +38,5 @@ def ensure_three_channel(image: np.ndarray) -> np.ndarray:
 
 
 def format_polygon(points: Sequence[int]) -> str:
-    return ",".join(map(str, points))
+    """Format polygon points as space-separated string (competition format)."""
+    return " ".join(map(str, points))

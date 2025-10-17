@@ -28,10 +28,12 @@ import cv2
 import numpy as np
 import streamlit as st
 
+from ..models.batch_request import BatchPredictionRequest
 from ..models.config import PreprocessingConfig
 from ..models.data_contracts import InferenceResult, Predictions, PreprocessingInfo
 from ..models.ui_events import InferenceRequest
 from ..state import InferenceState
+from .submission_writer import SubmissionWriter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -241,7 +243,8 @@ class InferenceService:
         mock_boxes = [box1, box2, box3]
 
         return Predictions(
-            polygons="|".join(f"{b[0]},{b[1]},{b[2]},{b[1]},{b[2]},{b[3]},{b[0]},{b[3]}" for b in mock_boxes),
+            # Competition format uses space-separated coordinates, not commas
+            polygons="|".join(f"{b[0]} {b[1]} {b[2]} {b[1]} {b[2]} {b[3]} {b[0]} {b[3]}" for b in mock_boxes),
             texts=["Sample Text 1", "Another Example", "Third Line"],
             confidences=[0.95, 0.87, 0.92],
         )
@@ -264,6 +267,149 @@ class InferenceService:
 
         kwargs = config.to_kwargs()
         return DocumentPreprocessor(**kwargs)
+
+    def run_batch_prediction(
+        self,
+        state: InferenceState,
+        request: BatchPredictionRequest,
+    ) -> list[InferenceResult]:
+        """Execute batch predictions on a directory of images.
+
+        Args:
+            state: Current inference state for tracking processed images
+            request: Validated batch prediction request with all parameters
+
+        Returns:
+            List of InferenceResult objects for all processed images
+
+        Raises:
+            ValidationError: If request validation fails
+        """
+        # Validate request data contract
+        try:
+            validated_request = BatchPredictionRequest.model_validate(request)
+        except ValidationError as exc:
+            LOGGER.error("Invalid batch prediction request: %s", exc)
+            st.error(f"❌ Invalid batch request data: {exc}")
+            return []
+
+        # Get list of image files to process
+        try:
+            image_files = validated_request.get_image_files()
+        except ValueError as exc:
+            LOGGER.error("Failed to scan input directory: %s", exc)
+            st.error(f"❌ {exc}")
+            return []
+
+        total_files = len(image_files)
+        LOGGER.info(f"Found {total_files} images to process in {validated_request.input_dir}")
+
+        # Set up progress tracking
+        progress = st.progress(0.0, text=f"Starting batch prediction for {total_files} images...")
+        st.info(f"📁 Processing directory: {validated_request.input_dir}")
+
+        # Determine preprocessing mode
+        mode_key = "docTR:on" if validated_request.use_preprocessing else "docTR:off"
+        state.ensure_processed_bucket(validated_request.model_path, mode_key)
+
+        # Initialize preprocessor if needed
+        preprocessor = None
+        if validated_request.use_preprocessing and DocumentPreprocessor is not None:
+            preprocessor = self._build_preprocessor(None)  # Use default config for batch
+
+        # Process each image
+        batch_results: list[InferenceResult] = []
+        hyperparams = validated_request.hyperparameters.to_dict()
+
+        for index, image_path in enumerate(image_files):
+            filename = image_path.name
+            progress_pct = index / total_files
+            progress.progress(
+                progress_pct,
+                text=f"Processing {filename}... ({index + 1}/{total_files})",
+            )
+
+            try:
+                result = self._perform_inference(
+                    image_path,
+                    Path(validated_request.model_path),
+                    filename,
+                    hyperparams,
+                    validated_request.use_preprocessing,
+                    preprocessor,
+                )
+                batch_results.append(result)
+
+                if result.success:
+                    LOGGER.info(f"✓ Successfully processed {filename}")
+                else:
+                    LOGGER.warning(f"✗ Failed to process {filename}: {result.error}")
+                    st.warning(f"⚠️ Failed to process {filename}: {result.error}")
+
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.exception(f"Unexpected error processing {filename}")
+                st.error(f"❌ Error processing {filename}: {exc}")
+                # Create error result
+                error_result = InferenceResult(
+                    filename=filename,
+                    success=False,
+                    image=np.zeros((1, 1, 3), dtype=np.uint8),
+                    predictions=Predictions(polygons="", texts=[], confidences=[]),
+                    preprocessing=PreprocessingInfo(enabled=False),
+                    error=str(exc),
+                )
+                batch_results.append(error_result)
+
+        # Complete progress
+        progress.progress(1.0, text=f"✅ Batch processing complete! Processed {total_files} images.")
+        time.sleep(1)
+        progress.empty()
+
+        # Report statistics
+        successful = sum(1 for r in batch_results if r.success)
+        failed = total_files - successful
+        st.success(f"✅ Batch prediction complete: {successful} successful, {failed} failed")
+
+        # Write submission files
+        written_files = {}
+        if batch_results:
+            try:
+                json_path = validated_request.get_output_path(".json") if validated_request.output_config.save_json else None
+                csv_path = validated_request.get_output_path(".csv") if validated_request.output_config.save_csv else None
+
+                written_files = SubmissionWriter.write_batch_results(
+                    batch_results,
+                    json_path=json_path,
+                    csv_path=csv_path,
+                    include_confidence=validated_request.output_config.include_confidence,
+                )
+
+                # Store output files in state for download buttons
+                state.batch_output_files = written_files
+                state.persist()
+
+                # Display output file paths
+                for format_name, file_path in written_files.items():
+                    st.success(f"📄 {format_name.upper()} output: {file_path}")
+                    LOGGER.info(f"Wrote {format_name.upper()} submission to {file_path}")
+
+                # Display summary statistics
+                stats = SubmissionWriter.generate_summary_stats(batch_results)
+                st.info(
+                    f"📊 **Summary Statistics:**\n"
+                    f"- Total Images: {stats['total_images']}\n"
+                    f"- Successful: {stats['successful']}\n"
+                    f"- Failed: {stats['failed']}\n"
+                    f"- Success Rate: {stats['success_rate']}\n"
+                    f"- Total Polygons Detected: {stats['total_polygons_detected']}\n"
+                    f"- Avg Polygons/Image: {stats['avg_polygons_per_image']}"
+                )
+
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.exception("Failed to write submission files")
+                st.error(f"❌ Failed to write submission files: {exc}")
+
+        return batch_results
 
     @staticmethod
     def _are_predictions_valid(predictions: dict[str, Any], image_shape: tuple[int, ...]) -> bool:

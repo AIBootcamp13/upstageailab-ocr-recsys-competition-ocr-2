@@ -187,6 +187,12 @@ def _collect_basic_info(checkpoint_path: Path, options: CatalogOptions) -> Check
 
 
 def _parse_epoch(filename: str) -> int | None:
+    # Handle special checkpoint names
+    if filename.startswith("best"):
+        return 999  # High priority for best checkpoints
+    elif filename.startswith("last"):
+        return 998  # Second priority for last checkpoints
+
     if match := _EPOCH_PATTERN.search(filename):
         try:
             return int(match.group("epoch"))

@@ -34,6 +34,9 @@ def render_results(state: InferenceState, config: UIConfig) -> None:
         st.info("No inference results yet. Upload images and run inference to see results.")
         return
 
+    # Check if we have batch prediction output files to display
+    _render_batch_output_section(state)
+
     if config.results.show_summary:
         _render_summary(state)
         st.divider()
@@ -49,6 +52,48 @@ def render_results(state: InferenceState, config: UIConfig) -> None:
         expanded = config.results.expand_first_result and index == 0
         with st.expander(title, expanded=expanded):
             _render_single_result(result, config)
+
+
+def _render_batch_output_section(state: InferenceState) -> None:
+    """Render batch prediction output files with download buttons."""
+    from pathlib import Path
+
+    if not state.batch_output_files:
+        return
+
+    st.subheader("📦 Batch Prediction Outputs")
+
+    # Display download buttons for each output file
+    for format_name, file_path in state.batch_output_files.items():
+        file_path_obj = Path(file_path)
+
+        if not file_path_obj.exists():
+            st.warning(f"⚠️ Output file not found: {file_path}")
+            continue
+
+        # Read file content for download button
+        try:
+            with open(file_path_obj, "rb") as f:
+                file_content = f.read()
+
+            # Determine MIME type
+            mime_type = "application/json" if format_name.lower() == "json" else "text/csv"
+
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.success(f"✅ **{format_name.upper()}**: `{file_path}`")
+            with col2:
+                st.download_button(
+                    label=f"⬇️ Download {format_name.upper()}",
+                    data=file_content,
+                    file_name=file_path_obj.name,
+                    mime=mime_type,
+                    use_container_width=True,
+                )
+        except Exception as e:
+            st.error(f"❌ Error reading {format_name.upper()} file: {e}")
+
+    st.divider()
 
 
 def _render_summary(state: InferenceState) -> None:

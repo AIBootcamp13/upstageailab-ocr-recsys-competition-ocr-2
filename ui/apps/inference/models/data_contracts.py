@@ -2,6 +2,18 @@
 
 These models validate the data structures used in the inference pipeline to prevent
 datatype mismatches and ensure consistency across the Streamlit UI.
+
+Data Validation Standards:
+- Follows Pydantic v2 patterns from docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md
+- Implements runtime type validation for all data structures
+- Uses BaseModel with ConfigDict for arbitrary types (numpy arrays)
+- Validates field constraints and cross-field relationships
+- Provides clear error messages for validation failures
+
+Reference Implementation:
+- See docs/ai_handbook/03_references/preprocessing/advanced-preprocessing-data-contracts.md
+- Follows contract enforcement patterns from ocr.datasets.preprocessing.contracts
+- Compatible with preprocessing pipeline data contracts
 """
 
 from __future__ import annotations
@@ -13,13 +25,21 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class _InferenceBase(BaseModel):
-    """Common configuration for inference data models."""
+    """Common configuration for inference data models.
+
+    Base class following Pydantic standards with arbitrary types allowed for numpy arrays.
+    See docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)
 
 
 class Predictions(_InferenceBase):
-    """Data contract for OCR inference predictions."""
+    """Data contract for OCR inference predictions.
+
+    Follows data contract standards with field validation and cross-field consistency checks.
+    Reference: docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md
+    """
 
     polygons: str = Field(..., description="Pipe-separated polygon coordinates as strings")
     texts: list[str] = Field(default_factory=list, description="List of detected text strings")
@@ -28,7 +48,11 @@ class Predictions(_InferenceBase):
     @field_validator("polygons")
     @classmethod
     def _validate_polygons(cls, value: str) -> str:
-        """Validate that polygons string is properly formatted."""
+        """Validate that polygons string is properly formatted.
+
+        Competition format uses space-separated coordinates: "x1 y1 x2 y2 x3 y3 x4 y4|..."
+        Follows validation patterns from data-contracts-pydantic-standards.md
+        """
         if not isinstance(value, str):
             raise TypeError("Polygons must be a string")
         if not value.strip():
@@ -37,7 +61,8 @@ class Predictions(_InferenceBase):
         for polygon_str in value.split("|"):
             if not polygon_str.strip():
                 continue
-            coords = polygon_str.split(",")
+            # Competition format uses SPACE-separated coordinates, not commas
+            coords = polygon_str.split()
             if len(coords) < 8 or len(coords) % 2 != 0:
                 raise ValueError(f"Invalid polygon format: {polygon_str}. Must have even number of coordinates >= 8")
             try:
@@ -57,14 +82,21 @@ class Predictions(_InferenceBase):
 
     @model_validator(mode="after")
     def _validate_consistency(self) -> Predictions:
-        """Validate that texts and confidences have matching lengths after all fields are set."""
+        """Validate that texts and confidences have matching lengths after all fields are set.
+
+        Cross-field validation following standards from data-contracts-pydantic-standards.md
+        """
         if len(self.texts) != len(self.confidences):
             raise ValueError(f"texts and confidences must have same length: {len(self.texts)} vs {len(self.confidences)}")
         return self
 
 
 class PreprocessingInfo(_InferenceBase):
-    """Data contract for preprocessing metadata and results."""
+    """Data contract for preprocessing metadata and results.
+
+    Follows data contract standards with image validation and mode constraints.
+    Reference: docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md
+    """
 
     enabled: bool = Field(default=False, description="Whether preprocessing was enabled")
     metadata: dict[str, Any] | None = Field(default=None, description="Preprocessing metadata from docTR")
@@ -96,7 +128,11 @@ class PreprocessingInfo(_InferenceBase):
 
 
 class InferenceResult(_InferenceBase):
-    """Data contract for complete inference result."""
+    """Data contract for complete inference result.
+
+    Composite model with cross-field validation for error consistency.
+    Reference: docs/ai_handbook/03_references/preprocessing/data-contracts-pydantic-standards.md
+    """
 
     filename: str = Field(..., description="Name of the processed file")
     success: bool = Field(default=True, description="Whether inference succeeded")

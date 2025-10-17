@@ -1675,20 +1675,6 @@
       "bundles": []
     },
     {
-      "id": "2025_10_11_test_failure_list",
-      "title": "2025 10 11 Test Failure List",
-      "path": "./07_planning/2025-10-11_test_failure_list.md",
-      "section": "Planning (Planning)",
-      "tags": [
-        "planning"
-      ],
-      "priority": "low",
-      "summary": "Documentation for 2025 10 11 test failure list",
-      "last_reviewed": "2025-10-15",
-      "owner": "core-team",
-      "bundles": []
-    },
-    {
       "id": "01_qwen_delegation_log",
       "title": "Qwen Coder Delegation Log",
       "path": "./07_planning/logs/01_qwen_delegation_log.md",
@@ -2413,7 +2399,6 @@
       "entries": [
         "session_handover_advanced_preprocessing",
         "session_handover_ocr_refactor_continuation",
-        "2025_10_11_test_failure_list",
         "01_qwen_delegation_log",
         "01_data_generator",
         "preprocessing_module_refactor_assessment",

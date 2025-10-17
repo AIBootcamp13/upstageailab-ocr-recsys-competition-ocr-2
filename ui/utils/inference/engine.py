@@ -256,7 +256,8 @@ class InferenceEngine:
         serialised: list[str] = []
         for polygon in transformed:
             flat = polygon.reshape(-1)
-            serialised.append(",".join(str(int(round(value))) for value in flat))
+            # Competition format uses space-separated coordinates, not commas
+            serialised.append(" ".join(str(int(round(value))) for value in flat))
 
         updated = dict(result)
         updated["polygons"] = "|".join(serialised)

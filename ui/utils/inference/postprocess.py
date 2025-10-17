@@ -71,7 +71,8 @@ def decode_polygons_with_head(model, processed_tensor, predictions, original_sha
         x_min, x_max = min(xs), max(xs)
         y_min, y_max = min(ys), max(ys)
         polygon_coords = [x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max]
-        polygons.append(",".join(map(str, polygon_coords)))
+        # Competition format uses space-separated coordinates
+        polygons.append(" ".join(map(str, polygon_coords)))
         texts.append(f"Text_{index + 1}")
         score = scores_batch[0][index] if scores_batch and index < len(scores_batch[0]) else 0.0
         confidences.append(float(score))
@@ -132,7 +133,8 @@ def fallback_postprocess(predictions: Any, original_shape: Sequence[int], settin
             orig_x,
             orig_y + orig_h,
         ]
-        polygons.append(",".join(map(str, polygon_coords)))
+        # Competition format uses space-separated coordinates
+        polygons.append(" ".join(map(str, polygon_coords)))
         texts.append(f"Text_{index + 1}")
 
         prob_slice = prob_map[y : y + h, x : x + w]

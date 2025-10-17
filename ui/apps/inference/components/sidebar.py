@@ -14,6 +14,11 @@ from collections.abc import Sequence
 import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
+from ..models.batch_request import (
+    BatchHyperparameters,
+    BatchOutputConfig,
+    BatchPredictionRequest,
+)
 from ..models.checkpoint import CheckpointInfo, CheckpointMetadata
 from ..models.config import SliderConfig, UIConfig
 from ..models.ui_events import InferenceRequest
@@ -24,19 +29,174 @@ def render_controls(
     state: InferenceState,
     config: UIConfig,
     checkpoints: Sequence[CheckpointInfo],
-) -> InferenceRequest | None:
+) -> InferenceRequest | BatchPredictionRequest | None:
     init_hyperparameters(config.hyperparameters)
     init_preprocessing(config.preprocessing)
+
+    # Mode selector at the top
+    _render_mode_selector(state)
 
     selected_metadata = _render_model_selector(state, config, checkpoints)
     _render_model_status(selected_metadata, config)
     _render_hyperparameter_sliders(state, config)
     _render_preprocessing_controls(state, config)
-    inference_request = _render_upload_section(state, selected_metadata, config)
-    _render_clear_results(state)
-    state.persist()
 
-    return inference_request
+    # Render either single image upload or batch mode controls
+    if state.batch_mode:
+        batch_request = _render_batch_mode_controls(state, selected_metadata, config)
+        _render_clear_results(state)
+        state.persist()
+        return batch_request
+    else:
+        inference_request = _render_upload_section(state, selected_metadata, config)
+        _render_clear_results(state)
+        state.persist()
+        return inference_request
+
+
+def _render_mode_selector(state: InferenceState) -> None:
+    """Render mode toggle between Single Image and Batch Prediction."""
+    st.subheader("Processing Mode")
+    mode = st.radio(
+        "Select mode",
+        options=["Single Image", "Batch Prediction"],
+        index=1 if state.batch_mode else 0,
+        help="Choose between processing individual images or batch processing a directory",
+        horizontal=True,
+    )
+    state.batch_mode = mode == "Batch Prediction"
+    st.divider()
+
+
+def _render_batch_mode_controls(
+    state: InferenceState,
+    metadata: CheckpointMetadata | None,
+    config: UIConfig,
+) -> BatchPredictionRequest | None:
+    """Render batch prediction mode controls."""
+    from pathlib import Path
+
+    st.subheader("Batch Prediction")
+
+    if metadata is None:
+        st.warning("⚠️ No model selected. Please select a model first.")
+        return None
+
+    # Input directory
+    input_dir = st.text_input(
+        "Input Directory",
+        value=state.batch_input_dir,
+        help="Path to directory containing images to process",
+        placeholder="/path/to/images",
+    )
+    state.batch_input_dir = input_dir
+
+    # Validate input directory in real-time
+    input_dir_valid = False
+    if input_dir:
+        input_path = Path(input_dir)
+        if not input_path.exists():
+            st.error(f"❌ Directory does not exist: {input_dir}")
+        elif not input_path.is_dir():
+            st.error(f"❌ Path is not a directory: {input_dir}")
+        else:
+            # Try to count images
+            try:
+                supported_exts = (".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif")
+                image_files = []
+                for ext in supported_exts:
+                    image_files.extend(input_path.glob(f"*{ext}"))
+                    image_files.extend(input_path.glob(f"*{ext.upper()}"))
+                image_count = len(set(image_files))
+                if image_count == 0:
+                    st.warning("⚠️ No image files found in directory")
+                else:
+                    st.success(f"✅ Found {image_count} images in directory")
+                    input_dir_valid = True
+            except Exception as e:
+                st.error(f"❌ Error reading directory: {e}")
+
+    # Output configuration
+    st.subheader("Output Configuration")
+
+    output_dir = st.text_input(
+        "Output Directory",
+        value=state.batch_output_dir,
+        help="Directory where submission files will be saved",
+    )
+    state.batch_output_dir = output_dir
+
+    filename_prefix = st.text_input(
+        "Filename Prefix",
+        value=state.batch_filename_prefix,
+        help="Prefix for output files (timestamp will be appended)",
+    )
+    state.batch_filename_prefix = filename_prefix
+
+    col1, col2 = st.columns(2)
+    with col1:
+        save_json = st.checkbox(
+            "Save JSON",
+            value=state.batch_save_json,
+            help="Generate JSON submission file",
+        )
+        state.batch_save_json = save_json
+
+    with col2:
+        save_csv = st.checkbox(
+            "Save CSV",
+            value=state.batch_save_csv,
+            help="Generate CSV submission file",
+        )
+        state.batch_save_csv = save_csv
+
+    # Confidence score option
+    include_confidence = st.checkbox(
+        "Include confidence scores",
+        value=state.batch_include_confidence,
+        help="Add average confidence score as third column (optional per competition format)",
+    )
+    state.batch_include_confidence = include_confidence
+
+    # Validate at least one output format is selected
+    if not save_json and not save_csv:
+        st.error("❌ At least one output format (JSON or CSV) must be selected")
+
+    # Run batch prediction button
+    st.divider()
+    can_run = input_dir_valid and (save_json or save_csv) and filename_prefix.strip()
+
+    if not can_run:
+        st.button("🚀 Run Batch Prediction", disabled=True, help="Please complete all required fields")
+        return None
+
+    if st.button("🚀 Run Batch Prediction", type="primary", use_container_width=True):
+        try:
+            # Build BatchPredictionRequest with validation
+            request = BatchPredictionRequest(
+                input_dir=input_dir,
+                model_path=str(metadata.checkpoint_path),
+                use_preprocessing=state.preprocessing_enabled,
+                output_config=BatchOutputConfig(
+                    output_dir=output_dir,
+                    filename_prefix=filename_prefix,
+                    save_json=save_json,
+                    save_csv=save_csv,
+                    include_confidence=include_confidence,
+                ),
+                hyperparameters=BatchHyperparameters(
+                    binarization_thresh=state.hyperparams.get("binarization_thresh", 0.3),
+                    box_thresh=state.hyperparams.get("box_thresh", 0.7),
+                    max_candidates=int(state.hyperparams.get("max_candidates", 1000)),
+                    min_detection_size=int(state.hyperparams.get("min_detection_size", 3)),
+                ),
+            )
+            return request
+        except Exception as e:
+            st.error(f"❌ Validation error: {e}")
+            return None
+
+    return None
 
 
 def _render_model_selector(

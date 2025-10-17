@@ -3,7 +3,7 @@
 
 performance_profiler:
   _target_: ocr.lightning_modules.callbacks.PerformanceProfilerCallback
-  enabled: true
+  enabled: false
   log_interval: 10  # Log batch metrics every N batches
   profile_memory: true  # Track GPU/CPU memory usage
   verbose: false  # Set to true for console output during debugging

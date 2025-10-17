@@ -16,7 +16,9 @@ import streamlit as st
 
 from .components import results as results_component
 from .components import sidebar as sidebar_component
+from .models.batch_request import BatchPredictionRequest
 from .models.checkpoint import CheckpointInfo
+from .models.ui_events import InferenceRequest
 from .services.checkpoint_catalog import CatalogOptions, build_lightweight_catalog
 from .services.config_loader import load_ui_config
 from .services.inference_runner import InferenceService
@@ -56,7 +58,12 @@ def run() -> None:
     request = sidebar_component.render_controls(state, config, catalog)
 
     if request is not None:
-        inference_service.run(state, request, state.hyperparams)
+        if isinstance(request, BatchPredictionRequest):
+            # Handle batch prediction request
+            inference_service.run_batch_prediction(state, request)
+        elif isinstance(request, InferenceRequest):
+            # Handle single image inference request
+            inference_service.run(state, request, state.hyperparams)
 
     results_component.render_results(state, config)
 

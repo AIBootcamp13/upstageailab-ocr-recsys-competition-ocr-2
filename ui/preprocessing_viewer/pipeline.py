@@ -59,10 +59,10 @@ class PreprocessingViewerPipeline:
 
         # Create a mock detector for orientation corrector
         class MockDetector(DocumentDetector):
-            def __init__(self):
+            def __init__(self, logger):
                 # Initialize with minimal required parameters
                 super().__init__(
-                    logger=self.logger,
+                    logger=logger,
                     min_area_ratio=0.0,
                     use_adaptive=False,
                     use_fallback=False,
@@ -74,7 +74,7 @@ class PreprocessingViewerPipeline:
         self.orientation_corrector = OrientationCorrector(
             logger=self.logger,
             ensure_doctr=ensure_doctr,
-            detector=MockDetector(),
+            detector=MockDetector(self.logger),
             angle_threshold=2.0,
             expand_canvas=True,
             preserve_origin_shape=False,
