@@ -223,7 +223,7 @@ class PathUtils:
         2. Auto-detect by searching for a marker file/folder
         """
         warnings.warn(
-            "PathUtils.get_project_root() is deprecated. " "Use `get_path_resolver().config.project_root` instead.",
+            "PathUtils.get_project_root() is deprecated. Use `get_path_resolver().config.project_root` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -246,7 +246,7 @@ class PathUtils:
     def get_data_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.data_dir` instead."""
         warnings.warn(
-            "PathUtils.get_data_path() is deprecated. " "Use `get_path_resolver().config.data_dir` instead.",
+            "PathUtils.get_data_path() is deprecated. Use `get_path_resolver().config.data_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -256,7 +256,7 @@ class PathUtils:
     def get_config_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.config_dir` instead."""
         warnings.warn(
-            "PathUtils.get_config_path() is deprecated. " "Use `get_path_resolver().config.config_dir` instead.",
+            "PathUtils.get_config_path() is deprecated. Use `get_path_resolver().config.config_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -266,7 +266,7 @@ class PathUtils:
     def get_outputs_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.output_dir` instead."""
         warnings.warn(
-            "PathUtils.get_outputs_path() is deprecated. " "Use `get_path_resolver().config.output_dir` instead.",
+            "PathUtils.get_outputs_path() is deprecated. Use `get_path_resolver().config.output_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -276,7 +276,7 @@ class PathUtils:
     def get_images_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.images_dir` instead."""
         warnings.warn(
-            "PathUtils.get_images_path() is deprecated. " "Use `get_path_resolver().config.images_dir` instead.",
+            "PathUtils.get_images_path() is deprecated. Use `get_path_resolver().config.images_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -286,7 +286,7 @@ class PathUtils:
     def get_annotations_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.annotations_dir` instead."""
         warnings.warn(
-            "PathUtils.get_annotations_path() is deprecated. " "Use `get_path_resolver().config.annotations_dir` instead.",
+            "PathUtils.get_annotations_path() is deprecated. Use `get_path_resolver().config.annotations_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -296,7 +296,7 @@ class PathUtils:
     def get_pseudo_labels_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.pseudo_labels_dir` instead."""
         warnings.warn(
-            "PathUtils.get_pseudo_labels_path() is deprecated. " "Use `get_path_resolver().config.pseudo_labels_dir` instead.",
+            "PathUtils.get_pseudo_labels_path() is deprecated. Use `get_path_resolver().config.pseudo_labels_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -306,7 +306,7 @@ class PathUtils:
     def get_logs_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.logs_dir` instead."""
         warnings.warn(
-            "PathUtils.get_logs_path() is deprecated. " "Use `get_path_resolver().config.logs_dir` instead.",
+            "PathUtils.get_logs_path() is deprecated. Use `get_path_resolver().config.logs_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -316,7 +316,7 @@ class PathUtils:
     def get_checkpoints_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.checkpoints_dir` instead."""
         warnings.warn(
-            "PathUtils.get_checkpoints_path() is deprecated. " "Use `get_path_resolver().config.checkpoints_dir` instead.",
+            "PathUtils.get_checkpoints_path() is deprecated. Use `get_path_resolver().config.checkpoints_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -326,7 +326,7 @@ class PathUtils:
     def get_submissions_path(cls) -> Path:
         """DEPRECATED: Use `get_path_resolver().config.submissions_dir` instead."""
         warnings.warn(
-            "PathUtils.get_submissions_path() is deprecated. " "Use `get_path_resolver().config.submissions_dir` instead.",
+            "PathUtils.get_submissions_path() is deprecated. Use `get_path_resolver().config.submissions_dir` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -336,7 +336,7 @@ class PathUtils:
     def add_src_to_sys_path(cls) -> None:
         """DEPRECATED: Use `setup_paths()` function instead."""
         warnings.warn(
-            "PathUtils.add_src_to_sys_path() is deprecated. " "Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2
+            "PathUtils.add_src_to_sys_path() is deprecated. Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2
         )
         src_path = cls.get_project_root() / "ocr"
         src_str = str(src_path)
@@ -348,7 +348,7 @@ class PathUtils:
     def ensure_project_root_env(cls) -> None:
         """DEPRECATED: Use `setup_paths()` function instead."""
         warnings.warn(
-            "PathUtils.ensure_project_root_env() is deprecated. " "Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2
+            "PathUtils.ensure_project_root_env() is deprecated. Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2
         )
         if not os.getenv(cls.PROJECT_ROOT_ENV):
             project_root = cls.get_project_root()
@@ -365,7 +365,7 @@ class PathUtils:
             Dict with path validation results
         """
         warnings.warn(
-            "PathUtils.validate_paths() is deprecated. " "Use `get_path_resolver().validate_paths()` instead.",
+            "PathUtils.validate_paths() is deprecated. Use `get_path_resolver().validate_paths()` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -417,7 +417,7 @@ class PathUtils:
             project_root = Path(__file__).parent.parent.parent
             sys.path.append(str(project_root))
         """
-        warnings.warn("PathUtils.setup_paths() is deprecated. " "Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn("PathUtils.setup_paths() is deprecated. Use `setup_paths()` function instead.", DeprecationWarning, stacklevel=2)
         # Add project root to sys.path if not already there
         project_root = cls.get_project_root()
         project_root_str = str(project_root)
@@ -467,45 +467,41 @@ def setup_project_paths(config: dict[str, Any] | None = None) -> OCRPathResolver
 def get_project_root() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.project_root` instead."""
     warnings.warn(
-        "get_project_root() is deprecated. " "Use `get_path_resolver().config.project_root` instead.", DeprecationWarning, stacklevel=2
+        "get_project_root() is deprecated. Use `get_path_resolver().config.project_root` instead.", DeprecationWarning, stacklevel=2
     )
     return get_path_resolver().config.project_root
 
 
 def get_data_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.data_dir` instead."""
-    warnings.warn("get_data_path() is deprecated. " "Use `get_path_resolver().config.data_dir` instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn("get_data_path() is deprecated. Use `get_path_resolver().config.data_dir` instead.", DeprecationWarning, stacklevel=2)
     return get_path_resolver().config.data_dir
 
 
 def get_config_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.config_dir` instead."""
-    warnings.warn(
-        "get_config_path() is deprecated. " "Use `get_path_resolver().config.config_dir` instead.", DeprecationWarning, stacklevel=2
-    )
+    warnings.warn("get_config_path() is deprecated. Use `get_path_resolver().config.config_dir` instead.", DeprecationWarning, stacklevel=2)
     return get_path_resolver().config.config_dir
 
 
 def get_outputs_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.output_dir` instead."""
     warnings.warn(
-        "get_outputs_path() is deprecated. " "Use `get_path_resolver().config.output_dir` instead.", DeprecationWarning, stacklevel=2
+        "get_outputs_path() is deprecated. Use `get_path_resolver().config.output_dir` instead.", DeprecationWarning, stacklevel=2
     )
     return get_path_resolver().config.output_dir
 
 
 def get_images_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.images_dir` instead."""
-    warnings.warn(
-        "get_images_path() is deprecated. " "Use `get_path_resolver().config.images_dir` instead.", DeprecationWarning, stacklevel=2
-    )
+    warnings.warn("get_images_path() is deprecated. Use `get_path_resolver().config.images_dir` instead.", DeprecationWarning, stacklevel=2)
     return get_path_resolver().config.images_dir
 
 
 def get_annotations_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.annotations_dir` instead."""
     warnings.warn(
-        "get_annotations_path() is deprecated. " "Use `get_path_resolver().config.annotations_dir` instead.",
+        "get_annotations_path() is deprecated. Use `get_path_resolver().config.annotations_dir` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -514,14 +510,14 @@ def get_annotations_path() -> Path:
 
 def get_logs_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.logs_dir` instead."""
-    warnings.warn("get_logs_path() is deprecated. " "Use `get_path_resolver().config.logs_dir` instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn("get_logs_path() is deprecated. Use `get_path_resolver().config.logs_dir` instead.", DeprecationWarning, stacklevel=2)
     return get_path_resolver().config.logs_dir
 
 
 def get_checkpoints_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.checkpoints_dir` instead."""
     warnings.warn(
-        "get_checkpoints_path() is deprecated. " "Use `get_path_resolver().config.checkpoints_dir` instead.",
+        "get_checkpoints_path() is deprecated. Use `get_path_resolver().config.checkpoints_dir` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -531,7 +527,7 @@ def get_checkpoints_path() -> Path:
 def get_submissions_path() -> Path:
     """DEPRECATED: Use `get_path_resolver().config.submissions_dir` instead."""
     warnings.warn(
-        "get_submissions_path() is deprecated. " "Use `get_path_resolver().config.submissions_dir` instead.",
+        "get_submissions_path() is deprecated. Use `get_path_resolver().config.submissions_dir` instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -540,7 +536,7 @@ def get_submissions_path() -> Path:
 
 def add_src_to_sys_path() -> None:
     """DEPRECATED: Use `setup_project_paths()` function instead."""
-    warnings.warn("add_src_to_sys_path() is deprecated. " "Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn("add_src_to_sys_path() is deprecated. Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2)
     # Add project root to sys.path if not already present
     src_path = get_path_resolver().config.project_root / "ocr"
     src_str = str(src_path)
@@ -552,7 +548,7 @@ def add_src_to_sys_path() -> None:
 def ensure_project_root_env() -> None:
     """DEPRECATED: Use `setup_project_paths()` function instead."""
     warnings.warn(
-        "ensure_project_root_env() is deprecated. " "Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2
+        "ensure_project_root_env() is deprecated. Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2
     )
     # Ensure the PROJECT_ROOT environment variable is set
     if not os.getenv(PathUtils.PROJECT_ROOT_ENV):
@@ -562,9 +558,7 @@ def ensure_project_root_env() -> None:
 
 def validate_paths() -> dict:
     """DEPRECATED: Use `get_path_resolver().validate_paths()` instead."""
-    warnings.warn(
-        "validate_paths() is deprecated. " "Use `get_path_resolver().validate_paths()` instead.", DeprecationWarning, stacklevel=2
-    )
+    warnings.warn("validate_paths() is deprecated. Use `get_path_resolver().validate_paths()` instead.", DeprecationWarning, stacklevel=2)
     # Validate that all expected paths exist using the new path resolver
     resolver = get_path_resolver()
     paths_to_check = {
@@ -593,7 +587,7 @@ def validate_paths() -> dict:
 
 def setup_paths():
     """DEPRECATED: Use `setup_project_paths()` instead."""
-    warnings.warn("setup_paths() is deprecated. " "Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn("setup_paths() is deprecated. Use `setup_project_paths()` function instead.", DeprecationWarning, stacklevel=2)
     # Add project root to sys.path if not already there
     resolver = get_path_resolver()
     project_root = resolver.config.project_root

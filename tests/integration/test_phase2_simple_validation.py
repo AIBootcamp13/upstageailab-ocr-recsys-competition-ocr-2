@@ -192,7 +192,7 @@ class TestPhase2ValidationCriteria:
         # All metrics should be available
         assert all(metrics_available.values()), "All quality metrics should be established"
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("All Phase 2 quality metrics are established and measurable")
         print("=" * 70)
 

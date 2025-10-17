@@ -428,12 +428,12 @@ class TestPhase2BrightnessAdjustment:
             elapsed = time.time() - start_time
 
             processing_times.append(elapsed)
-            print(f"{brightness_type}: {elapsed*1000:.1f}ms")
+            print(f"{brightness_type}: {elapsed * 1000:.1f}ms")
 
         avg_time = np.mean(processing_times)
 
         print("\n=== BRIGHTNESS ADJUSTMENT PERFORMANCE ===")
-        print(f"Average Processing Time: {avg_time*1000:.1f}ms")
+        print(f"Average Processing Time: {avg_time * 1000:.1f}ms")
         print("Target: <100ms (real-time)")
         print(f"Status: {'✅ REAL-TIME' if avg_time < 0.1 else '⚠️  ACCEPTABLE' if avg_time < 1.0 else '❌ SLOW'}")
 

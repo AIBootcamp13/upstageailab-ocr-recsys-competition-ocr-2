@@ -3,9 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import lightning.pytorch as pl
-from lightning.pytorch.callbacks import Callback
-
 import wandb
+from lightning.pytorch.callbacks import Callback
 
 
 class WandbCompletionCallback(Callback):
