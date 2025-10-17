@@ -21,17 +21,20 @@ callbacks:
 compile_model: false
 
 seed: 42
-exp_name: "ocr_prediction"
-checkpoint_path: null #"outputs/ocr_training-dbnet-pan_decoder-resnet34/checkpoints/epoch_28_step_023722.ckpt" # resnet18 · step_014454 works too
-image_dir: "LOW_PERFORMANCE_IMGS"
-max_images: null
+exp_name: "ocr_prediction_shadow_removal"
+checkpoint_path: "outputs/new_norm_receipt_filter-dbnet-unet-mobilenetv3_small_050-unknown_training_20251016_231633/checkpoints/best.ckpt"
+image_dir: "test_shadow_removed"
+max_images: 1
 score_threshold: 0.01
-save_dir: "outputs/prediction_visualization"
+save_dir: "outputs/prediction_shadow_removal"
 minified_json: False
 include_confidence: False
 
-# Optional overrides for DB postprocessor thresholds
-postprocess_thresh: null
-postprocess_box_thresh: null
-postprocess_max_candidates: null
-postprocess_use_polygon: null
+datasets:
+  predict_dataset:
+    _target_: ${dataset_path}.ValidatedOCRDataset
+    config:
+      _target_: ${dataset_config_path}.DatasetConfig
+      image_path: ${image_dir}
+      annotation_path: null
+    transform: ${transforms.test_transform}

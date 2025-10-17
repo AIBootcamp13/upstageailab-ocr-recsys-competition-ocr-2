@@ -6,6 +6,7 @@ defaults:
   - model_checkpoint
   - early_stopping
   - rich_progress_bar
+  - wandb_image_logging
   - performance_profiler
   - _self_
 

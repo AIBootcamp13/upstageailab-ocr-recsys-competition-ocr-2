@@ -1,6 +1,7 @@
 # Logger config
 wandb:
   enabled: True
+  log_model: "all"
 project_name: "receipt-text-recognition-ocr-project"
 exp_version: "v1.0"
 # Configure W&B to save offline data in outputs directory

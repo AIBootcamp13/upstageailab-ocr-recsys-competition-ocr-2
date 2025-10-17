@@ -54,75 +54,82 @@ class WandbImageLoggingCallback(pl.Callback):
             raw_size_hint = entry.get("raw_size")
             metadata = self._normalize_metadata(entry.get("metadata"))
 
+            if metadata:
+                if "orientation" in metadata and metadata["orientation"] is not None:
+                    try:
+                        orientation_hint = int(metadata["orientation"])
+                    except (TypeError, ValueError):
+                        pass
+                if "raw_size" in metadata and metadata["raw_size"] is not None:
+                    raw_size_hint = metadata["raw_size"]
+
             # Get ground truth boxes
             gt_boxes = val_dataset.anns[filename]  # type: ignore
             gt_quads = self._normalise_polygons(gt_boxes)
             pred_quads = self._normalise_polygons(pred_boxes)
 
-            # Check if we have the transformed image stored
+            image = None
+            orientation = 1
+            raw_width = raw_height = None
+
             transformed_image = entry.get("transformed_image")
             if transformed_image is not None:
-                # Use the exact transformed image from training
                 try:
-                    # Convert tensor back to PIL Image
                     pil_image = self._tensor_to_pil(transformed_image)
-                    image = pil_image
-                    raw_width, raw_height = pil_image.size
-                    normalized_image = pil_image  # Already transformed
+                    if pil_image.mode != "RGB":
+                        image = pil_image.convert("RGB")
+                        pil_image.close()
+                    else:
+                        image = pil_image
+                    raw_width, raw_height = image.size
                 except Exception as e:
                     print(f"Warning: Failed to convert transformed image for {filename}: {e}")
                     continue
             else:
-                # Fallback to original method (load from disk and transform)
-                if metadata:
-                    if "orientation" in metadata and metadata["orientation"] is not None:
-                        orientation_hint = int(metadata["orientation"])
-                    if "raw_size" in metadata and metadata["raw_size"] is not None:
-                        raw_size_hint = metadata["raw_size"]
                 if not hasattr(val_dataset, "anns") or filename not in val_dataset.anns:  # type: ignore
                     continue
 
-                # Get image directly from filesystem (similar to dataset loading)
                 try:
                     image_path = self._resolve_image_path(entry, metadata, val_dataset, filename)
-                    pil_image = Image.open(image_path)
-                    raw_width, raw_height = pil_image.size
-                    normalized_image, orientation = normalize_pil_image(pil_image)
+                    with Image.open(image_path) as pil_image:
+                        raw_width, raw_height = pil_image.size
+                        normalized_image, orientation = normalize_pil_image(pil_image)
 
-                    if normalized_image.mode != "RGB":
-                        image = normalized_image.convert("RGB")
-                    else:
-                        image = normalized_image.copy()
-
-                    if normalized_image is not image:
-                        normalized_image.close()
-                    pil_image.close()
+                        if normalized_image.mode != "RGB":
+                            image = normalized_image.convert("RGB")
+                            normalized_image.close()
+                        else:
+                            image = normalized_image.copy()
+                            normalized_image.close()
                 except Exception as e:
-                    # If we can't get the image, skip this sample
                     print(f"Warning: Failed to load image {filename}: {e}")
                     continue
 
-                polygon_frame = metadata.get("polygon_frame") if metadata else None
-                if gt_quads:
-                    if polygon_frame == "canonical":
-                        pass
-                    elif orientation != 1:
-                        gt_quads = remap_polygons(gt_quads, raw_width, raw_height, orientation)
-                    elif orientation_hint != 1:
-                        hint_width, hint_height = raw_size_hint or (raw_width, raw_height)
+            if image is None:
+                continue
+
+            polygon_frame = metadata.get("polygon_frame") if metadata else None
+            if gt_quads:
+                if polygon_frame == "canonical":
+                    pass
+                elif orientation != 1 and raw_width is not None and raw_height is not None:
+                    gt_quads = remap_polygons(gt_quads, raw_width, raw_height, orientation)
+                elif orientation_hint != 1:
+                    hint_width, hint_height = raw_size_hint or (raw_width or 0, raw_height or 0)
+                    if hint_width and hint_height:
                         gt_quads = remap_polygons(gt_quads, hint_width, hint_height, orientation_hint)
 
-                gt_quads = self._postprocess_polygons(gt_quads, image.size)
-                pred_quads = self._postprocess_polygons(pred_quads, image.size)
+            gt_quads = self._postprocess_polygons(gt_quads, image.size)
+            pred_quads = self._postprocess_polygons(pred_quads, image.size)
 
-                images.append(image)
-                gt_bboxes.append(gt_quads)
-                pred_bboxes.append(pred_quads)
-                filenames.append((filename, image.size[0], image.size[1]))  # (filename, width, height)
-                count += 1
+            images.append(image)
+            gt_bboxes.append(gt_quads)
+            pred_bboxes.append(pred_quads)
+            filenames.append((filename, image.size[0], image.size[1]))  # (filename, width, height)
+            count += 1
 
-                if count >= self.max_images:
-                    break
+            if count >= self.max_images:
+                break
 
         # Log images with bounding boxes if we have data
         if images and gt_bboxes and pred_bboxes:
