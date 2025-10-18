@@ -18,6 +18,7 @@ Reference Implementation:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import numpy as np
@@ -61,14 +62,11 @@ class Predictions(_InferenceBase):
         for polygon_str in value.split("|"):
             if not polygon_str.strip():
                 continue
-            # Competition format uses SPACE-separated coordinates, not commas
-            coords = polygon_str.split()
+            coords = re.findall(r"-?\d+(?:\.\d+)?", polygon_str)
             if len(coords) < 8 or len(coords) % 2 != 0:
-                raise ValueError(f"Invalid polygon format: {polygon_str}. Must have even number of coordinates >= 8")
-            try:
-                [float(coord) for coord in coords if coord.strip()]
-            except ValueError as exc:
-                raise ValueError(f"Polygon coordinates must be numeric: {polygon_str}") from exc
+                raise ValueError(f"Invalid polygon format: {polygon_str}. Must contain an even number of coordinates >= 8")
+            # Converting to float will raise if any token is invalid (should not happen with regex)
+            [float(coord) for coord in coords]
         return value
 
     @field_validator("confidences")

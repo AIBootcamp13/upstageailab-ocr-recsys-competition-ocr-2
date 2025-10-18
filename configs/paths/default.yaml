@@ -1,6 +1,7 @@
 
-# Paths config
-log_dir: 'outputs/${exp_name}/logs'
-output_dir: 'outputs/${exp_name}'
-checkpoint_dir: 'outputs/${exp_name}/checkpoints'
-submission_dir: 'outputs/${exp_name}/submissions'
+# Paths config - Timestamp-based structure for reliability
+experiment_dir: 'outputs'
+log_dir: '${hydra:runtime.output_dir}/logs'
+output_dir: '${hydra:runtime.output_dir}'
+checkpoint_dir: '${hydra:runtime.output_dir}/checkpoints'
+submission_dir: '${hydra:runtime.output_dir}/submissions'

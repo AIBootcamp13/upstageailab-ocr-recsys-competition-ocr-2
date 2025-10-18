@@ -21,6 +21,7 @@ SESSION_KEYS: dict[str, Callable[[], Any]] = {
     "selected_images": set,
     "processed_images": dict,
     "selected_model": lambda: None,
+    "selected_model_label": lambda: None,
     "hyperparams": dict,
     "previous_uploaded_files": set,
     "preprocessing_enabled": lambda: False,
@@ -43,6 +44,7 @@ class InferenceState:
     selected_images: set[str] = field(default_factory=set)
     processed_images: dict[str, dict[str, set[str]]] = field(default_factory=dict)
     selected_model: str | None = None
+    selected_model_label: str | None = None
     hyperparams: dict[str, float] = field(default_factory=dict)
     preprocessing_enabled: bool = False
     preprocessing_overrides: dict[str, Any] = field(default_factory=dict)
@@ -74,6 +76,7 @@ class InferenceState:
             selected_images=set(state.selected_images),
             processed_images=processed_images,
             selected_model=state.selected_model,
+            selected_model_label=state.selected_model_label if isinstance(state.selected_model_label, str) else None,
             hyperparams=dict(state.hyperparams or {}),
             preprocessing_enabled=preprocessing_enabled,
             preprocessing_overrides=dict(state.preprocessing_overrides or {}),
@@ -94,6 +97,7 @@ class InferenceState:
             model: {mode: set(values) for mode, values in buckets.items()} for model, buckets in self.processed_images.items()
         }
         st.session_state.selected_model = self.selected_model
+        st.session_state.selected_model_label = self.selected_model_label
         st.session_state.hyperparams = dict(self.hyperparams)
         st.session_state.preprocessing_enabled = bool(self.preprocessing_enabled)
         st.session_state.preprocessing_overrides = dict(self.preprocessing_overrides)
@@ -113,12 +117,16 @@ class InferenceState:
         model_buckets = self.processed_images.setdefault(model_path, {})
         model_buckets.setdefault(mode_key, set())
 
-    def reset_for_model(self, model_path: str | None) -> None:
+    def reset_for_model(self, model_path: str | None, model_label: str | None = None) -> None:
         if self.selected_model != model_path:
             self.inference_results.clear()
+            self.selected_images.clear()
+            self.batch_output_files.clear()
             if self.selected_model is not None:
                 self.processed_images.pop(self.selected_model, None)
-            self.selected_model = model_path
+        self.selected_model = model_path
+        if model_label is not None:
+            self.selected_model_label = model_label
 
     def update_preprocessing_override(self, key: str, value: Any) -> None:
         self.preprocessing_overrides[key] = value
@@ -133,6 +141,14 @@ def ensure_session_defaults() -> None:
     for key, factory in SESSION_KEYS.items():
         if key not in st.session_state:
             st.session_state[key] = factory()
+
+
+def clear_session_state() -> None:
+    keys_to_clear = set(SESSION_KEYS.keys()) | {"previous_uploaded_files"}
+    for key in list(st.session_state.keys()):
+        if key in keys_to_clear:
+            st.session_state.pop(key)
+    ensure_session_defaults()
 
 
 def init_hyperparameters(sliders: dict[str, SliderConfig]) -> None:

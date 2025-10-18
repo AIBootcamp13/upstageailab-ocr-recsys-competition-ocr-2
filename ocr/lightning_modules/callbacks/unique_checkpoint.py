@@ -2,23 +2,25 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any
 
 import torch
-import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
+
+import wandb
 
 
 class UniqueModelCheckpoint(ModelCheckpoint):
     """
-    Enhanced ModelCheckpoint with structured, hierarchical naming convention.
+    Enhanced ModelCheckpoint with timestamp-based directory organization.
 
-    Implements the naming scheme:
-    <experiment_tag>-<model>_<phase>_<timestamp>/checkpoints/<type>-<epoch>_<step>_<metric>.ckpt
+    Implements the naming scheme for timestamp-based structure:
+    outputs/YYYY-MM-DD/HH-MM-SS/checkpoints/<type>-<epoch>_<step>_<metric>.ckpt
 
     This callback extends PyTorch Lightning's ModelCheckpoint to provide:
-    - Clear, hierarchical checkpoint organization
-    - Easy identification of experiments and training phases
-    - Automatic metadata inclusion (model, epoch, step, metrics)
+    - Timestamp-based directory organization (managed by Hydra)
+    - Clear checkpoint naming with model information
+    - Automatic metadata generation alongside checkpoints
     - Prevention of overwrites through unique identifiers
     - Improved searchability and filtering
 
@@ -34,23 +36,26 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         add_timestamp: bool = True,
         experiment_tag: str | None = None,
         training_phase: str = "training",
+        config: dict | Any | None = None,
         **kwargs,
     ):
         """
-        Initialize checkpoint callback with enhanced naming.
+        Initialize checkpoint callback with timestamp-based organization.
 
         Args:
-            add_timestamp: Whether to add timestamp to directory structure
-            experiment_tag: Unique identifier for the experiment (e.g., "ocr_pl_refactor_phase1")
+            add_timestamp: Whether to add timestamp to checkpoint filenames (legacy, kept for compatibility)
+            experiment_tag: Optional experiment identifier (deprecated in favor of timestamp-based structure)
             training_phase: Stage of the experiment (e.g., "training", "validation", "finetuning")
+            config: Resolved training configuration to save alongside checkpoints
             **kwargs: Additional arguments passed to ModelCheckpoint
         """
         super().__init__(*args, **kwargs)
         self.add_timestamp = add_timestamp
         self.experiment_tag = experiment_tag
         self.training_phase = training_phase
+        self._resolved_config = config
 
-        # Generate unique identifier once at initialization
+        # Generate unique identifier once at initialization (for legacy compatibility)
         if self.add_timestamp:
             self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -161,12 +166,179 @@ class UniqueModelCheckpoint(ModelCheckpoint):
 
         return info
 
+    def _generate_checkpoint_metadata(self, checkpoint_path: str, metrics: dict | None = None) -> None:
+        """
+        Generate metadata file alongside checkpoint using defined schema.
+
+        Creates a JSON file with checkpoint metadata including:
+        - Model architecture information (encoder, decoder, head)
+        - Training configuration and hyperparameters
+        - Checkpoint metrics and performance
+        - Training progress (epoch, step)
+        - Timestamp and environment information
+
+        Args:
+            checkpoint_path: Path to the checkpoint file
+            metrics: Current training metrics
+        """
+        import json
+        from pathlib import Path
+
+        try:
+            trainer = getattr(self, "trainer", None)
+            if trainer is None:
+                return
+
+            def _json_ready(value):
+                try:
+                    import numpy as np  # type: ignore
+                except Exception:  # pragma: no cover - optional dependency
+                    np = None  # type: ignore[assignment]
+
+                try:
+                    from omegaconf import DictConfig, ListConfig, OmegaConf  # type: ignore
+
+                    omegaconf_types = (DictConfig, ListConfig)
+                except Exception:  # pragma: no cover - optional dependency
+                    OmegaConf = None  # type: ignore
+                    omegaconf_types = ()
+
+                if isinstance(value, torch.Tensor):
+                    value = value.detach().cpu()
+                    if value.numel() == 1:
+                        return value.item()
+                    return value.tolist()
+
+                if np is not None and isinstance(value, np.ndarray):  # type: ignore[attr-defined]
+                    if value.size == 1:
+                        return value.item()
+                    return value.tolist()
+
+                if omegaconf_types and isinstance(value, omegaconf_types):
+                    try:
+                        return _json_ready(OmegaConf.to_container(value, resolve=True))  # type: ignore[arg-type,union-attr]
+                    except Exception:
+                        return None
+
+                if isinstance(value, dict):
+                    return {str(k): _json_ready(v) for k, v in value.items()}
+
+                if isinstance(value, list | tuple | set):
+                    return [_json_ready(item) for item in value]
+
+                if hasattr(value, "item"):
+                    try:
+                        return value.item()
+                    except Exception:
+                        pass
+
+                if isinstance(value, Path):
+                    return str(value)
+
+                return value
+
+            # Get model information
+            model_info = self._get_model_info()
+
+            # Build metadata using schema
+            from ui.apps.inference.models.checkpoint import (
+                CheckpointConfigInfo,
+                CheckpointMetadataSchema,
+                CheckpointModelInfo,
+                CheckpointTrainingInfo,
+            )
+
+            # Get model component details if available
+            components = {}
+            if hasattr(trainer, "model"):
+                model = trainer.model
+                if hasattr(model, "component_overrides"):
+                    components = model.component_overrides
+
+            safe_metrics = {}
+            if metrics:
+                for key, value in metrics.items():
+                    safe_metrics[str(key)] = _json_ready(value)
+
+            safe_components = _json_ready(components)
+            if not isinstance(safe_components, dict):
+                safe_components = {}
+
+            metadata = CheckpointMetadataSchema(
+                checkpoint_path=checkpoint_path,
+                created_at=datetime.now().isoformat(),
+                training=CheckpointTrainingInfo(
+                    epoch=trainer.current_epoch,
+                    global_step=trainer.global_step,
+                    training_phase=self.training_phase,
+                ),
+                model=CheckpointModelInfo(
+                    architecture=model_info.get("architecture"),
+                    encoder=model_info.get("encoder"),
+                    components=safe_components,
+                ),
+                metrics=safe_metrics,
+                config=CheckpointConfigInfo(
+                    monitor=self.monitor,
+                    mode=self.mode,
+                    save_top_k=self.save_top_k,
+                ),
+            )
+
+            # Save metadata file
+            metadata_path = Path(checkpoint_path).with_suffix(".metadata.json")
+            with open(metadata_path, "w") as f:
+                json.dump(metadata.model_dump(mode="json"), f, indent=2)
+
+            # Save resolved config file for inference compatibility
+            # This eliminates the need for complex config resolution in inference
+            try:
+                # Get the resolved config from trainer (passed via callback setup)
+                resolved_config = getattr(self, "_resolved_config", None)
+                if resolved_config is not None:
+                    from omegaconf import OmegaConf
+
+                    # Convert to plain dict for JSON serialization
+                    config_dict = OmegaConf.to_container(resolved_config, resolve=True)
+
+                    # Ensure we have a dict to work with
+                    if not isinstance(config_dict, dict):
+                        config_dict = {}
+
+                    # Save only the model section if it exists, otherwise save the full config
+                    model_config = config_dict.get("model")
+                    if model_config is not None:
+                        config_to_save = {"model": model_config}
+                    else:
+                        # For configs without explicit model section, save key components
+                        config_to_save = {
+                            key: value
+                            for key, value in config_dict.items()
+                            if isinstance(key, str) and key in ["model", "architecture", "encoder", "decoder", "head", "backbone"]
+                        }
+
+                    if config_to_save:  # Only save if we have something useful
+                        config_path = Path(checkpoint_path).with_suffix(".config.json")
+                        with open(config_path, "w") as f:
+                            json.dump(_json_ready(config_to_save), f, indent=2)
+
+            except Exception:
+                # Don't fail training if config saving fails
+                pass
+
+        except Exception:
+            # Don't fail training if metadata generation fails
+            pass
+
     def _setup_dirpath(self) -> str:
         """
-        Set up the directory path using the hierarchical naming scheme.
+        Set up the directory path for timestamp-based structure.
 
-        Creates directory structure:
-        outputs/<experiment_tag>-<model>_<phase>_<timestamp>/checkpoints/
+        With the new timestamp-based organization, Hydra creates the directory structure:
+        outputs/YYYY-MM-DD/HH-MM-SS/checkpoints/
+
+        This method now simply ensures the directory exists and can optionally
+        add model information to checkpoint filenames.
 
         Returns:
             The formatted directory path
@@ -177,50 +349,18 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         # Convert dirpath to string if it's a Path object
         dirpath_str = str(self.dirpath)
 
-        # If add_timestamp is enabled, enhance the directory name
-        if self.add_timestamp and self.experiment_tag:
-            # Get model information
-            model_info = self._get_model_info()
-            architecture = model_info.get("architecture") or "unknown"
-            encoder = model_info.get("encoder") or "unknown"
-
-            # Clean names (remove special characters)
-            import re
-
-            def clean_name(name):
-                if name is None or name == "unknown":
-                    return name
-                return re.sub(r"[^a-zA-Z0-9_-]", "_", str(name))
-
-            arch_clean = clean_name(architecture)
-            encoder_clean = clean_name(encoder)
-
-            # Build model identifier
-            if encoder_clean and encoder_clean != "unknown":
-                model_identifier = f"{arch_clean}-{encoder_clean}"
-            else:
-                model_identifier = arch_clean
-
-            # Build the enhanced directory name
-            dir_name = f"{self.experiment_tag}-{model_identifier}_{self.training_phase}_{self.timestamp}"
-
-            # Replace the exp_name portion in dirpath with our enhanced name
-            # Assuming dirpath is like "outputs/{exp_name}/checkpoints"
-            parts = dirpath_str.split(os.sep)
-            if len(parts) >= 2:
-                # Replace the exp_name part (typically second-to-last before /checkpoints)
-                parts[-2] = dir_name
-                enhanced_dirpath = os.sep.join(parts)
-                return enhanced_dirpath
+        # For timestamp-based structure, use the dirpath as-is
+        # Hydra already creates: outputs/YYYY-MM-DD/HH-MM-SS/checkpoints/
+        # No need to manipulate directory names with experiment tags
 
         return dirpath_str
 
     def setup(self, trainer, pl_module, stage: str | None = None) -> None:
         """
-        Setup callback and configure directory structure.
+        Setup callback for timestamp-based directory structure.
 
-        This is called before training starts, allowing us to configure
-        the directory path with model information.
+        With the new structure, directory setup is simplified since Hydra
+        handles the timestamp-based organization.
         """
         # Call parent setup with stage
         if stage is not None:
@@ -229,10 +369,8 @@ class UniqueModelCheckpoint(ModelCheckpoint):
             # Avoid the type issue by not passing None
             super().setup(trainer, pl_module, "fit")
 
-        # Update dirpath with enhanced naming if enabled
-        if self.add_timestamp and self.experiment_tag:
-            enhanced_dirpath = self._setup_dirpath()
-            self.dirpath = enhanced_dirpath  # type: ignore
+        # For timestamp-based structure, dirpath is already set by Hydra
+        # No need to enhance directory naming
 
     def load_state_dict(self, state_dict: dict) -> None:
         """
@@ -251,7 +389,43 @@ class UniqueModelCheckpoint(ModelCheckpoint):
         super().load_state_dict(state_dict)
 
     def on_save_checkpoint(self, trainer, pl_module, checkpoint):
-        """Log checkpoint directory to wandb when a checkpoint is saved."""
+        """Generate metadata file and log checkpoint directory to wandb when a checkpoint is saved."""
+        # Generate metadata file alongside checkpoint
+        checkpoint_paths = []
+        if hasattr(self, "best_model_path") and self.best_model_path:
+            checkpoint_paths.append(self.best_model_path)
+        if hasattr(self, "last_model_path") and self.last_model_path:
+            checkpoint_paths.append(self.last_model_path)
+
+        # Get current metrics for metadata
+        metrics = {}
+        if hasattr(trainer, "logged_metrics"):
+            metrics = dict(trainer.logged_metrics)
+
+        # Generate metadata for each checkpoint path
+        for checkpoint_path in checkpoint_paths:
+            self._generate_checkpoint_metadata(checkpoint_path, metrics)
+
+        # Log checkpoint directory to wandb
         if wandb.run and self.dirpath:
             wandb.log({"checkpoint_dir": self.dirpath})
+
         return checkpoint
+
+    def on_train_end(self, trainer, pl_module):
+        """Generate metadata for all saved checkpoints at the end of training."""
+        # Generate metadata for all saved checkpoints
+        checkpoint_paths = []
+        if hasattr(self, "best_model_path") and self.best_model_path:
+            checkpoint_paths.append(self.best_model_path)
+        if hasattr(self, "last_model_path") and self.last_model_path:
+            checkpoint_paths.append(self.last_model_path)
+
+        # Get current metrics for metadata
+        metrics = {}
+        if hasattr(trainer, "logged_metrics"):
+            metrics = dict(trainer.logged_metrics)
+
+        # Generate metadata for each checkpoint path
+        for checkpoint_path in checkpoint_paths:
+            self._generate_checkpoint_metadata(checkpoint_path, metrics)

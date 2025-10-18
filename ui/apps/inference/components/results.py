@@ -16,6 +16,7 @@ refactor protocols documented in ``docs/ai_handbook/02_protocols``.
 #   path: docs/ai_handbook/02_protocols/02_command_registry.md#5-streamlit-ui-launchers
 # ]
 
+import re
 from typing import Any
 
 import numpy as np
@@ -24,11 +25,21 @@ from PIL import Image, ImageDraw
 
 from ..models.config import UIConfig
 from ..models.data_contracts import InferenceResult, Predictions, PreprocessingInfo
-from ..state import InferenceState
+from ..state import InferenceState, clear_session_state
 
 
 def render_results(state: InferenceState, config: UIConfig) -> None:
     st.header("📊 Inference Results")
+
+    controls_col1, controls_col2 = st.columns(2)
+    with controls_col1:
+        if st.button("🗑️ Clear Results", key="clear_results_main", use_container_width=True):
+            _clear_state_results(state)
+            st.rerun()
+    with controls_col2:
+        if st.button("♻️ Reset Session", key="reset_session_main", use_container_width=True):
+            clear_session_state()
+            st.rerun()
 
     if not state.inference_results:
         st.info("No inference results yet. Upload images and run inference to see results.")
@@ -52,6 +63,14 @@ def render_results(state: InferenceState, config: UIConfig) -> None:
         expanded = config.results.expand_first_result and index == 0
         with st.expander(title, expanded=expanded):
             _render_single_result(result, config)
+
+
+def _clear_state_results(state: InferenceState) -> None:
+    state.inference_results.clear()
+    state.processed_images.clear()
+    state.selected_images.clear()
+    state.batch_output_files.clear()
+    state.persist()
 
 
 def _render_batch_output_section(state: InferenceState) -> None:
@@ -192,10 +211,9 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: Predic
             confidences = predictions.confidences
 
             for index, polygon_str in enumerate(polygons):
-                coords = [int(value) for value in polygon_str.split(",") if value]
-                if len(coords) < 8 or len(coords) % 2 != 0:
+                points = _parse_polygon_points(polygon_str)
+                if not points:
                     continue
-                points = [(coords[i], coords[i + 1]) for i in range(0, len(coords), 2)]
 
                 draw.polygon(points, outline=(255, 0, 0, 255), fill=(255, 0, 0, 30))
 
@@ -229,6 +247,18 @@ def _display_image_with_predictions(image_array: np.ndarray, predictions: Predic
             width=width_setting,  # type: ignore[arg-type]
         )
         raise exc from exc
+
+
+def _parse_polygon_points(polygon_str: str) -> list[tuple[int, int]]:
+    tokens = re.findall(r"-?\d+(?:\.\d+)?", polygon_str)
+    if len(tokens) < 8 or len(tokens) % 2 != 0:
+        return []
+
+    coords = [float(token) for token in tokens]
+    points: list[tuple[int, int]] = []
+    for x, y in zip(coords[0::2], coords[1::2], strict=True):
+        points.append((int(round(x)), int(round(y))))
+    return points
 
 
 def _render_preprocessing_section(preprocessing: PreprocessingInfo, config: UIConfig) -> None:

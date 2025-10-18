@@ -10,6 +10,7 @@ that configs and schemas stay authoritative.
 """
 
 from collections.abc import Sequence
+from pathlib import Path
 
 import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -22,7 +23,7 @@ from ..models.batch_request import (
 from ..models.checkpoint import CheckpointInfo, CheckpointMetadata
 from ..models.config import SliderConfig, UIConfig
 from ..models.ui_events import InferenceRequest
-from ..state import InferenceState, init_hyperparameters, init_preprocessing
+from ..state import InferenceState, clear_session_state, init_hyperparameters, init_preprocessing
 
 
 def render_controls(
@@ -35,6 +36,7 @@ def render_controls(
 
     # Mode selector at the top
     _render_mode_selector(state)
+    _render_session_controls(state)
 
     selected_metadata = _render_model_selector(state, config, checkpoints)
     _render_model_status(selected_metadata, config)
@@ -68,14 +70,33 @@ def _render_mode_selector(state: InferenceState) -> None:
     st.divider()
 
 
+def _render_session_controls(state: InferenceState) -> None:
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗑️ Clear Results", key="session_clear_results", use_container_width=True):
+            _clear_inference_results(state)
+            st.rerun()
+    with col2:
+        if st.button("♻️ Reset Session", key="session_reset", use_container_width=True):
+            clear_session_state()
+            st.rerun()
+    st.divider()
+
+
+def _clear_inference_results(state: InferenceState) -> None:
+    state.inference_results.clear()
+    state.selected_images.clear()
+    state.processed_images.clear()
+    state.batch_output_files.clear()
+    state.persist()
+
+
 def _render_batch_mode_controls(
     state: InferenceState,
     metadata: CheckpointMetadata | None,
     config: UIConfig,
 ) -> BatchPredictionRequest | None:
     """Render batch prediction mode controls."""
-    from pathlib import Path
-
     st.subheader("Batch Prediction")
 
     if metadata is None:
@@ -103,7 +124,7 @@ def _render_batch_mode_controls(
             # Try to count images
             try:
                 supported_exts = (".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif")
-                image_files = []
+                image_files: list[Path] = []
                 for ext in supported_exts:
                     image_files.extend(input_path.glob(f"*{ext}"))
                     image_files.extend(input_path.glob(f"*{ext.upper()}"))
@@ -176,6 +197,7 @@ def _render_batch_mode_controls(
             request = BatchPredictionRequest(
                 input_dir=input_dir,
                 model_path=str(metadata.checkpoint_path),
+                config_path=str(metadata.config_path) if metadata.config_path else None,
                 use_preprocessing=state.preprocessing_enabled,
                 output_config=BatchOutputConfig(
                     output_dir=output_dir,
@@ -208,16 +230,22 @@ def _render_model_selector(
 
     options, mapping = _build_display_mapping(checkpoints, config)
 
+    if state.selected_model_label in options:
+        default_index = options.index(state.selected_model_label)
+    else:
+        default_index = 0
+
     selected_label = st.selectbox(
         "Select Trained Model",
         options,
-        index=options.index(state.selected_model) if state.selected_model in options else 0,
+        index=default_index,
         help="Choose a trained OCR model for inference. Models are organized using metadata derived from checkpoints.",
     )
 
     info = mapping.get(selected_label)
     if info is None:
-        state.reset_for_model(selected_label)
+        state.reset_for_model(None, selected_label)
+        state.persist()
         return None
 
     # Load full metadata for the selected checkpoint
@@ -228,7 +256,8 @@ def _render_model_selector(
         metadata = info.load_full_metadata(schema)
 
     selected_model_path = metadata.checkpoint_path
-    state.reset_for_model(str(selected_model_path))
+    state.reset_for_model(str(selected_model_path), selected_label)
+    state.persist()
 
     return metadata
 
@@ -462,6 +491,7 @@ def _render_upload_section(
             return InferenceRequest(
                 files=[file],
                 model_path=str(metadata.checkpoint_path),
+                config_path=str(metadata.config_path) if metadata.config_path else None,
                 use_preprocessing=state.preprocessing_enabled,
                 preprocessing_config=state.build_preprocessing_config(config.preprocessing),
             )
@@ -478,6 +508,7 @@ def _render_upload_section(
             return InferenceRequest(
                 files=selected_files,
                 model_path=str(metadata.checkpoint_path),
+                config_path=str(metadata.config_path) if metadata.config_path else None,
                 use_preprocessing=state.preprocessing_enabled,
                 preprocessing_config=state.build_preprocessing_config(config.preprocessing),
             )
@@ -508,11 +539,15 @@ def _render_selection_checkboxes(state: InferenceState, uploaded_files: Sequence
 
 
 def _render_clear_results(state: InferenceState) -> None:
-    if not state.inference_results:
+    if not (state.inference_results or state.processed_images or state.selected_images):
         return
     st.divider()
-    if st.button("🗑️ Clear Results", width="stretch"):
-        state.inference_results.clear()
-        state.processed_images.clear()
-        state.persist()
-    st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗑️ Clear Results", use_container_width=True):
+            _clear_inference_results(state)
+            st.rerun()
+    with col2:
+        if st.button("♻️ Reset Session", use_container_width=True):
+            clear_session_state()
+            st.rerun()

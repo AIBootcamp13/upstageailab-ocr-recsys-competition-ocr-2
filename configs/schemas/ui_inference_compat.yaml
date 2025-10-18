@@ -53,7 +53,7 @@ model_families:
   - id: dbnet_mobilenetv3_small_unet256
     description: "DBNet architecture trained with MobileNetV3 Small backbone and widened UNet decoder."
     encoder:
-      model_names: ["mobilenetv3_small_050"]
+      model_names: ["mobilenetv3_small_050", "mobilenetv3"]
     decoder:
       class: ocr.models.decoder.UNet
       inner_channels: 256
@@ -65,7 +65,7 @@ model_families:
   - id: dbnet_mobilenetv3_small_resnet_channels
     description: "DBNet architecture with MobileNetV3 naming but ResNet18-like channels (likely due to component overrides)."
     encoder:
-      model_names: ["mobilenetv3_small_050"]
+      model_names: ["mobilenetv3_small_050", "mobilenetv3"]
     decoder:
       class: ocr.models.decoder.UNet
       inner_channels: 256

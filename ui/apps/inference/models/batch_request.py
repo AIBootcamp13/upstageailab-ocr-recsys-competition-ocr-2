@@ -58,7 +58,7 @@ class BatchOutputConfig(BaseModel):
         # Check for filesystem-unsafe characters
         unsafe_chars = set('<>:"/\\|?*')
         if any(char in unsafe_chars for char in value):
-            raise ValueError(f"Filename prefix contains unsafe characters. " f"Avoid: {', '.join(unsafe_chars)}")
+            raise ValueError(f"Filename prefix contains unsafe characters. Avoid: {', '.join(unsafe_chars)}")
 
         return value.strip()
 
@@ -143,6 +143,10 @@ class BatchPredictionRequest(BaseModel):
         ...,
         description="Path to model checkpoint file",
     )
+    config_path: str | None = Field(
+        None,
+        description="Path to model config file",
+    )
     use_preprocessing: bool = Field(
         default=False,
         description="Whether to apply document preprocessing",
@@ -216,7 +220,7 @@ class BatchPredictionRequest(BaseModel):
 
         if not image_files:
             raise ValueError(
-                f"No valid image files found in {self.input_dir}. " f"Supported extensions: {', '.join(self.supported_extensions)}"
+                f"No valid image files found in {self.input_dir}. Supported extensions: {', '.join(self.supported_extensions)}"
             )
 
         return image_files

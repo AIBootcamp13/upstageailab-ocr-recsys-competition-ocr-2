@@ -58,7 +58,14 @@ def resolve_config_path(checkpoint_path: str | Path, explicit_config: str | Path
             return config_path
         LOGGER.warning("Explicit config %s does not exist.", config_path)
 
-    checkpoint_parent = Path(checkpoint_path).resolve().parent
+    checkpoint_path = Path(checkpoint_path).resolve()
+
+    # First, check for .config.json file alongside the checkpoint (new filesystem refactoring)
+    config_json_path = checkpoint_path.with_suffix(".config.json")
+    if config_json_path.exists():
+        return config_json_path
+
+    checkpoint_parent = checkpoint_path.parent
     candidates = list(search_dirs)
     candidates.extend([checkpoint_parent, checkpoint_parent.parent])
 
@@ -93,6 +100,25 @@ def load_model_config(config_path: str | Path) -> ModelConfigBundle:
             config_dict = yaml.safe_load(handle)
         else:
             config_dict = json.load(handle)
+
+    # Try to resolve Hydra defaults if present
+    if OCR_MODULES_AVAILABLE and isinstance(config_dict, dict) and "defaults" in config_dict:
+        try:
+            from hydra import compose, initialize
+            from hydra.core.global_hydra import GlobalHydra
+
+            # Use Hydra to resolve the config with defaults
+            GlobalHydra.instance().clear()
+            config_dir = path.parent
+            config_name = path.stem
+
+            with initialize(config_path=str(config_dir), version_base=None):
+                resolved_cfg = compose(config_name=config_name)
+                config_dict = resolved_cfg.to_container() if hasattr(resolved_cfg, "to_container") else dict(resolved_cfg)
+                LOGGER.info("Resolved Hydra config with defaults: %s", path)
+
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.warning("Failed to resolve Hydra config %s, using raw config: %s", path, exc)
 
     config_container = DictConfig(config_dict) if OCR_MODULES_AVAILABLE else config_dict
 

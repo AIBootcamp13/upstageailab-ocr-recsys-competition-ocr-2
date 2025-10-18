@@ -3,12 +3,18 @@ from __future__ import annotations
 """High-level inference engine orchestration."""
 
 import logging
+import re
+import warnings
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 from PIL import Image
+
+# Suppress Pydantic v2 configuration warnings from dependencies
+warnings.filterwarnings("ignore", message="Valid config keys have changed in V2:", category=UserWarning)
+warnings.filterwarnings("ignore", message="'allow_population_by_field_name' has been renamed to 'validate_by_name'", category=UserWarning)
 
 from ocr.utils.orientation import normalize_pil_image, orientation_requires_rotation, remap_polygons
 
@@ -22,7 +28,12 @@ from .utils import get_available_checkpoints as scan_checkpoints
 
 LOGGER = logging.getLogger(__name__)
 
-_ORIENTATION_INVERSE = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 8, 7: 7, 8: 6}
+_POLYGON_TOKEN_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
+# Original orientation. Logically incorrect. ex. 6:8 and 8:6
+# _ORIENTATION_INVERSE = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 8, 7: 7, 8: 6}
+
+# Logically correct orientation mapping
+_ORIENTATION_INVERSE = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8}
 
 
 class InferenceEngine:
@@ -45,7 +56,8 @@ class InferenceEngine:
             LOGGER.error("OCR modules are not installed. Cannot load a real model.")
             return False
 
-        search_dirs: tuple[Path, ...] = ()
+        # Include configs directory in search paths for config files
+        search_dirs = (Path("configs"),)
         resolved_config = resolve_config_path(checkpoint_path, config_path, search_dirs)
         if resolved_config is None:
             LOGGER.error("Could not find a valid config file for checkpoint: %s", checkpoint_path)
@@ -57,8 +69,14 @@ class InferenceEngine:
 
         model_config = getattr(bundle.raw_config, "model", None)
         if model_config is None:
-            LOGGER.error("Configuration missing 'model' section: %s", resolved_config)
-            return False
+            # Fallback: Try to extract model config from root level (for Hydra configs with defaults)
+            LOGGER.warning("Configuration missing direct 'model' section, trying root level extraction: %s", resolved_config)
+            model_config = bundle.raw_config
+            # Check if this config has model-like attributes
+            model_attrs = ["architecture", "encoder", "decoder", "head"]
+            if not any(hasattr(model_config, attr) for attr in model_attrs):
+                LOGGER.error("Configuration has neither 'model' section nor model attributes at root level: %s", resolved_config)
+                return False
 
         try:
             model = instantiate_model(model_config)
@@ -240,8 +258,8 @@ class InferenceEngine:
 
         remapped_polygons = []
         for polygon_entry in polygons_str.split("|"):
-            tokens = [token for token in polygon_entry.split(",") if token]
-            if len(tokens) < 8:
+            tokens = _POLYGON_TOKEN_PATTERN.findall(polygon_entry)
+            if len(tokens) < 8 or len(tokens) % 2 != 0:
                 continue
             try:
                 coords = np.array([float(value) for value in tokens], dtype=np.float32).reshape(-1, 2)
@@ -267,13 +285,14 @@ class InferenceEngine:
 def run_inference_on_image(
     image_path: str,
     checkpoint_path: str,
+    config_path: str | None = None,
     binarization_thresh: float | None = None,
     box_thresh: float | None = None,
     max_candidates: int | None = None,
     min_detection_size: int | None = None,
 ) -> dict[str, Any] | None:
     engine = InferenceEngine()
-    if not engine.load_model(checkpoint_path):
+    if not engine.load_model(checkpoint_path, config_path):
         LOGGER.error("Failed to load model in convenience function.")
         return None
     return engine.predict_image(

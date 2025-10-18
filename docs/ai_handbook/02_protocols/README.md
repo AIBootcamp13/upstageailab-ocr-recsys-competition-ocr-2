@@ -23,7 +23,10 @@ This directory contains standardized protocols, procedures, and guidelines for d
 │   ├── 12_streamlit_refactoring_protocol.md
 │   ├── 13_training_protocol.md
 │   ├── 16_template_adoption_protocol.md
-│   └── 17_advanced_training_techniques.md
+│   ├── 17_advanced_training_techniques.md
+│   ├── 18_checkpoint_migration_protocol.md
+│   ├── 22_streamlit_debugging_protocol.md
+│   └── 22_streamlit_debugging_protocol_agent_quickref.md
 ├── configuration/           # Configuration management protocols
 │   ├── 20_command_builder_testing_guide.md
 │   ├── 20_hydra_config_resolution_troubleshooting.md
@@ -44,7 +47,7 @@ This directory contains standardized protocols, procedures, and guidelines for d
 Core development protocols covering coding standards, debugging workflows, refactoring procedures, feature implementation guidelines, and general development practices. These are the foundational protocols that apply across all development activities.
 
 ### components/
-Protocols specific to particular system components or technologies, such as Streamlit UI development, docTR preprocessing, training pipelines, and template adoption.
+Protocols specific to particular system components or technologies, such as Streamlit UI development and debugging, docTR preprocessing, training pipelines, and template adoption. Includes comprehensive debugging protocols for UI applications with structured context building.
 
 ### configuration/
 Protocols for managing configuration systems, particularly Hydra configuration, command builder functionality, and configuration testing procedures.

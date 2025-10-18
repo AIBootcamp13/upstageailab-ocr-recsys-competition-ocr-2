@@ -70,7 +70,7 @@ The `in_channels` list depends on the encoder architecture:
 |---------|-------------|
 | resnet18, resnet34 | [64, 128, 256, 512] |
 | resnet50, resnet101, resnet152 | [256, 512, 1024, 2048] |
-| mobilenetv3_small_050 | [8, 16, 24, 288] |
+| mobilenetv3_small_050, mobilenetv3 | [8, 16, 24, 288] |
 | mobilenetv3_large | [16, 24, 40, 112, 960] |
 | efficientnet_b0 | [16, 24, 40, 112, 320] |
 

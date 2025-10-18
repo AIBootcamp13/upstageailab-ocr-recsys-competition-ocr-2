@@ -11,4 +11,4 @@ def _alias_module(alias: str, target: str) -> None:
 
 # _alias_module("ui.visualization", "ui.visualization")
 
-__all__ = []
+__all__: list[str] = []

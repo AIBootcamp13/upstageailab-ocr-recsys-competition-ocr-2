@@ -17,6 +17,11 @@ from __future__ import annotations
 
 import warnings
 
+# Suppress known Pydantic compatibility warnings
+# This warning occurs when dependencies use the old Pydantic v2 parameter name
+warnings.filterwarnings("ignore", message="Valid config keys have changed in V2:", category=UserWarning)
+warnings.filterwarnings("ignore", message="'allow_population_by_field_name' has been renamed to 'validate_by_name'", category=UserWarning)
+
 # Suppress known wandb Pydantic compatibility warnings
 # This is a known issue where wandb uses incorrect Field() syntax in Annotated types
 # The warnings come from Pydantic when processing wandb's type annotations

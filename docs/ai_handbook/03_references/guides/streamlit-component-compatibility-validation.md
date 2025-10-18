@@ -197,6 +197,22 @@ RuntimeError: Error(s) in loading state_dict for OCRPLModule:
 2. Ensure all components match the training configuration
 3. Use the validation system to verify compatibility
 
+### Encoder 'None' Error
+
+**Problem:**
+```
+No compatibility schema found for encoder 'None'. Add an entry to ui_inference_compat.yaml to enable this checkpoint.
+```
+
+**Root Cause:** The checkpoint catalog failed to extract the encoder name from either the config file or directory structure.
+
+**Solutions:**
+1. **Check Config File**: Ensure the checkpoint has a valid `.hydra/config.yaml` with encoder information
+2. **Verify Experiment Naming**: Experiment directory names should include encoder keywords (resnet, mobilenet, etc.)
+3. **Automatic Fallback**: The system now automatically extracts encoder information directly from the checkpoint's state_dict when other methods fail
+4. **Update Schema**: If using a new encoder, add it to `configs/schemas/ui_inference_compat.yaml`
+4. **Fallback Extraction**: The system now automatically extracts encoder names from experiment directory names
+
 ### Component Not Showing in Dropdown
 
 **Check:**

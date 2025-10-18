@@ -18,6 +18,7 @@ here.
 # ]
 
 import logging
+import re
 import tempfile
 import time
 from collections.abc import Sequence
@@ -36,6 +37,8 @@ from ..state import InferenceState
 from .submission_writer import SubmissionWriter
 
 LOGGER = logging.getLogger(__name__)
+
+_POLYGON_TOKEN_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
 
 try:
     from ui.utils.inference import run_inference_on_image
@@ -102,6 +105,7 @@ class InferenceService:
                 result = self._perform_inference(
                     temp_path,
                     Path(validated_request.model_path),
+                    validated_request.config_path,
                     filename,
                     hyperparams,
                     validated_request.use_preprocessing,
@@ -124,6 +128,7 @@ class InferenceService:
         self,
         image_path: Path,
         model_path: Path,
+        config_path: str | None,
         filename: str,
         hyperparams: dict[str, float],
         use_preprocessing: bool,
@@ -177,6 +182,7 @@ class InferenceService:
                     raw_predictions = inference_fn(
                         str(inference_target_path),
                         str(model_path),
+                        config_path,
                         hyperparams.get("binarization_thresh"),
                         hyperparams.get("box_thresh"),
                         int(max_candidates_val) if max_candidates_val is not None else None,
@@ -333,6 +339,7 @@ class InferenceService:
                 result = self._perform_inference(
                     image_path,
                     Path(validated_request.model_path),
+                    validated_request.config_path,
                     filename,
                     hyperparams,
                     validated_request.use_preprocessing,
@@ -385,7 +392,7 @@ class InferenceService:
                 )
 
                 # Store output files in state for download buttons
-                state.batch_output_files = written_files
+                state.batch_output_files = {format_name: str(file_path) for format_name, file_path in written_files.items()}
                 state.persist()
 
                 # Display output file paths
@@ -438,23 +445,19 @@ class InferenceService:
             if not polygon_str.strip():
                 continue  # Skip empty polygons
 
-            coords = []
-            for value in polygon_str.split(","):
-                value = value.strip()
-                if not value:
-                    continue
-                try:
-                    coords.append(int(float(value)))
-                except (ValueError, TypeError) as e:
-                    LOGGER.warning(f"Invalid coordinate value '{value}' in polygon '{polygon_str}': {e}")
-                    return False
-
-            if len(coords) < 8:
-                LOGGER.warning(f"Polygon has too few coordinates: {len(coords)} < 8 in '{polygon_str}'")
+            tokens = _POLYGON_TOKEN_PATTERN.findall(polygon_str)
+            if len(tokens) < 8:
+                LOGGER.warning(f"Polygon has too few coordinates: {len(tokens)} < 8 in '{polygon_str}'")
                 return False
 
-            if len(coords) % 2 != 0:
-                LOGGER.warning(f"Polygon has odd number of coordinates: {len(coords)} in '{polygon_str}'")
+            if len(tokens) % 2 != 0:
+                LOGGER.warning(f"Polygon has odd number of coordinates: {len(tokens)} in '{polygon_str}'")
+                return False
+
+            try:
+                coords = [float(token) for token in tokens]
+            except (ValueError, TypeError) as exc:  # pragma: no cover - guarded by regex
+                LOGGER.warning(f"Invalid coordinate value in polygon '{polygon_str}': {exc}")
                 return False
 
             for i in range(0, len(coords), 2):

@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-resource-monitor pre-commit setup-dev ci context-log-start context-log-summarize quick-fix-log
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-preprocessing-viewer serve-resource-monitor stop-ui stop-evaluation-ui stop-inference-ui stop-preprocessing-viewer stop-resource-monitor status-ui status-evaluation-ui status-inference-ui status-preprocessing-viewer status-resource-monitor logs-ui logs-evaluation-ui logs-inference-ui logs-preprocessing-viewer logs-resource-monitor clear-logs-ui clear-logs-evaluation-ui clear-logs-inference-ui clear-logs-preprocessing-viewer clear-logs-resource-monitor list-ui-processes stop-all-ui pre-commit setup-dev ci context-log-start context-log-summarize quick-fix-log
 
 # Default target
 help:
@@ -24,6 +24,26 @@ help:
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
 	@echo "  serve-preprocessing-viewer - Start Preprocessing Pipeline Viewer"
 	@echo "  serve-resource-monitor - Start Resource Monitor UI"
+	@echo "  stop-ui             - Stop Command Builder UI"
+	@echo "  stop-evaluation-ui  - Stop Evaluation Results Viewer"
+	@echo "  stop-inference-ui   - Stop OCR Inference UI"
+	@echo "  stop-preprocessing-viewer - Stop Preprocessing Pipeline Viewer"
+	@echo "  stop-resource-monitor - Stop Resource Monitor UI"
+	@echo "  status-inference-ui - Check OCR Inference UI status"
+	@echo "  status-preprocessing-viewer - Check Preprocessing Pipeline Viewer status"
+	@echo "  status-resource-monitor - Check Resource Monitor UI status"
+	@echo "  logs-ui              - View Command Builder UI logs"
+	@echo "  logs-evaluation-ui   - View Evaluation Results Viewer logs"
+	@echo "  logs-inference-ui    - View OCR Inference UI logs"
+	@echo "  logs-preprocessing-viewer - View Preprocessing Pipeline Viewer logs"
+	@echo "  logs-resource-monitor - View Resource Monitor UI logs"
+	@echo "  clear-logs-ui        - Clear Command Builder UI logs"
+	@echo "  clear-logs-evaluation-ui - Clear Evaluation Results Viewer logs"
+	@echo "  clear-logs-inference-ui - Clear OCR Inference UI logs"
+	@echo "  clear-logs-preprocessing-viewer - Clear Preprocessing Pipeline Viewer logs"
+	@echo "  clear-logs-resource-monitor - Clear Resource Monitor UI logs"
+	@echo "  list-ui-processes    - List all running UI processes"
+	@echo "  stop-all-ui          - Stop all UI processes"
 	@echo "  context-log-start   - Create a new context log JSONL file"
 	@echo "  context-log-summarize - Summarize a context log into Markdown"
 	@echo "  quick-fix-log       - Log a quick fix to QUICK_FIXES.md"
@@ -88,19 +108,86 @@ docs-deploy:
 
 # UI
 serve-ui:
-	uv run streamlit run ui/command_builder.py --server.port=$(PORT)
+	uv run python scripts/process_manager.py start command_builder --port=$(PORT)
 
 serve-evaluation-ui:
-	uv run streamlit run ui/evaluation_viewer.py --server.port=$(PORT)
+	uv run python scripts/process_manager.py start evaluation_viewer --port=$(PORT)
 
 serve-inference-ui:
-	uv run streamlit run ui/inference_ui.py --server.port=$(PORT)
+	uv run python scripts/process_manager.py start inference --port=$(PORT)
 
 serve-preprocessing-viewer:
-	uv run streamlit run ui/preprocessing_viewer_app.py --server.port=$(PORT)
+	uv run python scripts/process_manager.py start preprocessing_viewer --port=$(PORT)
 
-serve-moni:
-	uv run streamlit run ui/resource_monitor.py --server.port=$(PORT)
+serve-resource-monitor:
+	uv run python scripts/process_manager.py start resource_monitor --port=$(PORT)
+
+# Process management
+stop-ui:
+	uv run python scripts/process_manager.py stop command_builder --port=$(PORT)
+
+stop-evaluation-ui:
+	uv run python scripts/process_manager.py stop evaluation_viewer --port=$(PORT)
+
+stop-inference-ui:
+	uv run python scripts/process_manager.py stop inference --port=$(PORT)
+
+stop-preprocessing-viewer:
+	uv run python scripts/process_manager.py stop preprocessing_viewer --port=$(PORT)
+
+stop-resource-monitor:
+	uv run python scripts/process_manager.py stop resource_monitor --port=$(PORT)
+
+status-ui:
+	uv run python scripts/process_manager.py status command_builder --port=$(PORT)
+
+status-evaluation-ui:
+	uv run python scripts/process_manager.py status evaluation_viewer --port=$(PORT)
+
+status-inference-ui:
+	uv run python scripts/process_manager.py status inference --port=$(PORT)
+
+status-preprocessing-viewer:
+	uv run python scripts/process_manager.py status preprocessing_viewer --port=$(PORT)
+
+status-resource-monitor:
+	uv run python scripts/process_manager.py status resource_monitor --port=$(PORT)
+
+logs-ui:
+	uv run python scripts/process_manager.py logs command_builder --port=$(PORT)
+
+logs-evaluation-ui:
+	uv run python scripts/process_manager.py logs evaluation_viewer --port=$(PORT)
+
+logs-inference-ui:
+	uv run python scripts/process_manager.py logs inference --port=$(PORT)
+
+logs-preprocessing-viewer:
+	uv run python scripts/process_manager.py logs preprocessing_viewer --port=$(PORT)
+
+logs-resource-monitor:
+	uv run python scripts/process_manager.py logs resource_monitor --port=$(PORT)
+
+clear-logs-ui:
+	uv run python scripts/process_manager.py clear-logs command_builder --port=$(PORT)
+
+clear-logs-evaluation-ui:
+	uv run python scripts/process_manager.py clear-logs evaluation_viewer --port=$(PORT)
+
+clear-logs-inference-ui:
+	uv run python scripts/process_manager.py clear-logs inference --port=$(PORT)
+
+clear-logs-preprocessing-viewer:
+	uv run python scripts/process_manager.py clear-logs preprocessing_viewer --port=$(PORT)
+
+clear-logs-resource-monitor:
+	uv run python scripts/process_manager.py clear-logs resource_monitor --port=$(PORT)
+
+list-ui-processes:
+	uv run python scripts/process_manager.py list
+
+stop-all-ui:
+	uv run python scripts/process_manager.py stop-all
 
 context-log-start:
 	uv run python scripts/agent_tools/context_log.py start $(if $(LABEL),--label "$(LABEL)")

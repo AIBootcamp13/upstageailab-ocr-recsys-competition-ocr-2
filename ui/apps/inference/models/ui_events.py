@@ -15,5 +15,6 @@ class InferenceRequest(BaseModel):
 
     files: Sequence[UploadedFile] = Field(..., description="Uploaded files to process")
     model_path: str = Field(..., description="Path to the model checkpoint")
+    config_path: str | None = Field(None, description="Path to the model config file")
     use_preprocessing: bool = Field(default=False, description="Whether to use preprocessing")
     preprocessing_config: PreprocessingConfig | None = Field(default=None, description="Preprocessing configuration")
