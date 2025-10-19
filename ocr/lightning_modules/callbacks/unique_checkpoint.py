@@ -5,9 +5,8 @@ from datetime import datetime
 from typing import Any
 
 import torch
-from lightning.pytorch.callbacks import ModelCheckpoint
-
 import wandb
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 
 class UniqueModelCheckpoint(ModelCheckpoint):
