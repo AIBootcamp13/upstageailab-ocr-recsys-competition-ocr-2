@@ -174,10 +174,8 @@ real_noise_elimination_demo/
 test_cleaned.jpg
 test_original.jpg
 preprocessing-plan/
-logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv
-debug_empty_predictions/eda_results/correlation_matrix.png (867 KB) exceeds 500 KB.
-logs/submission_resnet18_16bit_pan_dbnet_add_polygon.csv (9351 KB) exceeds 500 KB.
-preprocessing-plan/preprocessing_viewer_references.md (1071 KB) exceeds 500 KB.
+debug_empty_predictions/eda_results/correlation_matrix.png
+preprocessing-plan/preprocessing_viewer_references.md
 
 phase1_validation_results/
 configs/train_debug.yaml
@@ -195,3 +193,19 @@ test_corrected_gray/
 test_gray/
 test_gray_new/
 test_shadow_removal/
+logs/
+submissions/
+demo_background_removal.py
+mermaid_diagram_brainstorm.md
+preprocess_sample_images.py
+preprocessing_results/
+submissions_test_catalog/
+submissions_test_catalog_filtered/
+test_ocr_on_bg_removed.py
+test_u2net.png
+test_u2netp.png
+test_zero_predictions_bg_removal.py
+zero_prediction_bg_removal_test/
+# Temporary system files
+*.pid
+*.err

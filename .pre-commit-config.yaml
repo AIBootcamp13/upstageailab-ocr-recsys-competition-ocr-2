@@ -37,3 +37,10 @@ repos:
         entry: uv run python scripts/agent_tools/validate_manifest.py
         language: system
         pass_filenames: false
+
+      - id: check-diagram-updates
+        name: check-diagram-updates
+        entry: python scripts/generate_diagrams.py --check-changes
+        language: system
+        pass_filenames: false
+        files: ^(ocr/|ui/|configs/|scripts/generate_diagrams\.py)$

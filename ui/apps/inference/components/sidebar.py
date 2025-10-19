@@ -487,7 +487,7 @@ def _render_upload_section(
     if len(uploaded_files) == 1 and config.upload.immediate_inference_for_single:
         file = uploaded_files[0]
         st.success("✅ 1 image uploaded and ready for inference")
-        if st.button("🚀 Run Inference", width="stretch"):
+        if st.button("🚀 Run Inference", type="primary", use_container_width=True):
             return InferenceRequest(
                 files=[file],
                 model_path=str(metadata.checkpoint_path),
@@ -504,7 +504,7 @@ def _render_upload_section(
 
     if selected_files:
         st.success(f"✅ {len(selected_files)} of {len(uploaded_files)} images selected for inference")
-        if st.button("🚀 Run Inference", width="stretch"):
+        if st.button("🚀 Run Inference", type="primary", use_container_width=True):
             return InferenceRequest(
                 files=selected_files,
                 model_path=str(metadata.checkpoint_path),

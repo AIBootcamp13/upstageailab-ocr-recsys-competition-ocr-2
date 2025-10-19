@@ -2,7 +2,7 @@
 
 PORT ?= 8501
 
-.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy serve-ui serve-evaluation-ui serve-inference-ui serve-preprocessing-viewer serve-resource-monitor stop-ui stop-evaluation-ui stop-inference-ui stop-preprocessing-viewer stop-resource-monitor status-ui status-evaluation-ui status-inference-ui status-preprocessing-viewer status-resource-monitor logs-ui logs-evaluation-ui logs-inference-ui logs-preprocessing-viewer logs-resource-monitor clear-logs-ui clear-logs-evaluation-ui clear-logs-inference-ui clear-logs-preprocessing-viewer clear-logs-resource-monitor list-ui-processes stop-all-ui pre-commit setup-dev ci context-log-start context-log-summarize quick-fix-log
+.PHONY: help install dev-install test test-cov lint lint-fix format quality-check quality-fix clean docs-build docs-serve docs-deploy diagrams-check diagrams-update diagrams-force-update diagrams-validate diagrams-update-specific serve-ui serve-evaluation-ui serve-inference-ui serve-preprocessing-viewer serve-resource-monitor stop-ui stop-evaluation-ui stop-inference-ui stop-preprocessing-viewer stop-resource-monitor status-ui status-evaluation-ui status-inference-ui status-preprocessing-viewer status-resource-monitor logs-ui logs-evaluation-ui logs-inference-ui logs-preprocessing-viewer logs-resource-monitor clear-logs-ui clear-logs-evaluation-ui clear-logs-inference-ui clear-logs-preprocessing-viewer clear-logs-resource-monitor list-ui-processes stop-all-ui pre-commit setup-dev ci context-log-start context-log-summarize quick-fix-log
 
 # Default target
 help:
@@ -19,6 +19,11 @@ help:
 	@echo "  docs-build          - Build MkDocs documentation"
 	@echo "  docs-serve          - Serve MkDocs documentation locally"
 	@echo "  docs-deploy         - Deploy MkDocs documentation to GitHub Pages"
+	@echo "  diagrams-check      - Check which diagrams need updates"
+	@echo "  diagrams-update     - Update diagrams that have changed"
+	@echo "  diagrams-force-update - Force update all diagrams"
+	@echo "  diagrams-validate   - Validate diagram syntax"
+	@echo "  diagrams-update-specific - Update specific diagrams (use DIAGRAMS=...)"
 	@echo "  serve-ui            - Start Command Builder UI"
 	@echo "  serve-evaluation-ui - Start Evaluation Results Viewer"
 	@echo "  serve-inference-ui  - Start OCR Inference UI"
@@ -105,6 +110,27 @@ docs-serve:
 
 docs-deploy:
 	uv run mkdocs gh-deploy
+
+# Diagrams
+diagrams-check:
+	@echo "🔍 Checking for diagram updates..."
+	python scripts/generate_diagrams.py --check-changes
+
+diagrams-update:
+	@echo "🔄 Updating diagrams that have changed..."
+	python scripts/generate_diagrams.py --update
+
+diagrams-force-update:
+	@echo "🔄 Force updating all diagrams..."
+	python scripts/generate_diagrams.py --update --force
+
+diagrams-validate:
+	@echo "✅ Validating diagram syntax..."
+	python scripts/generate_diagrams.py --validate
+
+diagrams-update-specific:
+	@echo "🔄 Updating specific diagrams: $(DIAGRAMS)"
+	python scripts/generate_diagrams.py --update $(DIAGRAMS)
 
 # UI
 serve-ui:

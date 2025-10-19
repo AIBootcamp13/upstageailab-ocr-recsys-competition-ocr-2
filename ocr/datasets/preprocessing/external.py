@@ -18,6 +18,11 @@ doctr_rotate_image: Callable[..., np.ndarray] | None = None
 
 DOCTR_AVAILABLE = False
 
+# Background removal
+BackgroundRemoval: Any = None
+create_background_removal_transform: Callable[..., Any] | None = None
+REMBG_AVAILABLE = False
+
 try:  # pragma: no cover - optional dependency guard
     import albumentations as _albumentations
     from albumentations.core.transforms_interface import ImageOnlyTransform as _ImageOnlyTransform
@@ -48,6 +53,18 @@ except ImportError:  # pragma: no cover - optional dependency guard
     extract_rcrops = None
     doctr_remove_image_padding = None
     doctr_rotate_image = None
+
+try:  # pragma: no cover - optional dependency guard
+    from .background_removal import BackgroundRemoval as _BackgroundRemoval
+    from .background_removal import create_background_removal_transform as _create_background_removal_transform
+
+    BackgroundRemoval = _BackgroundRemoval
+    create_background_removal_transform = _create_background_removal_transform
+    REMBG_AVAILABLE = True
+except ImportError:  # pragma: no cover - optional dependency guard
+    BackgroundRemoval = None
+    create_background_removal_transform = None
+    REMBG_AVAILABLE = False
 
 __all__ = [
     "A",

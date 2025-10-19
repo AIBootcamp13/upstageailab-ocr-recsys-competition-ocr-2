@@ -96,6 +96,7 @@ class PreprocessingViewerPipeline:
         Returns:
             Dictionary mapping stage names to processed images
         """
+        self.logger.info(f"Starting preprocessing pipeline - image shape: {image.shape}, config keys: {list(config.keys())}")
         results: dict[str, np.ndarray | str] = {"original": image.copy()}
         current_image = image.copy()
         validation_result: GeometryValidationResult | None = None
@@ -180,9 +181,10 @@ class PreprocessingViewerPipeline:
                     )
                     results["corners_detected"] = current_image.copy()
 
-            # Stage 3: Document flattening
+            # Stage 3: Document flattening (WARNING: CPU-intensive, can take 3-15s)
             corners_for_processing = results.get("selected_quadrilateral") or results.get("detected_corners")
-            if config.get("enable_document_flattening", True) and isinstance(corners_for_processing, np.ndarray):
+            if config.get("enable_document_flattening", False) and isinstance(corners_for_processing, np.ndarray):
+                self.logger.info("Starting document flattening (may take 3-15 seconds)...")
                 try:
                     flattened_result = self.document_flattener.flatten_document(current_image, corners_for_processing)
                     if (
@@ -192,9 +194,10 @@ class PreprocessingViewerPipeline:
                     ):
                         current_image = flattened_result.flattened_image
                         results["flattened"] = current_image.copy()
-                except Exception:
+                        self.logger.info("Document flattening completed successfully")
+                except Exception as e:
+                    self.logger.warning(f"Document flattening failed: {e}")
                     # Skip flattening if it fails
-                    pass
 
             # Stage 4: Perspective correction
             if config.get("enable_perspective_correction", True) and isinstance(corners_for_processing, np.ndarray):
@@ -315,25 +318,29 @@ class PreprocessingViewerPipeline:
 
             # Stage 6: Noise elimination
             if config.get("enable_noise_elimination", True):
+                self.logger.info("Starting noise elimination...")
                 try:
                     noise_result = self.noise_eliminator.eliminate_noise(current_image)
                     if hasattr(noise_result, "cleaned_image") and noise_result.cleaned_image is not None:
                         current_image = noise_result.cleaned_image
                         results["noise_eliminated"] = current_image.copy()
-                except Exception:
+                        self.logger.info("Noise elimination completed successfully")
+                except Exception as e:
+                    self.logger.warning(f"Noise elimination failed: {e}")
                     # Skip noise elimination if it fails
-                    pass
 
             # Stage 7: Brightness adjustment
             if config.get("enable_brightness_adjustment", True):
+                self.logger.info("Starting brightness adjustment...")
                 try:
                     brightness_result = self.brightness_adjuster.adjust_brightness(current_image)
                     if hasattr(brightness_result, "adjusted_image") and brightness_result.adjusted_image is not None:
                         current_image = brightness_result.adjusted_image
                         results["brightness_adjusted"] = current_image.copy()
-                except Exception:
+                        self.logger.info("Brightness adjustment completed successfully")
+                except Exception as e:
+                    self.logger.warning(f"Brightness adjustment failed: {e}")
                     # Skip brightness adjustment if it fails
-                    pass
 
             # Stage 8: Enhancement
             if config.get("enable_enhancement", True):
@@ -348,9 +355,10 @@ class PreprocessingViewerPipeline:
 
             # Final result
             results["final"] = current_image.copy()
+            self.logger.info(f"Preprocessing pipeline completed successfully - {len(results)} stages executed")
 
         except Exception as e:
-            self.logger.error(f"Error in preprocessing pipeline: {e}")
+            self.logger.error(f"Error in preprocessing pipeline: {e}", exc_info=True)
             results["error"] = str(e)
             results["final"] = image.copy()  # Fallback to original
 

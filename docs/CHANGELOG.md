@@ -7,6 +7,196 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - 2025-10-19
+
+#### Checkpoint Catalog V2 Project Complete ✅ (Major Performance Improvement)
+
+**Status**: All 4 phases complete - Production ready with feature flag rollback capability
+**Performance**: 40-100x speedup in checkpoint catalog building (200-500x in best case)
+**Migration**: 11/11 existing checkpoints migrated successfully (100% success rate)
+**Testing**: 45 comprehensive tests (33 unit + 12 integration)
+
+**Project Summary**:
+The Checkpoint Catalog V2 refactor is complete. This major optimization replaced slow checkpoint loading with fast YAML metadata files, achieving dramatic performance improvements while maintaining full backward compatibility.
+
+**Key Achievements**:
+- Catalog build time: 22-55s → <1s (11 checkpoints)
+- Automatic metadata generation enabled for all future training runs
+- Wandb API fallback with caching for missing metadata
+- Feature flag system for gradual rollout: `CHECKPOINT_CATALOG_USE_V2=1` (default enabled)
+- Zero breaking changes - UI continues to work seamlessly
+
+**See**: [V2 Final Summary](ai_handbook/05_changelog/2025-10/19_checkpoint_catalog_v2_final_summary.md) for complete details
+
+#### Checkpoint Catalog V2 Integration (Performance Improvement)
+
+**Change**: Migrated inference UI to use new V2 checkpoint catalog system with 40-100x performance improvement
+**Impact**: Catalog building now takes <1s vs 30-40s for legacy system (with .metadata.yaml files)
+**Backward Compatibility**: Full backward compatibility maintained - UI continues to use `CheckpointInfo` interface
+
+**Performance Improvements**:
+- Fast path (with .metadata.yaml): <10ms per checkpoint vs 2-5s legacy
+- Wandb fallback (cached): ~100-500ms vs 2-5s legacy
+- Measured speedup: ~900,000x with caching (first load), instant on subsequent loads
+- Expected real-world speedup: 40-100x for catalogs with metadata coverage
+
+**Technical Details**:
+- Legacy `checkpoint_catalog.py` now acts as thin adapter over V2 system
+- Internally uses `CheckpointCatalogBuilder` with Wandb fallback
+- Converter function: `_convert_v2_entry_to_checkpoint_info()` for seamless migration
+- Caching enabled by default for optimal performance
+- Deprecation notice added - new code should use V2 API directly
+
+**Files Changed**:
+- `ui/apps/inference/services/checkpoint_catalog.py:1-141` - Added V2 integration and adapter
+- `checkpoint_catalog_refactor_plan.md` - Updated progress tracker (Phase 3 Task 3.2 complete)
+
+**References**: See [checkpoint_catalog_refactor_plan.md](../checkpoint_catalog_refactor_plan.md) for implementation details
+
+### Fixed - 2025-10-19
+
+#### Checkpoint Catalog V2: Epoch Extraction Bug
+
+**Bug**: Legacy path incorrectly prioritized config's `max_epochs` over checkpoint's actual `epoch` field
+**Impact**: Catalog entries showed wrong epoch numbers for checkpoints without metadata files
+**Root Cause**: Catalog builder read `max_epochs` from config before loading checkpoint state dict
+**Fix**: Prioritize checkpoint's `epoch` field, only fall back to config `max_epochs` if missing
+
+**Files Changed**:
+- [ui/apps/inference/services/checkpoint/catalog.py:278-332](ui/apps/inference/services/checkpoint/catalog.py) - Fixed epoch extraction priority
+
+### Added - 2025-10-19
+
+#### Checkpoint Catalog V2: Migration Tool (Phase 4.2)
+
+**Addition**: Created conversion tool to generate .metadata.yaml files for existing checkpoints
+**Purpose**: Enable fast catalog loading for legacy checkpoints without re-training
+**Tool**: `scripts/generate_checkpoint_metadata.py`
+
+**Features**:
+- Automatic discovery of checkpoints without metadata
+- Multi-source metadata extraction: checkpoint state dict + Hydra config
+- Extraction of metrics (precision, recall, hmean), architecture, encoder info
+- Batch processing with progress tracking and error handling
+- Dry-run mode for preview without creating files
+
+**Usage**:
+```bash
+# Generate metadata for all checkpoints in outputs/
+python scripts/generate_checkpoint_metadata.py
+
+# Preview without creating files
+python scripts/generate_checkpoint_metadata.py --dry-run
+
+# Custom directory
+python scripts/generate_checkpoint_metadata.py --outputs-dir /path/to/outputs
+```
+
+**Results**: Successfully generated metadata for 11 existing checkpoints (100% success rate)
+
+**Files Added**:
+- [scripts/generate_checkpoint_metadata.py](../scripts/generate_checkpoint_metadata.py) - Metadata conversion tool (600+ lines)
+
+**References**: See [checkpoint_catalog_refactor_plan.md](../checkpoint_catalog_refactor_plan.md) Phase 4 Task 4.2
+
+#### Checkpoint Catalog V2: Comprehensive Test Suite (Phase 4.1)
+
+**Addition**: Added comprehensive unit and integration tests for V2 catalog system
+**Coverage**: 45 tests covering all fallback paths, caching, validation, and error handling
+**Performance**: Includes regression tests to ensure fast path remains <50ms per checkpoint
+
+**Test Suites**:
+- **Unit Tests** (33 tests): Metadata loader, Wandb client, cache, validator, catalog builder
+- **Integration Tests** (12 tests): Fallback hierarchy, cache invalidation, error recovery
+
+**Key Test Scenarios**:
+- Fast path: Metadata YAML files (10ms target)
+- Wandb fallback: API fetch with caching (100-500ms target)
+- Config fallback: Inference from Hydra configs
+- Legacy fallback: Checkpoint loading (2-5s, used as last resort)
+- Mixed scenarios: Some checkpoints with metadata, some without
+- Error handling: Corrupt YAML, missing files, permission errors
+- Cache invalidation: Directory mtime changes, manual clearing
+
+**Performance Regression Tests**:
+- Metadata loading: <50ms per checkpoint (avg)
+- Catalog build: <1s for 10 checkpoints with metadata
+- Validates V2 performance targets maintained
+
+**Files Added**:
+- [tests/unit/test_checkpoint_catalog_v2.py](tests/unit/test_checkpoint_catalog_v2.py) - Unit tests (33 tests)
+- [tests/integration/test_checkpoint_catalog_v2_integration.py](tests/integration/test_checkpoint_catalog_v2_integration.py) - Integration tests (12 tests)
+
+**References**: See [checkpoint_catalog_refactor_plan.md](../checkpoint_catalog_refactor_plan.md) Phase 4
+
+---
+
+### Fixed - 2025-10-18
+
+#### BUG-2025-005: RBF Interpolation Performance Hang (Critical)
+
+**Bug**: Document flattening hung indefinitely with 130%+ CPU usage due to O(N×M) complexity explosion
+**Root Cause**: RBF interpolation computing displacements for every pixel in full-resolution images (1.2 billion operations for 2000×1500 image)
+**Impact**: CRITICAL - Document flattening completely unusable, causes infinite hang in Streamlit viewer
+**Fix**: Downsample images to ~800px before RBF computation, then upsample result (63× speedup)
+**Performance**:
+- Before: 3-15 seconds (or infinite hang) for 2000×1500 images
+- After: <1 second with minimal quality loss
+
+**Files Changed**:
+- `ocr/datasets/preprocessing/document_flattening.py:497-563` - Added downsampling to `_apply_rbf_warping`
+- `docs/bug_reports/BUG_2025_005_RBF_INTERPOLATION_HANG.md` - Detailed bug report
+
+**References**: See [BUG-2025-005](bug_reports/BUG_2025_005_RBF_INTERPOLATION_HANG.md) for technical analysis
+
+---
+
+#### BUG-2025-004: Streamlit Preprocessing Viewer Hanging
+
+**Bug**: Preprocessing viewer app hung indefinitely when running full pipeline (134% CPU usage)
+**Root Cause**: Document flattening defaulted to enabled (`True`) in pipeline code but disabled (`False`) in preset manager
+**Note**: This was a symptom of BUG-2025-005 above - the underlying RBF performance issue
+**Impact**: CRITICAL - App completely unusable for full pipeline processing
+**Fix**: Corrected default value in `ui/preprocessing_viewer/pipeline.py:185` from `True` to `False`
+**Additional Improvements**:
+- Added progress logging for all expensive operations (flattening, noise, brightness)
+- Improved error handling with logged exceptions instead of silent failures
+- Added pipeline start/completion logging for better debugging
+
+**Files Changed**:
+- `ui/preprocessing_viewer/pipeline.py` - Fixed defaults and added logging
+- `docs/bug_reports/BUG_2025_004_STREAMLIT_VIEWER_HANGING.md` - Bug report
+- `docs/ai_handbook/08_planning/preprocessing_viewer_debug_session.md` - Debug session handover
+
+**References**: See [BUG-2025-004](bug_reports/BUG_2025_004_STREAMLIT_VIEWER_HANGING.md) for full analysis
+
+### Added - 2025-10-18
+
+#### Phase 3 Complete: Enhanced Preprocessing Pipeline Integration
+
+**Status**: ✅ ALL PHASES COMPLETE (Phase 1, 2, 3)
+**Description**: Production-ready Office Lens quality preprocessing system delivered
+
+**Deliverables**:
+- Modular preprocessing pipeline with configurable enhancement chains
+- Quality-based processing decisions with automatic thresholds
+- Comprehensive performance monitoring and logging
+- Integration tests: 18/18 passing
+- Complete usage guide and documentation
+
+**Performance Benchmarks**:
+- Fast preprocessor: ~50ms (basic features)
+- Full Office Lens: ~150ms (all enhancements)
+- Quality scores: Established for all features
+
+**Files Added**:
+- `ocr/datasets/preprocessing/enhanced_pipeline.py` - Enhanced pipeline (500+ lines)
+- `tests/integration/test_phase3_pipeline_integration.py` - Integration tests (18 tests)
+- `docs/ai_handbook/03_references/guides/enhanced_preprocessing_usage.md` - Usage guide
+- `docs/ai_handbook/05_changelog/2025-10/15_phase3_complete.md` - Phase 3 changelog
+
+**References**: See [Phase 3 Complete](ai_handbook/05_changelog/2025-10/15_phase3_complete.md) for details
+
 ### Added - 2025-10-18
 
 #### Checkpoint Loading Validation System

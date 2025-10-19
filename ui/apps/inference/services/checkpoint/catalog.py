@@ -282,6 +282,7 @@ class CheckpointCatalogBuilder:
         hmean = None
         precision = None
         recall = None
+        max_epochs_from_config = None
 
         if config_data:
             model_cfg = config_data.get("model", {})
@@ -291,7 +292,7 @@ class CheckpointCatalogBuilder:
             backbone = encoder_cfg.get("model_name", "unknown")
 
             trainer_cfg = config_data.get("trainer", {})
-            epochs = trainer_cfg.get("max_epochs")
+            max_epochs_from_config = trainer_cfg.get("max_epochs")
 
         # Try to infer from path if config didn't help
         if architecture == "unknown":
@@ -304,7 +305,7 @@ class CheckpointCatalogBuilder:
             if path_encoder:
                 backbone = path_encoder
 
-        # Load checkpoint for metrics and final fallback (slow!)
+        # Load checkpoint for metrics and actual epoch (slow!)
         checkpoint_data = load_checkpoint(checkpoint_path)
 
         if checkpoint_data:
@@ -315,9 +316,8 @@ class CheckpointCatalogBuilder:
                 precision = self._maybe_float(cleval_metrics.get("precision"))
                 recall = self._maybe_float(cleval_metrics.get("recall"))
 
-            # Infer epoch from checkpoint if not in config
-            if epochs is None:
-                epochs = checkpoint_data.get("epoch")
+            # Get epoch from checkpoint (prioritize over config max_epochs)
+            epochs = checkpoint_data.get("epoch")
 
             # Infer encoder from state dict if still unknown
             if backbone == "unknown":
@@ -326,6 +326,10 @@ class CheckpointCatalogBuilder:
                     inferred_encoder = infer_encoder_from_state(state_dict)
                     if inferred_encoder:
                         backbone = inferred_encoder
+
+        # Fall back to config max_epochs only if checkpoint didn't have epoch
+        if epochs is None and max_epochs_from_config is not None:
+            epochs = max_epochs_from_config
 
         # Extract epoch from filename if still not found
         if epochs is None:

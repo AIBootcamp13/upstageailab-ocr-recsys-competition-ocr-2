@@ -1,0 +1,40 @@
+# Background removal transform configurations
+# These can be included in your transform pipelines
+
+# Basic background removal (fast, good quality)
+background_removal_basic:
+  _target_: ocr.datasets.preprocessing.external.BackgroundRemoval
+  model: "u2net"
+  alpha_matting: false
+  p: 1.0
+
+# High-quality background removal with alpha matting
+background_removal_high_quality:
+  _target_: ocr.datasets.preprocessing.external.BackgroundRemoval
+  model: "u2net"
+  alpha_matting: true
+  alpha_matting_foreground_threshold: 240
+  alpha_matting_background_threshold: 10
+  alpha_matting_erode_size: 10
+  p: 1.0
+
+# Lightweight model for faster processing
+background_removal_fast:
+  _target_: ocr.datasets.preprocessing.external.BackgroundRemoval
+  model: "u2netp"
+  alpha_matting: false
+  p: 1.0
+
+# Only generate mask (for debugging or custom compositing)
+background_removal_mask_only:
+  _target_: ocr.datasets.preprocessing.external.BackgroundRemoval
+  model: "u2net"
+  only_mask: true
+  p: 1.0
+
+# Convenience function for easy configuration
+background_removal_default:
+  _target_: ocr.datasets.preprocessing.external.create_background_removal_transform
+  model: "u2net"
+  alpha_matting: true
+  p: 1.0

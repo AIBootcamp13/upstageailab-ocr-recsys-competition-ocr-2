@@ -119,13 +119,12 @@ def main():
             st.success("Parameters reset to defaults.")
             st.rerun()
 
-        updated_config = parameter_controls.render_parameter_panels(
+        parameter_controls.render_parameter_panels(
             st.session_state.viewer_config,
             handle_config_change,
         )
-        if updated_config != st.session_state.viewer_config:
-            st.session_state.viewer_config = dict(updated_config)
-            st.session_state.current_config = dict(updated_config)
+        # Note: Don't update session_state here - parameter_controls uses on_change_callback
+        # Updating here causes infinite rerun loop since render_parameter_panels always returns a new dict
 
         with st.expander("Current Configuration (JSON)", expanded=False):
             st.json(st.session_state.viewer_config)

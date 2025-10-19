@@ -8,6 +8,7 @@ defaults:
   - rich_progress_bar
   - wandb_image_logging
   - performance_profiler
+  - metadata  # Checkpoint Catalog V2: automatic metadata generation
   - _self_
 
 wandb_completion:
