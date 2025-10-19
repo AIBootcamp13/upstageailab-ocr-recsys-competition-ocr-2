@@ -31,15 +31,66 @@ Success: no issues found in 1 source file
 
 ### 2. ✅ Streamlit Inference UI Predictions Not Working
 
-**Issue**: User reported that single and batch predictions do not work in the Streamlit UI.
+**Issue**: User reported that single and batch predictions do not work in the Streamlit UI with error:
+```
+❌ Inference failed: Inference engine returned no results.
+ValueError: signal only works in main thread of the main interpreter
+```
 
-**Finding**: The inference engine itself works perfectly. Testing showed:
-- ✅ Direct inference via `run_inference_on_image()`: **85 polygons detected**
-- ✅ `InferenceService._perform_inference()`: **Success with 85 polygons**
-- ✅ Batch prediction request creation: **Functional**
-- ✅ All imports and dependencies: **Available**
+**Finding**: The inference engine worked in direct testing but failed in Streamlit due to threading incompatibility.
 
-**Root Cause**: UI button inconsistency - some buttons used `width="stretch"` (deprecated in newer Streamlit) instead of the recommended `use_container_width=True`.
+**Root Causes** (2 issues found and fixed):
+
+#### Issue 2a: Signal-Based Timeout (CRITICAL)
+The inference engine used `signal.signal()` for timeout handling, which **only works in the main thread**. Streamlit runs in separate threads, causing the error.
+
+**Resolution**: Replaced signal-based timeout with thread-safe threading-based timeout in [ui/utils/inference/engine.py](ui/utils/inference/engine.py):
+
+```python
+# Before (signal-based - main thread only):
+import signal
+
+def _run_with_timeout(func, timeout_seconds=30):
+    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)  # ❌ Fails in thread
+    signal.alarm(timeout_seconds)
+    try:
+        result = func()
+        return result
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+# After (threading-based - works anywhere):
+import threading
+from collections.abc import Callable
+
+def _run_with_timeout(func: Callable, timeout_seconds: int = 30) -> Any:
+    """Run a function with a timeout using threading (thread-safe for Streamlit)."""
+    result = [None]
+    exception = [None]
+
+    def _wrapper():
+        try:
+            result[0] = func()
+        except Exception as e:
+            exception[0] = e
+
+    thread = threading.Thread(target=_wrapper)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout=timeout_seconds)
+
+    if thread.is_alive():
+        raise TimeoutError(f"Inference operation timed out after {timeout_seconds} seconds")
+
+    if exception[0] is not None:
+        raise exception[0]
+
+    return result[0]
+```
+
+#### Issue 2b: Button Parameter Inconsistency (Minor)
+Some buttons used `width="stretch"` instead of the recommended `use_container_width=True`.
 
 **Resolution**: Fixed button parameters in sidebar.py:
 ```python
@@ -51,19 +102,27 @@ if st.button("🚀 Run Inference", type="primary", use_container_width=True):
 ```
 
 **Files Modified**:
-- [ui/apps/inference/components/sidebar.py:490](ui/apps/inference/components/sidebar.py#L490)
-- [ui/apps/inference/components/sidebar.py:507](ui/apps/inference/components/sidebar.py#L507)
+- [ui/utils/inference/engine.py](ui/utils/inference/engine.py) - **CRITICAL**: Threading timeout fix
+- [ui/apps/inference/components/sidebar.py:490](ui/apps/inference/components/sidebar.py#L490) - Button fix
+- [ui/apps/inference/components/sidebar.py:507](ui/apps/inference/components/sidebar.py#L507) - Button fix
 
 **Test Results**:
 ```
+Testing thread-safe timeout function...
+✅ Test 1 (normal execution): success
+✅ Test 2 (timeout): Correctly timed out
+✅ Test 3 (exception): Correctly raised
+
 Testing inference with:
   Checkpoint: outputs/transforms_test-dbnetpp-dbnetpp_decoder-resnet18/checkpoints/epoch-18_step-003895.ckpt
   Image: data/datasets/LOW_PERFORMANCE_IMGS_canonical/drp.en_ko.in_house.selectstar_003949.jpg
 
-Inference successful!
+✅ Inference successful!
 Result keys: ['polygons', 'texts', 'confidences']
 Number of polygons detected: 85
 ```
+
+**Detailed Documentation**: See [19_streamlit_inference_threading_fix.md](docs/ai_handbook/05_changelog/2025-10/19_streamlit_inference_threading_fix.md)
 
 ---
 

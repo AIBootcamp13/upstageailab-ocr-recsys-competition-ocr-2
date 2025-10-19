@@ -80,6 +80,8 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
     raw_width, raw_height = pil_image.size
     normalized_image, orientation = normalize_pil_image(pil_image)
 
+    canonical_width, canonical_height = normalized_image.size
+
     if normalized_image.mode != "RGB":
         image = normalized_image.convert("RGB")
     else:
@@ -96,7 +98,7 @@ def display_image_with_predictions(df: pd.DataFrame, image_name: str, image_dir:
 
     if orientation != 1 and polygons:
         np_polygons = [np.array(coords, dtype=np.float32).reshape(1, -1, 2) for coords in polygons]
-        remapped = remap_polygons(np_polygons, raw_width, raw_height, orientation)
+        remapped = remap_polygons(np_polygons, canonical_width, canonical_height, orientation)
         polygons = [poly.reshape(-1).tolist() for poly in remapped]
 
     if polygons:

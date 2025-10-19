@@ -43,6 +43,27 @@ make quality-check
 uv run python scripts/agent_tools/validate_config.py --config-name train
 ```
 
+### Bug Reporting & Documentation
+```bash
+# For critical/standard bugs (full documentation)
+# 1. Create bug report: docs/bug_reports/BUG-YYYY-NNN_descriptive_name.md
+# 2. Update changelog: docs/CHANGELOG.md
+# 3. Follow: docs/ai_handbook/02_protocols/development/12_bug_fix_protocol.md
+
+# For quick fixes (minimal logging)
+# 1. Log in: docs/QUICK_FIXES.md
+# 2. Follow: docs/ai_handbook/02_protocols/development/11_quick_fixes_protocol.md
+```
+
+### Documentation Maintenance
+```bash
+# Update documentation automatically when making changes
+# 1. Update relevant docs with current date (YYYY-MM-DD)
+# 2. Add changelog entries for significant changes
+# 3. Update version numbers and revision dates
+# 4. Flag outdated documentation for review
+```
+
 ### UI Development & Testing
 ```bash
 # Start different UIs
@@ -70,6 +91,43 @@ make serve-resource-monitor      # System monitoring
 - **Image format**: `(H, W, 3)` numpy arrays, uint8 or float32
 - **Probability maps**: `(H, W)` float32 arrays in range [0, 1]
 - **Validation**: Runtime checks prevent shape/type errors
+
+### Documentation Standards
+- **Bug Reports**: `docs/bug_reports/BUG-YYYY-NNN_descriptive_name.md` format
+- **Bug IDs**: Sequential `BUG-YYYY-NNN` numbering within each year
+- **Changelog**: Reference bug reports with proper links
+- **Quick Fixes**: Use `docs/QUICK_FIXES.md` for minor patches only
+
+### Automatic Documentation Updates
+**Date all documentation changes automatically:**
+- Use current date format: `YYYY-MM-DD` (e.g., `2025-10-19`)
+- Update "Last Updated" fields in protocols and documentation
+- Add timestamps to changelog entries and quick fixes
+- Include version numbers and revision dates in templates
+
+**Update documentation when:**
+- Adding new features or APIs
+- Changing existing behavior or interfaces
+- Fixing bugs that affect user workflows
+- Updating dependencies or configurations
+- Modifying protocols or development processes
+- Adding new team members or changing responsibilities
+
+**Documentation maintenance tasks:**
+- Update version numbers in README files
+- Refresh API documentation after code changes
+- Update installation instructions for new dependencies
+- Revise troubleshooting guides based on common issues
+- Update performance benchmarks after optimizations
+- Maintain changelog with proper categorization and dates
+
+**Changelog management:**
+- Add entries immediately when changes are made
+- Use consistent date format: `YYYY-MM-DD`
+- Categorize changes: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`
+- Reference related issues, PRs, or bug reports
+- Include breaking changes warnings
+- Update version numbers and release dates
 
 ## Integration Points
 
@@ -127,6 +185,35 @@ result = transforms(sample)  # Validates input/output contracts
 # Document hypothesis, config, and results
 ```
 
+### Documentation Updates
+**When modifying code, automatically update related documentation:**
+```markdown
+# Example: After adding a new configuration option
+1. Update the configuration documentation
+2. Add examples in relevant guides
+3. Update changelog with the addition
+4. Refresh any related API documentation
+
+# Example: After fixing a bug
+1. Update troubleshooting guides if the issue was common
+2. Add prevention notes to relevant documentation
+3. Update changelog with fix details
+4. Consider updating user-facing guides
+
+# Example: After adding a new feature
+1. Create or update feature documentation
+2. Add usage examples and tutorials
+3. Update API documentation
+4. Add changelog entry with feature details
+```
+
+**Proactive documentation suggestions:**
+- Suggest README updates when project structure changes
+- Recommend documentation updates after API modifications
+- Flag outdated examples or tutorials
+- Identify missing documentation for new features
+- Suggest changelog entries for significant changes
+
 ## Key Files & Directories
 - `docs/ai_handbook/index.md`: Complete project documentation index
 - `docs/pipeline/data_contracts.md`: Data structure specifications
@@ -142,3 +229,10 @@ result = transforms(sample)  # Validates input/output contracts
 - **Test coverage**: pytest suite with automated validation
 
 Remember: Check `docs/ai_handbook/index.md` for task-specific context bundles and protocols before making changes.
+
+**Documentation Maintenance Reminder:**
+- Always date documentation updates with current date (YYYY-MM-DD)
+- Update changelogs immediately when making changes
+- Keep documentation synchronized with code changes
+- Flag outdated documentation for review
+- Maintain version numbers and revision dates

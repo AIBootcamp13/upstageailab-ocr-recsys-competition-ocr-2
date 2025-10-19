@@ -131,6 +131,28 @@ python scripts/generate_checkpoint_metadata.py --outputs-dir /path/to/outputs
 
 ---
 
+### Fixed - 2025-10-19
+
+#### BUG-2025-010: Inference UI Coordinate Transformation Bug (Critical)
+
+**Bug**: OCR text annotations were misaligned in the inference UI for EXIF-oriented images, appearing rotated 90° clockwise relative to the correctly displayed image
+**Root Cause**: `InferenceEngine._remap_predictions_if_needed()` incorrectly applied inverse orientation transformations to predictions that were already in the normalized coordinate system
+**Impact**: CRITICAL - Inference results completely unusable for images with EXIF orientation metadata (orientation 2-8)
+**Fix**: Removed incorrect `_remap_predictions_if_needed()` calls that applied inverse transformations
+**Technical Details**:
+- Predictions are generated in normalized coordinate system after image rotation
+- Inverse transformations moved annotations to wrong positions
+- Fix maintains predictions in correct coordinate system for display
+
+**Files Changed**:
+- `ui/utils/inference/engine.py` - Removed incorrect coordinate transformations
+
+**Testing**: Verified fix with test image `drp.en_ko.in_house.selectstar_000699.jpg` (EXIF orientation 6)
+
+**References**: See [Inference UI Coordinate Transformation Bug](ai_handbook/05_changelog/2025-10/19_inference-ui-coordinate-transformation-bug.md) for detailed analysis
+
+---
+
 ### Fixed - 2025-10-18
 
 #### BUG-2025-005: RBF Interpolation Performance Hang (Critical)

@@ -7,22 +7,15 @@ visualizers, inference, logging) can stay in sync.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Any
 
 import numpy as np
 from PIL import Image
 
-# EXIF orientation tag constant (mirrors `ocr.datasets.base.EXIF_ORIENTATION`).
-EXIF_ORIENTATION_TAG = 274
-
-# Valid EXIF orientation values. Anything outside this set is treated as "normal".
-_VALID_ORIENTATIONS = {1, 2, 3, 4, 5, 6, 7, 8}
-
-FLIP_LEFT_RIGHT: Any
-try:  # Pillow>=9
-    FLIP_LEFT_RIGHT = Image.Transpose.FLIP_LEFT_RIGHT  # type: ignore[attr-defined]
-except AttributeError:  # pragma: no cover - Pillow<9 fallback
-    FLIP_LEFT_RIGHT = Image.FLIP_LEFT_RIGHT  # type: ignore[attr-defined]
+from .orientation_constants import (
+    EXIF_ORIENTATION_TAG,
+    VALID_ORIENTATIONS,
+    get_orientation_transform,
+)
 
 
 def get_exif_orientation(image: Image.Image) -> int:
@@ -33,7 +26,7 @@ def get_exif_orientation(image: Image.Image) -> int:
 
 def orientation_requires_rotation(orientation: int) -> bool:
     """True when EXIF orientation implies any rotation or mirroring."""
-    return orientation in _VALID_ORIENTATIONS and orientation != 1
+    return orientation in VALID_ORIENTATIONS and orientation != 1
 
 
 def normalize_pil_image(
@@ -46,40 +39,13 @@ def normalize_pil_image(
     Returns the normalized image (copied only when necessary) and the orientation
     value that was applied. Orientation 1 returns the original image reference.
     """
-
     orientation = get_exif_orientation(image)
-    if not orientation_requires_rotation(orientation):
+    transform = get_orientation_transform(orientation)
+
+    if not transform.requires_rotation:
         return image, orientation
 
-    rotate_kwargs: dict[str, Any] = {}
-    if fillcolor is not None:
-        rotate_kwargs["fillcolor"] = fillcolor
-
-    resampling: Any
-    try:
-        resampling = Image.Resampling.BICUBIC  # type: ignore[attr-defined]
-    except AttributeError:  # pragma: no cover
-        resampling = Image.BICUBIC  # type: ignore[attr-defined]
-
-    rotate_kwargs.setdefault("resample", resampling)
-
-    if orientation == 2:
-        normalized = image.transpose(FLIP_LEFT_RIGHT)
-    elif orientation == 3:
-        normalized = image.rotate(180, **rotate_kwargs)
-    elif orientation == 4:
-        normalized = image.rotate(180, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
-    elif orientation == 5:
-        normalized = image.rotate(-90, expand=True, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
-    elif orientation == 6:
-        normalized = image.rotate(-90, expand=True, **rotate_kwargs)
-    elif orientation == 7:
-        normalized = image.rotate(90, expand=True, **rotate_kwargs).transpose(FLIP_LEFT_RIGHT)
-    elif orientation == 8:
-        normalized = image.rotate(90, expand=True, **rotate_kwargs)
-    else:  # pragma: no cover - orientation outside EXIF spec
-        normalized = image
-
+    normalized = transform.apply_to_image(image, fillcolor=fillcolor)
     return normalized, orientation
 
 
@@ -152,32 +118,8 @@ def _transform_points(
     orientation: int,
 ) -> np.ndarray:
     """Map coordinates from original sensor frame to rotated canonical frame."""
-    if orientation == 2:
-        x_new = width - 1.0 - points[:, 0]
-        y_new = points[:, 1]
-    elif orientation == 3:
-        x_new = width - 1.0 - points[:, 0]
-        y_new = height - 1.0 - points[:, 1]
-    elif orientation == 4:
-        x_new = points[:, 0]
-        y_new = height - 1.0 - points[:, 1]
-    elif orientation == 5:
-        x_new = points[:, 1]
-        y_new = points[:, 0]
-    elif orientation == 6:
-        x_new = height - 1.0 - points[:, 1]
-        y_new = points[:, 0]
-    elif orientation == 7:
-        x_new = height - 1.0 - points[:, 1]
-        y_new = width - 1.0 - points[:, 0]
-    elif orientation == 8:
-        x_new = points[:, 1]
-        y_new = width - 1.0 - points[:, 0]
-    else:
-        return points.copy()
-
-    transformed = np.stack([x_new, y_new], axis=-1)
-    return transformed.astype(points.dtype, copy=False)
+    transform = get_orientation_transform(orientation)
+    return transform.apply_to_points(points, width, height)
 
 
 def apply_affine_transform_to_polygons(
@@ -273,7 +215,6 @@ def polygons_in_canonical_frame(
 __all__ = [
     "EXIF_ORIENTATION_TAG",
     "apply_affine_transform_to_polygons",
-    "FLIP_LEFT_RIGHT",
     "get_exif_orientation",
     "normalize_ndarray",
     "normalize_pil_image",

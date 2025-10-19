@@ -7,11 +7,16 @@
 ## **Overview**
 This protocol provides a minimal, structured format for recording quick fixes, patches, and hotfixes. Designed for rapid logging of numerous small changes without verbose documentation overhead.
 
+**Related Protocols**:
+- **[Bug Fix Protocol](./12_bug_fix_protocol.md)**: For critical/standard bugs requiring full documentation
+- **Distinction**: Use bug reports for issues with clear reproduction steps; use quick fixes for minor patches
+
 ## **Prerequisites**
 - Access to project repository and documentation
 - Understanding of basic Markdown formatting
 - Familiarity with the project's development workflow
 - Access to the QUICK_FIXES.md log file
+- Knowledge of when to use [Bug Fix Protocol](./12_bug_fix_protocol.md) vs quick fixes
 
 ## **Procedure**
 
@@ -163,12 +168,15 @@ Confirm the entry was added correctly to docs/QUICK_FIXES.md with proper formatt
 - Configuration adjustments that resolve runtime errors
 - Dependency updates that fix compatibility problems
 - Documentation corrections that fix misleading information
+- **Minor patches** (< 5 lines changed) that don't require full bug reports
 
 ### **When NOT to Log**
 - Planned feature implementations (use CHANGELOG.md)
 - Refactoring without bug fixes
 - Code style or formatting changes
 - Test additions without fixes
+- **Critical bugs** requiring full documentation (use [Bug Fix Protocol](./12_bug_fix_protocol.md))
+- **Standard bugs** with clear reproduction steps (use [Bug Fix Protocol](./12_bug_fix_protocol.md))
 
 ### **Best Practices**
 - **Keep it brief**: Maximum 5 lines per entry
@@ -206,6 +214,7 @@ grep "Impact:" docs/QUICK_FIXES.md | sort | uniq -c
 ```
 
 ## **Related Documents**
+- **[Bug Fix Protocol](./12_bug_fix_protocol.md)**: Comprehensive bug documentation for critical/standard issues
 - [CHANGELOG.md](../../CHANGELOG.md) - Major feature releases and planned changes
 - [Context Logging Protocol](./06_context_logging.md) - Detailed agent action logging
 - [Debugging Workflow](./03_debugging_workflow.md) - Systematic debugging procedures

@@ -237,6 +237,10 @@ request = BatchPredictionRequest(
 1. ✅ Diagnosed and resolved all reported issues:
    - No actual mypy errors in wandb_client.py (already correct)
    - Fixed button parameter inconsistency in sidebar.py
+   - **CRITICAL FIX**: Replaced signal-based timeout with thread-safe timeout in engine.py
+     - Root cause: `signal.signal()` only works in main thread, Streamlit runs in threads
+     - Solution: Implemented threading-based timeout mechanism
+     - Impact: Streamlit inference now fully functional
    - Verified inference engine works correctly (85 polygons detected)
    - Confirmed checkpoint catalog refactoring did not break inference
 2. ✅ Created coordinate validation script: `scripts/validate_coordinate_consistency.py`
@@ -245,11 +249,13 @@ request = BatchPredictionRequest(
 
 **FILES MODIFIED:**
 - `ui/apps/inference/components/sidebar.py` - Fixed button parameters (lines 490, 507)
+- `ui/utils/inference/engine.py` - **CRITICAL**: Fixed threading issue (signal → threading)
 
 **FILES CREATED:**
 - `scripts/validate_coordinate_consistency.py` - Coordinate validation tool
 - `test_streamlit_inference_debug.py` - Debug diagnostic script
 - `docs/ai_handbook/05_changelog/2025-10/19_streamlit_batch_prediction_phase3_summary.md`
+- `docs/ai_handbook/05_changelog/2025-10/19_streamlit_inference_threading_fix.md`
 
 **NEXT RECOMMENDED TASK:**
 Phase 4: Testing & Validation (Task 4.1 - Unit & Integration Tests)

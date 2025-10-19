@@ -94,6 +94,8 @@ def test_dataset_to_inference_to_viewer_alignment(tmp_path: Path, orientation: i
         orientation=orientation,
         canonical_width=int(canonical_width),
         canonical_height=int(canonical_height),
+        raw_width=100,
+        raw_height=200,
     )
 
     raw_polygons_str = remapped_result.get("polygons", "")
@@ -114,7 +116,7 @@ def test_dataset_to_inference_to_viewer_alignment(tmp_path: Path, orientation: i
     np_polygons = [np.asarray(poly, dtype=np.float32).reshape(1, -1, 2) for poly in parsed_polygons]
 
     if applied_orientation != 1:
-        remapped_viewer = remap_polygons(np_polygons, raw_width, raw_height, applied_orientation)
+        remapped_viewer = remap_polygons(np_polygons, canonical_width, canonical_height, applied_orientation)
     else:
         remapped_viewer = np_polygons
 

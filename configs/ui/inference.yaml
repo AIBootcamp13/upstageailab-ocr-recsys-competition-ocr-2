@@ -32,14 +32,14 @@ hyperparameters:
     min: 0.0
     max: 1.0
     step: 0.05
-    default: 0.3
+    default: 0.2
     help: "Threshold for converting probability maps to binary text regions. Lower values detect more text."
   box_thresh:
     label: "Box Threshold"
     min: 0.0
     max: 1.0
     step: 0.05
-    default: 0.4
+    default: 0.2
     help: "Threshold for filtering detected text boxes. Higher values are more strict."
   max_candidates:
     label: "Max Candidates"
