@@ -25,21 +25,11 @@ from PIL import Image, ImageDraw
 
 from ..models.config import UIConfig
 from ..models.data_contracts import InferenceResult, Predictions, PreprocessingInfo
-from ..state import InferenceState, clear_session_state
+from ..state import InferenceState
 
 
 def render_results(state: InferenceState, config: UIConfig) -> None:
     st.header("📊 Inference Results")
-
-    controls_col1, controls_col2 = st.columns(2)
-    with controls_col1:
-        if st.button("🗑️ Clear Results", key="clear_results_main", use_container_width=True):
-            _clear_state_results(state)
-            st.rerun()
-    with controls_col2:
-        if st.button("♻️ Reset Session", key="reset_session_main", use_container_width=True):
-            clear_session_state()
-            st.rerun()
 
     if not state.inference_results:
         st.info("No inference results yet. Upload images and run inference to see results.")

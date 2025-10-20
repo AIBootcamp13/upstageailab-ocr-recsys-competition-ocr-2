@@ -91,6 +91,16 @@ def _clear_inference_results(state: InferenceState) -> None:
     state.persist()
 
 
+def _clear_image_list(state: InferenceState) -> None:
+    """Clear only the uploaded image list while keeping inference results."""
+    state.selected_images.clear()
+    state.processed_images.clear()
+    # Clear the previous_uploaded_files from session state to reset file uploader
+    if "previous_uploaded_files" in st.session_state:
+        st.session_state.previous_uploaded_files = set()
+    state.persist()
+
+
 def _render_batch_mode_controls(
     state: InferenceState,
     metadata: CheckpointMetadata | None,
@@ -542,12 +552,16 @@ def _render_clear_results(state: InferenceState) -> None:
     if not (state.inference_results or state.processed_images or state.selected_images):
         return
     st.divider()
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("🗑️ Clear Results", use_container_width=True):
             _clear_inference_results(state)
             st.rerun()
     with col2:
+        if st.button("📋 Clear Image List", use_container_width=True):
+            _clear_image_list(state)
+            st.rerun()
+    with col3:
         if st.button("♻️ Reset Session", use_container_width=True):
             clear_session_state()
             st.rerun()
